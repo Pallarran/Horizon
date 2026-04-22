@@ -1,0 +1,426 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// CORE ENTITIES
+// ============================================================================
+
+// User — one row per human using the app (primary user + spouse)
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String                          // argon2id hash; NEVER plaintext
+  displayName     String
+  birthYear       Int                             // drives age-based calculations
+  locale          String    @default("fr-CA")     // "fr-CA" | "en-CA"
+  baseCurrency    String    @default("CAD")       // always CAD for v1
+  theme           String    @default("system")    // "light" | "dark" | "system"
+  targetRetirementAge Int   @default(55)
+  targetIncomeReplacement Decimal @default(0.70)  // 70% of current salary
+  currentSalaryCents BigInt                       // in baseCurrency
+
+  // Role & lifecycle
+  isAdmin         Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  mustChangePassword Boolean @default(false)
+  lastLoginAt     DateTime?
+
+  // Future household grouping — nullable until implemented
+  householdId     String?
+  household       Household? @relation(fields: [householdId], references: [id])
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  accounts        Account[]
+  pensions        Pension[]
+  scenarios       Scenario[]
+  incomeStreams   IncomeStream[]
+  contributionYears ContributionYear[]
+  watchlistItems  WatchlistItem[]
+  sessions        Session[]
+  importProfiles  ImportProfile[]
+  importBatches   ImportBatch[]
+
+  @@index([householdId])
+}
+
+// Session — auth session tokens (opaque random strings)
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique                    // opaque, cryptographically random
+  expiresAt  DateTime
+  userAgent  String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+// Household — v1 stub. No UI exposure in v1.
+model Household {
+  id          String   @id @default(cuid())
+  name        String
+  createdAt   DateTime @default(now())
+
+  users       User[]
+}
+
+// Account — a financial account holding positions
+model Account {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  name         String                          // "CELI (CAD)", "Marge (USD)", etc.
+  type         AccountType
+  currency     String                          // "CAD" | "USD"
+  externalId   String?                         // broker account number, if known
+  isActive     Boolean       @default(true)
+  orderIndex   Int           @default(0)       // display order on dashboard
+  openedDate   DateTime?
+  closedDate   DateTime?
+  createdAt    DateTime      @default(now())
+
+  transactions  Transaction[]
+  contributions Contribution[]
+  crcdHoldings  CRCDHolding[]
+  importProfiles ImportProfile[]
+
+  @@index([userId])
+}
+
+enum AccountType {
+  CELI           // TFSA
+  REER           // RRSP
+  MARGE          // Non-registered margin
+  CRCD           // Quebec co-op investment
+  CASH           // Simple cash account
+  OTHER
+}
+
+// Security — the underlying asset (stock, ETF, etc.)
+model Security {
+  id               String    @id @default(cuid())
+  symbol           String                          // "ENB.TO", "MSFT", "VCE.TO"
+  exchange         String                          // "TSX", "NYSE", "NASDAQ", "NEO"
+  name             String
+  currency         String                          // currency it trades in
+  assetClass       AssetClass
+  sector           String?
+  industry         String?
+  isDividendAristocrat Boolean @default(false)
+  isDividendKing   Boolean   @default(false)
+  isPaysMonthly    Boolean   @default(false)
+  dataSource       DataSource @default(YAHOO)
+  manualPrice      Decimal?                         // for non-traded like CRCD
+  notes            String?
+
+  // Dividend metadata — populated by nightly Yahoo fetch unless manualDividendOverride = true
+  annualDividendCents BigInt?                      // annual dividend per share in cents
+  dividendFrequency   String?                      // "monthly" | "quarterly" | "semi-annual" | "annual"
+  dividendGrowthYears Int?                         // consecutive years of dividend increases
+  manualDividendOverride Boolean @default(false)
+
+  createdAt        DateTime  @default(now())
+
+  transactions     Transaction[]
+  prices           Price[]
+  watchlistItems   WatchlistItem[]
+
+  @@unique([symbol, exchange])
+}
+
+enum AssetClass {
+  CANADIAN_EQUITY
+  US_EQUITY
+  INTERNATIONAL_EQUITY
+  REIT
+  ETF
+  BOND
+  PREFERRED_SHARE
+  CRCD_SHARE
+  CASH
+  OTHER
+}
+
+enum DataSource {
+  YAHOO
+  MANUAL
+  CRCD_FEED
+}
+
+// Position — computed at query time from transactions (see /lib/positions/).
+// NOT a persisted Prisma model in v1. Defined as a TypeScript interface
+// (ComputedPosition) in code. See §3.3 and §4.7 of the PRD.
+
+// Transaction — the source of truth for all holdings changes
+//
+// SIGN CONVENTION for amountCents (natural / cash-flow perspective):
+//   Negative (money leaves):  BUY, DRIP, WITHDRAWAL, FEE, TAX_WITHHELD
+//   Positive (money arrives):  SELL, DIVIDEND, INTEREST, DEPOSIT
+//   Zero (no cash movement):   SPLIT, MERGER
+//   Signed as appropriate:     ADJUSTMENT
+model Transaction {
+  id            String          @id @default(cuid())
+  accountId     String
+  account       Account         @relation(fields: [accountId], references: [id])
+  securityId    String?                              // null for pure cash movements
+  security      Security?       @relation(fields: [securityId], references: [id])
+  type          TransactionType
+  date          DateTime        @db.Date
+  quantity      Decimal?                             // for BUY/SELL, number of shares
+  priceCents    BigInt?                              // per-share price in transaction currency
+  amountCents   BigInt                               // total signed amount in transaction currency
+  currency      String                               // transaction currency, not base
+  feeCents      BigInt          @default(0)
+  note          String?
+  importBatchId String?
+  importBatch   ImportBatch?    @relation(fields: [importBatchId], references: [id])
+  createdAt     DateTime        @default(now())
+
+  @@index([accountId, date])
+  @@index([securityId, date])
+  @@index([importBatchId])
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  DIVIDEND
+  INTEREST
+  FEE
+  DEPOSIT
+  WITHDRAWAL
+  TAX_WITHHELD
+  SPLIT
+  DRIP
+  MERGER
+  ADJUSTMENT
+}
+
+// Price — daily close prices for a security
+model Price {
+  id         String   @id @default(cuid())
+  securityId String
+  security   Security @relation(fields: [securityId], references: [id])
+  date       DateTime @db.Date
+  priceCents BigInt                           // in the security's native currency
+  source     String   @default("yahoo")
+
+  @@unique([securityId, date])
+  @@index([date])
+}
+
+// FX rate — daily exchange rates
+model FxRate {
+  id              String   @id @default(cuid())
+  fromCurrency    String
+  toCurrency      String
+  date            DateTime @db.Date
+  rate            Decimal  @db.Decimal(18, 8)
+  source          String   @default("yahoo")
+
+  @@unique([fromCurrency, toCurrency, date])
+  @@index([date])
+}
+
+// ============================================================================
+// PLANNING ENTITIES
+// ============================================================================
+
+// Pension — user's defined-benefit pension(s)
+model Pension {
+  id                    String  @id @default(cuid())
+  userId                String
+  user                  User    @relation(fields: [userId], references: [id])
+  name                  String                         // "RRMD"
+  startYear             Int                            // service start year
+  baseAccrualRate       Decimal                        // e.g., 0.015 (1.5%)
+  initialBaseYears      Int     @default(2)
+  earlyRetirementReduction Decimal @default(0.04)      // 4% per year before normalAge
+  normalRetirementAge   Int     @default(65)
+  salaryBasisCents      BigInt
+  isActive              Boolean @default(true)
+}
+
+// IncomeStream — non-investment income sources for retirement projection
+model IncomeStream {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  name              String                             // "QPP", "OAS", "RRMD pension"
+  type              IncomeType
+  startAge          Int
+  endAge            Int?                               // null = lifetime
+  annualAmountCents BigInt?                            // fixed amount, or null if computed
+  computedFromPensionId String?
+  inflationIndexed  Boolean   @default(true)
+  notes             String?
+}
+
+enum IncomeType {
+  PENSION
+  GOVERNMENT_BENEFIT
+  RENTAL
+  OTHER
+}
+
+// Scenario — a named retirement scenario for comparison
+model Scenario {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id])
+  name                String
+  retirementAge       Int
+  targetIncomeReplacement Decimal
+  assumedPriceGrowth  Decimal
+  assumedDividendGrowth Decimal
+  assumedInflation    Decimal  @default(0.025)
+  monthlyContributionCents BigInt
+  contributionAllocation Json  // { [accountId: string]: number } — percentages summing to 1.0
+  reinvestDividends   Boolean  @default(true)
+  isBaseline          Boolean  @default(false)
+  createdAt           DateTime @default(now())
+}
+
+// ContributionYear — REER/CELI/CRCD contribution tracking
+model ContributionYear {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id])
+  year               Int
+  age                Int
+
+  // REER
+  reerLimitCents     BigInt   @default(0)
+  reerContributionCents BigInt @default(0)
+
+  // CELI
+  celiLimitCents     BigInt   @default(0)
+  celiContributionCents BigInt @default(0)
+
+  // Marge (non-registered)
+  margeContributionCents BigInt @default(0)
+
+  // CRCD
+  crcdContributionCents BigInt @default(0)
+
+  notes String?
+
+  @@unique([userId, year])
+}
+
+// Contribution — individual contribution events
+model Contribution {
+  id         String   @id @default(cuid())
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id])
+  date       DateTime @db.Date
+  amountCents BigInt
+  note       String?
+}
+
+// CRCDHolding — tracks individual CRCD tranches
+model CRCDHolding {
+  id                    String   @id @default(cuid())
+  accountId             String
+  account               Account  @relation(fields: [accountId], references: [id])
+  purchaseYear          Int
+  quantity              Decimal
+  averagePriceCents     BigInt
+  redemptionEligibleDate DateTime @db.Date
+  taxCreditClaimedCents BigInt   @default(0)
+  notes                 String?
+}
+
+// Watchlist — stocks of interest not (yet) held
+model WatchlistItem {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  securityId   String
+  security     Security @relation(fields: [securityId], references: [id])
+  source       String?
+  targetBuyPriceCents BigInt?
+  note         String?
+  addedAt      DateTime @default(now())
+
+  @@unique([userId, securityId])
+}
+
+// ============================================================================
+// IMPORT ENTITIES
+// ============================================================================
+
+// ImportProfile — saved column mappings for CSV imports
+model ImportProfile {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?
+  columnMapping Json
+  options      Json
+  defaultAccountId String?
+  defaultAccount   Account? @relation(fields: [defaultAccountId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastUsedAt   DateTime?
+
+  batches      ImportBatch[]
+
+  @@index([userId])
+}
+
+// ImportBatch — audit record of a CSV import
+model ImportBatch {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId      String?
+  profile        ImportProfile? @relation(fields: [profileId], references: [id])
+  sourceFilename String
+  sourceChecksum String                               // SHA-256
+  rowCount       Int
+  createdCount   Int
+  skippedCount   Int
+  errorCount     Int
+  status         ImportStatus
+  log            Json
+  createdAt      DateTime     @default(now())
+
+  transactions   Transaction[]
+
+  @@index([userId])
+  @@index([sourceChecksum])
+}
+
+enum ImportStatus {
+  PREVIEW
+  COMMITTED
+  ROLLED_BACK
+  FAILED
+}
+
+// ============================================================================
+// SEED DATA
+// ============================================================================
+
+// CraLimit — CRA annual contribution limits (seeded)
+model CraLimit {
+  id         String @id @default(cuid())
+  year       Int
+  type       String   // "REER" | "CELI" | "CRCD"
+  limitCents BigInt
+
+  @@unique([year, type])
+}
