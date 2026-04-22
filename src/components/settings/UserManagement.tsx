@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type UserRow = {
   id: string;
@@ -64,7 +65,7 @@ export function UserManagement({
           <DialogHeader>
             <DialogTitle>{t("createUser")}</DialogTitle>
             <DialogDescription>
-              The user will be required to change their password on first login.
+              {t("createUserDescription")}
             </DialogDescription>
           </DialogHeader>
           <CreateUserForm onSuccess={() => setCreateOpen(false)} />
@@ -74,11 +75,11 @@ export function UserManagement({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Last login</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead>{t("columnName")}</TableHead>
+            <TableHead>{t("columnEmail")}</TableHead>
+            <TableHead>{t("columnStatus")}</TableHead>
+            <TableHead>{t("columnLastLogin")}</TableHead>
+            <TableHead className="text-right">{t("columnActions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -88,24 +89,24 @@ export function UserManagement({
                 {user.displayName}
                 {user.isAdmin && (
                   <Badge variant="secondary" className="ml-2">
-                    Admin
+                    {t("admin")}
                   </Badge>
                 )}
               </TableCell>
               <TableCell>{user.email}</TableCell>
               <TableCell>
                 {!user.isActive ? (
-                  <Badge variant="destructive">Inactive</Badge>
+                  <Badge variant="destructive">{t("statusInactive")}</Badge>
                 ) : user.mustChangePassword ? (
-                  <Badge variant="outline">Must change password</Badge>
+                  <Badge variant="outline">{t("statusMustChange")}</Badge>
                 ) : (
-                  <Badge variant="secondary">Active</Badge>
+                  <Badge variant="secondary">{t("statusActive")}</Badge>
                 )}
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {user.lastLoginAt
                   ? new Date(user.lastLoginAt).toLocaleDateString()
-                  : "Never"}
+                  : t("never")}
               </TableCell>
               <TableCell className="text-right">
                 <UserActions
@@ -124,7 +125,7 @@ export function UserManagement({
           <DialogHeader>
             <DialogTitle>{t("resetPassword")}</DialogTitle>
             <DialogDescription>
-              Set a temporary password. The user will be forced to change it on next login.
+              {t("resetPasswordDescription")}
             </DialogDescription>
           </DialogHeader>
           {resetOpen && (
@@ -149,7 +150,9 @@ function UserActions({
   onResetPassword: () => void;
 }) {
   const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const router = useRouter();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   async function handleToggleActive() {
     if (user.isActive) {
@@ -166,13 +169,30 @@ function UserActions({
         {t("resetPassword")}
       </Button>
       {!isSelf && (
-        <Button
-          variant={user.isActive ? "destructive" : "secondary"}
-          size="sm"
-          onClick={handleToggleActive}
-        >
-          {user.isActive ? t("deactivateUser") : "Reactivate"}
-        </Button>
+        <>
+          <Button
+            variant={user.isActive ? "destructive" : "secondary"}
+            size="sm"
+            onClick={() => {
+              if (user.isActive) {
+                setConfirmOpen(true);
+              } else {
+                handleToggleActive();
+              }
+            }}
+          >
+            {user.isActive ? t("deactivateUser") : t("reactivateUser")}
+          </Button>
+          <ConfirmDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            title={t("deactivateUser")}
+            description={tc("confirm") + "?"}
+            confirmLabel={t("deactivateUser")}
+            cancelLabel={tc("cancel")}
+            onConfirm={handleToggleActive}
+          />
+        </>
       )}
     </div>
   );
@@ -182,6 +202,7 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
   const tAuth = useTranslations("auth");
   const tSetup = useTranslations("setup");
   const tCommon = useTranslations("common");
+  const tSettings = useTranslations("settings");
   const router = useRouter();
 
   const [state, action, pending] = useActionState<AdminActionState, FormData>(
@@ -244,7 +265,7 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="create-password">Temporary password</Label>
+        <Label htmlFor="create-password">{tSettings("temporaryPassword")}</Label>
         <Input
           id="create-password"
           name="temporaryPassword"
@@ -270,6 +291,7 @@ function ResetPasswordForm({
   onSuccess: () => void;
 }) {
   const tCommon = useTranslations("common");
+  const tSettings = useTranslations("settings");
   const router = useRouter();
 
   const [state, action, pending] = useActionState<AdminActionState, FormData>(
@@ -293,7 +315,7 @@ function ResetPasswordForm({
         </p>
       )}
       <div className="space-y-2">
-        <Label htmlFor="reset-password">New temporary password</Label>
+        <Label htmlFor="reset-password">{tSettings("newTemporaryPassword")}</Label>
         <Input
           id="reset-password"
           name="newPassword"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/money/format";
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -33,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface SerializedIncomeStream {
   id: string;
@@ -56,6 +58,7 @@ export function IncomeStreamManager({ streams, locale }: IncomeStreamManagerProp
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   async function handleDelete(id: string) {
     const result = await deleteIncomeStreamAction(id);
@@ -114,7 +117,7 @@ export function IncomeStreamManager({ streams, locale }: IncomeStreamManagerProp
                         variant="ghost"
                         size="sm"
                         className="text-destructive"
-                        onClick={() => handleDelete(stream.id)}
+                        onClick={() => setDeleteTarget(stream.id)}
                       >
                         {t("delete")}
                       </Button>
@@ -126,6 +129,18 @@ export function IncomeStreamManager({ streams, locale }: IncomeStreamManagerProp
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={t("delete")}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget);
+          setDeleteTarget(null);
+        }}
+      />
 
       {showForm && (
         <IncomeStreamForm
@@ -166,9 +181,9 @@ function IncomeStreamForm({
 }) {
   const [state, formAction, isPending] = useActionState(action, {});
 
-  if (state.success) {
-    onDone();
-  }
+  useEffect(() => {
+    if (state.success) onDone();
+  }, [state.success, onDone]);
 
   return (
     <Card>
@@ -188,10 +203,10 @@ function IncomeStreamForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PENSION">Pension</SelectItem>
-                  <SelectItem value="GOVERNMENT_BENEFIT">Government benefit</SelectItem>
-                  <SelectItem value="RENTAL">Rental</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
+                  <SelectItem value="PENSION">{t("streamTypePension")}</SelectItem>
+                  <SelectItem value="GOVERNMENT_BENEFIT">{t("streamTypeGovernment")}</SelectItem>
+                  <SelectItem value="RENTAL">{t("streamTypeRental")}</SelectItem>
+                  <SelectItem value="OTHER">{t("streamTypeOther")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -210,7 +225,7 @@ function IncomeStreamForm({
                 name="endAge"
                 type="number"
                 defaultValue={stream?.endAge ?? ""}
-                placeholder="Lifetime"
+                placeholder={t("lifetime")}
               />
             </div>
             <div>
@@ -227,15 +242,14 @@ function IncomeStreamForm({
               />
             </div>
             <div className="flex items-end gap-2">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
+              <div className="flex items-center gap-2">
+                <Switch
                   name="inflationIndexed"
-                  value="true"
                   defaultChecked={stream?.inflationIndexed ?? true}
+                  value="true"
                 />
-                {t("inflationIndexed")}
-              </label>
+                <Label className="text-sm font-normal">{t("inflationIndexed")}</Label>
+              </div>
             </div>
           </div>
 

@@ -7,6 +7,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSession, validateSession, deleteAllUserSessions } from "@/lib/auth/session";
 import { checkRateLimit, resetRateLimit } from "@/lib/auth/rate-limit";
 import { loginSchema, setupSchema, changePasswordSchema } from "@/lib/validators/auth";
+import { setLocaleCookie, setThemeCookie } from "@/lib/actions/settings";
 
 export type AuthActionState = {
   error?: string;
@@ -76,6 +77,8 @@ export async function setupAction(
 
   const headersList = await headers();
   await createSession(userId, headersList.get("user-agent") ?? undefined);
+  await setLocaleCookie(locale);
+  await setThemeCookie("system");
 
   redirect("/dashboard");
 }
@@ -132,6 +135,8 @@ export async function loginAction(
   });
 
   await createSession(user.id, headersList.get("user-agent") ?? undefined, ip);
+  await setLocaleCookie(user.locale);
+  await setThemeCookie(user.theme);
 
   if (user.mustChangePassword) {
     redirect("/change-password");

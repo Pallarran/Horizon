@@ -33,7 +33,7 @@ export function HeroCard({ locale, hero, netWorth }: HeroCardProps) {
             {t("ofTarget")} ({formatPercent(hero.targetIncomeReplacementPercent, locale, 0)})
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Age {hero.currentAge} &rarr; {hero.targetRetirementAge}
+            {t("ageRange", { from: hero.currentAge, to: hero.targetRetirementAge })}
           </p>
         </div>
 

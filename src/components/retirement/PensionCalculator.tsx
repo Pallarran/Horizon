@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { formatMoney, formatPercent } from "@/lib/money/format";
@@ -98,6 +98,7 @@ function PensionCard({
   onDone: () => void;
   t: ReturnType<typeof useTranslations>;
 }) {
+  const td = useTranslations("dashboard");
   const currentYear = new Date().getFullYear();
   const retirementYear = birthYear + retirementAge;
   const result = calculatePension({
@@ -160,8 +161,8 @@ function PensionCard({
           </div>
         </div>
         <div className="mt-4 grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-          <div>Pre-reduction: {formatMoney(result.preReductionCents, locale)}</div>
-          <div>Base A: {formatMoney(result.baseACents, locale)} | Base B: {formatMoney(result.baseBCents, locale)}</div>
+          <div>{td("preReduction")}: {formatMoney(result.preReductionCents, locale)}</div>
+          <div>{td("baseA")}: {formatMoney(result.baseACents, locale)} | {td("baseB")}: {formatMoney(result.baseBCents, locale)}</div>
         </div>
       </CardContent>
     </Card>
@@ -181,9 +182,9 @@ function PensionForm({
 }) {
   const [state, formAction, isPending] = useActionState(action, {});
 
-  if (state.success) {
-    onDone();
-  }
+  useEffect(() => {
+    if (state.success) onDone();
+  }, [state.success, onDone]);
 
   return (
     <Card>

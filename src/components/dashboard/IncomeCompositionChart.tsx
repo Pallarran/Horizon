@@ -52,40 +52,50 @@ export function IncomeCompositionChart({ data }: IncomeCompositionChartProps) {
                 formatter={(value) => [
                   `$${Number(value).toLocaleString()}`,
                 ]}
-                labelFormatter={(label) => `Age ${label}`}
+                labelFormatter={(label) => `${t("age")} ${label}`}
+                contentStyle={{
+                  backgroundColor: "var(--popover)",
+                  borderColor: "var(--border)",
+                  color: "var(--popover-foreground)",
+                  borderRadius: "0.5rem",
+                }}
               />
               <Legend />
               <Area
                 type="monotone"
                 dataKey="dividends"
-                name="Dividends"
+                name={t("chartDividends")}
                 stackId="1"
-                stroke="oklch(0.627 0.194 149.214)"
-                fill="oklch(0.627 0.194 149.214 / 0.3)"
+                stroke="var(--chart-2)"
+                fill="var(--chart-2)"
+                fillOpacity={0.3}
               />
               <Area
                 type="monotone"
                 dataKey="pension"
-                name="Pension (RRMD)"
+                name={t("chartPension")}
                 stackId="1"
-                stroke="oklch(0.488 0.243 264.376)"
-                fill="oklch(0.488 0.243 264.376 / 0.3)"
+                stroke="var(--chart-1)"
+                fill="var(--chart-1)"
+                fillOpacity={0.3}
               />
               <Area
                 type="monotone"
                 dataKey="qpp"
-                name="QPP"
+                name={t("chartQpp")}
                 stackId="1"
-                stroke="oklch(0.769 0.188 70.08)"
-                fill="oklch(0.769 0.188 70.08 / 0.3)"
+                stroke="var(--chart-5)"
+                fill="var(--chart-5)"
+                fillOpacity={0.3}
               />
               <Area
                 type="monotone"
                 dataKey="oas"
-                name="OAS"
+                name={t("chartOas")}
                 stackId="1"
-                stroke="oklch(0.696 0.17 162.48)"
-                fill="oklch(0.696 0.17 162.48 / 0.3)"
+                stroke="var(--chart-3)"
+                fill="var(--chart-3)"
+                fillOpacity={0.3}
               />
             </AreaChart>
           </ResponsiveContainer>

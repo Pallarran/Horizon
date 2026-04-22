@@ -37,7 +37,7 @@ export function MilestoneTable({ locale, milestones }: MilestoneTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead></TableHead>
-            <TableHead className="text-right">Age</TableHead>
+            <TableHead className="text-right">{t("age")}</TableHead>
             <TableHead className="text-right">{tr("projectedPortfolio")}</TableHead>
             <TableHead className="text-right">{tr("projectedIncome")}</TableHead>
           </TableRow>
@@ -52,7 +52,7 @@ export function MilestoneTable({ locale, milestones }: MilestoneTableProps) {
               </TableCell>
               <TableCell className="text-right">
                 {formatMoney(m.incomeCents, locale)}
-                <span className="text-xs text-muted-foreground">/yr</span>
+                <span className="text-xs text-muted-foreground">{t("perYear")}</span>
               </TableCell>
             </TableRow>
           ))}

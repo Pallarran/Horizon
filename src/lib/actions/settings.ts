@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { validateSession } from "@/lib/auth/session";
 
@@ -8,6 +9,28 @@ export type SettingsActionState = {
   error?: string;
   success?: boolean;
 } | null;
+
+const LOCALE_COOKIE = "NEXT_LOCALE";
+const THEME_COOKIE = "horizon_theme";
+const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year
+
+export async function setLocaleCookie(locale: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(LOCALE_COOKIE, locale, {
+    path: "/",
+    maxAge: COOKIE_MAX_AGE,
+    sameSite: "strict",
+  });
+}
+
+export async function setThemeCookie(theme: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(THEME_COOKIE, theme, {
+    path: "/",
+    maxAge: COOKIE_MAX_AGE,
+    sameSite: "strict",
+  });
+}
 
 export async function updateProfileAction(
   _prev: SettingsActionState,
@@ -43,7 +66,8 @@ export async function updateProfileAction(
     },
   });
 
-  revalidatePath("/settings/account");
+  await setLocaleCookie(locale);
+  await setThemeCookie(theme);
 
-  return { success: true };
+  redirect("/settings");
 }

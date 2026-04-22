@@ -46,7 +46,7 @@ export function DividendsSummaryCard({ locale, dividends }: DividendsSummaryCard
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">YoY</span>
+          <span className="text-muted-foreground">{t("yoy")}</span>
           <span className={`font-medium ${growthPositive ? "text-gain" : "text-loss"}`}>
             {growthPositive ? "+" : ""}
             {formatPercent(dividends.ytdGrowthPercent, locale)}

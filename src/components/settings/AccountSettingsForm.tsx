@@ -6,6 +6,13 @@ import { updateProfileAction, type SettingsActionState } from "@/lib/actions/set
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function AccountSettingsForm({
   displayName,
@@ -48,34 +55,34 @@ export function AccountSettingsForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="locale">{t("language")}</Label>
-        <select
-          id="locale"
-          name="locale"
-          defaultValue={locale}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <option value="fr-CA">Français (Canada)</option>
-          <option value="en-CA">English (Canada)</option>
-        </select>
+        <Label>{t("language")}</Label>
+        <Select name="locale" defaultValue={locale}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="fr-CA">Français (Canada)</SelectItem>
+            <SelectItem value="en-CA">English (Canada)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="theme">{t("theme")}</Label>
-        <select
-          id="theme"
-          name="theme"
-          defaultValue={theme}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <option value="system">{t("themeSystem")}</option>
-          <option value="light">{t("themeLight")}</option>
-          <option value="dark">{t("themeDark")}</option>
-        </select>
+        <Label>{t("theme")}</Label>
+        <Select name="theme" defaultValue={theme}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="system">{t("themeSystem")}</SelectItem>
+            <SelectItem value="light">{t("themeLight")}</SelectItem>
+            <SelectItem value="dark">{t("themeDark")}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Button type="submit" disabled={pending}>
-        {pending ? "..." : tCommon("save")}
+        {pending ? tCommon("loading") : tCommon("save")}
       </Button>
     </form>
   );

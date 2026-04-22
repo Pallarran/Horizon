@@ -54,6 +54,37 @@ export async function deleteAccountAction(id: string): Promise<AccountActionStat
   return { success: true };
 }
 
+export async function updateAccountAction(
+  _prev: AccountActionState,
+  formData: FormData,
+): Promise<AccountActionState> {
+  const { user } = await requireAuth();
+  const db = scopedPrisma(user.id);
+
+  const id = formData.get("id") as string;
+  if (!id) return { error: "Missing account ID" };
+
+  const raw = {
+    name: formData.get("name"),
+    type: formData.get("type"),
+    currency: formData.get("currency"),
+    externalId: formData.get("externalId") || undefined,
+  };
+
+  const result = createAccountSchema.safeParse(raw);
+  if (!result.success) {
+    return { error: result.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  try {
+    await db.account.update({ where: { id }, data: result.data as never });
+  } catch {
+    return { error: "Account not found" };
+  }
+
+  return { success: true };
+}
+
 export async function getAccountsAction() {
   const { user } = await requireAuth();
   const db = scopedPrisma(user.id);

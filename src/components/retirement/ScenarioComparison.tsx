@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { formatMoney, formatPercent } from "@/lib/money/format";
@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -21,6 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface SerializedScenario {
   id: string;
@@ -126,13 +128,22 @@ function ScenarioCard({
   onDelete: () => void;
   t: ReturnType<typeof useTranslations>;
 }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   return (
     <Card>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={t("delete")}
+        confirmLabel={t("delete")}
+        cancelLabel={t("cancel")}
+        onConfirm={onDelete}
+      />
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CardTitle className="text-base">{scenario.name}</CardTitle>
-            {scenario.isBaseline && <Badge variant="secondary">Baseline</Badge>}
+            {scenario.isBaseline && <Badge variant="secondary">{t("baseline")}</Badge>}
           </div>
           <div className="flex gap-1">
             <Button variant="ghost" size="sm" onClick={onEdit}>
@@ -142,7 +153,7 @@ function ScenarioCard({
               variant="ghost"
               size="sm"
               className="text-destructive"
-              onClick={onDelete}
+              onClick={() => setConfirmOpen(true)}
             >
               {t("delete")}
             </Button>
@@ -176,9 +187,9 @@ function ScenarioCard({
           <div>
             <p className="text-muted-foreground">{t("assumptions")}</p>
             <p className="text-xs text-muted-foreground">
-              Growth: {formatPercent(scenario.assumedPriceGrowth, locale, 1)} |{" "}
-              Div: {formatPercent(scenario.assumedDividendGrowth, locale, 1)} |{" "}
-              Infl: {formatPercent(scenario.assumedInflation, locale, 1)}
+              {t("growth")}: {formatPercent(scenario.assumedPriceGrowth, locale, 1)} |{" "}
+              {t("div")}: {formatPercent(scenario.assumedDividendGrowth, locale, 1)} |{" "}
+              {t("infl")}: {formatPercent(scenario.assumedInflation, locale, 1)}
             </p>
           </div>
         </div>
@@ -200,9 +211,9 @@ function ScenarioForm({
 }) {
   const [state, formAction, isPending] = useActionState(action, {});
 
-  if (state.success) {
-    onDone();
-  }
+  useEffect(() => {
+    if (state.success) onDone();
+  }, [state.success, onDone]);
 
   return (
     <Card>
@@ -274,24 +285,22 @@ function ScenarioForm({
               />
             </div>
             <div className="flex items-end gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
+              <div className="flex items-center gap-2">
+                <Switch
                   name="reinvestDividends"
-                  value="true"
                   defaultChecked={scenario?.reinvestDividends ?? true}
-                />
-                {t("reinvestDividends")}
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  name="isBaseline"
                   value="true"
-                  defaultChecked={scenario?.isBaseline ?? false}
                 />
-                Baseline
-              </label>
+                <Label className="text-sm font-normal">{t("reinvestDividends")}</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  name="isBaseline"
+                  defaultChecked={scenario?.isBaseline ?? false}
+                  value="true"
+                />
+                <Label className="text-sm font-normal">{t("baseline")}</Label>
+              </div>
             </div>
           </div>
 

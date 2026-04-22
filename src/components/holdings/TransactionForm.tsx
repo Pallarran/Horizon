@@ -45,8 +45,6 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
   const [quantity, setQuantity] = useState("");
   const [priceDollars, setPriceDollars] = useState("");
   const [amountDollars, setAmountDollars] = useState("");
-  const [showNewSecurity, setShowNewSecurity] = useState(false);
-
   // Auto-compute amount when quantity and price change (for BUY/SELL)
   useEffect(() => {
     if (TXN_TYPES_WITH_QTY.includes(txnType) && quantity && priceDollars) {
@@ -93,7 +91,7 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
       <div className="grid gap-4 sm:grid-cols-2">
         {/* Transaction Type */}
         <div className="space-y-2">
-          <Label>Type</Label>
+          <Label>{t("type")}</Label>
           <Select value={txnType} onValueChange={setTxnType} name="type">
             <SelectTrigger>
               <SelectValue />
@@ -113,7 +111,7 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
           <Label>{t("account")}</Label>
           <Select value={accountId} onValueChange={handleAccountChange}>
             <SelectTrigger>
-              <SelectValue placeholder="Select account..." />
+              <SelectValue placeholder={t("selectAccount")} />
             </SelectTrigger>
             <SelectContent>
               {accounts.map((a) => (
@@ -125,7 +123,7 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
 
         {/* Date */}
         <div className="space-y-2">
-          <Label>Date</Label>
+          <Label>{t("date")}</Label>
           <Input type="date" name="date" defaultValue={today} required />
         </div>
 
@@ -151,13 +149,7 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
           <SecurityCombobox
             value={securityId}
             onChange={(id) => setSecurityId(id)}
-            onCreateNew={() => setShowNewSecurity(true)}
           />
-          {showNewSecurity && (
-            <p className="text-xs text-muted-foreground">
-              Create the security from Settings first, then search for it here.
-            </p>
-          )}
         </div>
       )}
 
@@ -177,7 +169,7 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
             />
           </div>
           <div className="space-y-2">
-            <Label>Price ($)</Label>
+            <Label>{t("price")}</Label>
             <Input
               type="number"
               name="priceDollars"
@@ -193,7 +185,7 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
 
       {/* Amount (auto-computed for BUY/SELL, manual for others) */}
       <div className="space-y-2">
-        <Label>Amount ($) {needsQty && <span className="text-xs text-muted-foreground">(auto-computed)</span>}</Label>
+        <Label>{t("amountDollars")} {needsQty && <span className="text-xs text-muted-foreground">({t("autoComputed")})</span>}</Label>
         <Input
           type="number"
           step="0.01"
@@ -204,19 +196,19 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
           className={needsQty ? "bg-muted" : ""}
         />
         <p className="text-xs text-muted-foreground">
-          Negative = money out (BUY), Positive = money in (SELL, DIVIDEND)
+          {t("amountHint")}
         </p>
       </div>
 
       {/* Fee */}
       <div className="space-y-2">
-        <Label>Fee ($)</Label>
+        <Label>{t("feeDollars")}</Label>
         <Input type="number" name="feeDollars" step="0.01" min="0" defaultValue="0" />
       </div>
 
       {/* Note */}
       <div className="space-y-2">
-        <Label>Note</Label>
+        <Label>{t("note")}</Label>
         <Textarea name="note" rows={2} maxLength={500} />
       </div>
 

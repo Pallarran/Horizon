@@ -4,35 +4,49 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { SerializedPosition } from "@/lib/positions/serialize";
+import type { SerializedTransaction } from "@/lib/actions/transactions";
 import { HoldingsTable } from "./HoldingsTable";
+import { AccountSummaryCards } from "./AccountSummaryCards";
+import { AccountsTab } from "./AccountsTab";
+import { ActivitiesTab } from "./ActivitiesTab";
 import { TransactionForm } from "./TransactionForm";
-import { NewSecurityForm } from "./NewSecurityForm";
-import { NewAccountForm } from "./NewAccountForm";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Account {
   id: string;
   name: string;
+  type: string;
   currency: string;
+  externalId: string | null;
 }
 
 interface Props {
   positions: SerializedPosition[];
   accounts: Account[];
+  transactions: SerializedTransaction[];
   locale: string;
 }
 
-export function HoldingsPageClient({ positions, accounts, locale }: Props) {
+export function HoldingsPageClient({
+  positions,
+  accounts,
+  transactions,
+  locale,
+}: Props) {
   const t = useTranslations("holdings");
-  const tn = useTranslations("nav");
   const router = useRouter();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("transaction");
+  const [activeTab, setActiveTab] = useState("holdings");
+  const [txnDialogOpen, setTxnDialogOpen] = useState(false);
 
-  function handleSuccess() {
-    setDialogOpen(false);
+  function handleMutationSuccess() {
+    setTxnDialogOpen(false);
     router.refresh();
   }
 
@@ -40,64 +54,73 @@ export function HoldingsPageClient({ positions, accounts, locale }: Props) {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-        <Button onClick={() => setDialogOpen(true)}>
-          {tn("addTransaction")}
+        <Button onClick={() => setTxnDialogOpen(true)}>
+          {t("addTransaction")}
         </Button>
       </div>
 
-      <HoldingsTable positions={positions} locale={locale} />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="holdings">{t("holdingsTab")}</TabsTrigger>
+          <TabsTrigger value="accounts">{t("accountsTab")}</TabsTrigger>
+          <TabsTrigger value="activities">{t("activitiesTab")}</TabsTrigger>
+        </TabsList>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <TabsContent value="holdings">
+          <AccountSummaryCards
+            positions={positions}
+            accounts={accounts}
+            locale={locale}
+          />
+          <HoldingsTable positions={positions} locale={locale} />
+        </TabsContent>
+
+        <TabsContent value="accounts">
+          <AccountsTab
+            accounts={accounts}
+            positions={positions}
+            locale={locale}
+          />
+        </TabsContent>
+
+        <TabsContent value="activities">
+          <ActivitiesTab
+            transactions={transactions}
+            accounts={accounts}
+            locale={locale}
+            onAddTransaction={() => setTxnDialogOpen(true)}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Transaction Dialog — simplified, no more inner tabs */}
+      <Dialog open={txnDialogOpen} onOpenChange={setTxnDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{tn("addTransaction")}</DialogTitle>
+            <DialogTitle>{t("addTransaction")}</DialogTitle>
           </DialogHeader>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="transaction">Transaction</TabsTrigger>
-              <TabsTrigger value="security">New Security</TabsTrigger>
-              <TabsTrigger value="account">New Account</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="transaction">
-              {accounts.length === 0 ? (
-                <div className="py-6 text-center text-muted-foreground">
-                  <p>Create an account first before adding transactions.</p>
-                  <Button
-                    variant="outline"
-                    className="mt-2"
-                    onClick={() => setActiveTab("account")}
-                  >
-                    Create Account
-                  </Button>
-                </div>
-              ) : (
-                <TransactionForm
-                  accounts={accounts}
-                  onSuccess={handleSuccess}
-                  onCancel={() => setDialogOpen(false)}
-                />
-              )}
-            </TabsContent>
-
-            <TabsContent value="security">
-              <NewSecurityForm
-                onSuccess={() => setActiveTab("transaction")}
-                onCancel={() => setActiveTab("transaction")}
-              />
-            </TabsContent>
-
-            <TabsContent value="account">
-              <NewAccountForm
-                onSuccess={() => {
-                  setActiveTab("transaction");
-                  router.refresh();
+          {accounts.length === 0 ? (
+            <div className="py-6 text-center text-muted-foreground">
+              <p>{t("createAccountFirst")}</p>
+              <Button
+                variant="outline"
+                className="mt-2"
+                onClick={() => {
+                  setTxnDialogOpen(false);
+                  setActiveTab("accounts");
                 }}
-                onCancel={() => setActiveTab("transaction")}
-              />
-            </TabsContent>
-          </Tabs>
+              >
+                {t("goToAccounts")}
+              </Button>
+            </div>
+          ) : (
+            <TransactionForm
+              accounts={accounts}
+              onSuccess={handleMutationSuccess}
+              onCancel={() => setTxnDialogOpen(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -52,15 +52,16 @@ export function HoldingsTable({ positions, locale }: Props) {
     }
   }
 
-  function SortableHead({ k, children, right }: { k: SortKey; children: React.ReactNode; right?: boolean }) {
+  function SortableHead({ k, children, right, className: extraClass }: { k: SortKey; children: React.ReactNode; right?: boolean; className?: string }) {
     const active = sortKey === k;
     return (
       <TableHead
-        className={`cursor-pointer select-none whitespace-nowrap ${right ? "text-right" : ""}`}
+        className={`cursor-pointer select-none whitespace-nowrap ${right ? "text-right" : ""} ${extraClass ?? ""}`}
         onClick={() => toggleSort(k)}
+        aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
       >
         {children}
-        {active && <span className="ml-1">{sortDir === "asc" ? "↑" : "↓"}</span>}
+        {active && <span className="ml-1" aria-hidden="true">{sortDir === "asc" ? "↑" : "↓"}</span>}
       </TableHead>
     );
   }
@@ -75,7 +76,7 @@ export function HoldingsTable({ positions, locale }: Props) {
     return (
       <div className="py-12 text-center text-muted-foreground">
         <p className="text-lg">{t("noPositions")}</p>
-        <p className="mt-1 text-sm">Add accounts and transactions to see your holdings here.</p>
+        <p className="mt-1 text-sm">{t("createAccountFirst")}</p>
       </div>
     );
   }
@@ -92,7 +93,7 @@ export function HoldingsTable({ positions, locale }: Props) {
             {totalCost > 0 && <> ({formatPercent(totalGain / totalCost, locale)})</>}
           </span>
           {" · "}
-          {t("expectedIncome")}: {formatMoney(totalIncome, locale)}/yr
+          {t("expectedIncome")}: {formatMoney(totalIncome, locale)}
         </p>
       </div>
 
@@ -101,15 +102,15 @@ export function HoldingsTable({ positions, locale }: Props) {
           <TableHeader>
             <TableRow>
               <SortableHead k="symbol">{t("symbol")}</SortableHead>
-              <SortableHead k="accountType">{t("account")}</SortableHead>
-              <SortableHead k="quantity" right>{t("quantity")}</SortableHead>
-              <SortableHead k="avgCostCents" right>{t("avgCost")}</SortableHead>
-              <SortableHead k="currentPriceCents" right>{t("currentPrice")}</SortableHead>
+              <SortableHead k="accountType" className="hidden lg:table-cell">{t("account")}</SortableHead>
+              <SortableHead k="quantity" right className="hidden md:table-cell">{t("quantity")}</SortableHead>
+              <SortableHead k="avgCostCents" right className="hidden lg:table-cell">{t("avgCost")}</SortableHead>
+              <SortableHead k="currentPriceCents" right className="hidden md:table-cell">{t("currentPrice")}</SortableHead>
               <SortableHead k="marketValueCents" right>{t("marketValue")}</SortableHead>
-              <SortableHead k="dayChangePercent" right>{t("dayChange")}</SortableHead>
+              <SortableHead k="dayChangePercent" right className="hidden lg:table-cell">{t("dayChange")}</SortableHead>
               <SortableHead k="unrealizedGainCents" right>{t("unrealizedGain")}</SortableHead>
-              <SortableHead k="expectedIncomeCents" right>{t("expectedIncome")}</SortableHead>
-              <SortableHead k="yieldPercent" right>{t("yield")}</SortableHead>
+              <SortableHead k="expectedIncomeCents" right className="hidden md:table-cell">{t("expectedIncome")}</SortableHead>
+              <SortableHead k="yieldPercent" right className="hidden lg:table-cell">{t("yield")}</SortableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -124,24 +125,24 @@ export function HoldingsTable({ positions, locale }: Props) {
                   </div>
                   <p className="text-xs text-muted-foreground">{h.name}</p>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden lg:table-cell">
                   <Badge variant="secondary" className="text-[10px]">
                     {h.accountType}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right font-mono">
+                <TableCell className="hidden text-right font-mono md:table-cell">
                   {formatNumber(h.quantity, locale, 0)}
                 </TableCell>
-                <TableCell className="text-right font-mono">
+                <TableCell className="hidden text-right font-mono lg:table-cell">
                   {formatMoney(h.avgCostCents, locale)}
                 </TableCell>
-                <TableCell className="text-right font-mono">
+                <TableCell className="hidden text-right font-mono md:table-cell">
                   {h.currentPriceCents !== null ? formatMoney(h.currentPriceCents, locale) : "—"}
                 </TableCell>
                 <TableCell className="text-right font-mono font-medium">
                   {h.marketValueCents !== null ? formatMoney(h.marketValueCents, locale) : formatMoney(h.totalCostCents, locale)}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="hidden text-right lg:table-cell">
                   {h.dayChangePercent !== null ? (
                     <span className={`font-mono text-sm ${h.dayChangePercent >= 0 ? "text-gain" : "text-loss"}`}>
                       {h.dayChangePercent >= 0 ? "+" : ""}
@@ -169,10 +170,10 @@ export function HoldingsTable({ positions, locale }: Props) {
                     <span className="text-muted-foreground">—</span>
                   )}
                 </TableCell>
-                <TableCell className="text-right font-mono">
+                <TableCell className="hidden text-right font-mono md:table-cell">
                   {h.expectedIncomeCents !== null ? formatMoney(h.expectedIncomeCents, locale) : "—"}
                 </TableCell>
-                <TableCell className="text-right font-mono text-sm">
+                <TableCell className="hidden text-right font-mono text-sm lg:table-cell">
                   {h.yieldPercent !== null ? (
                     <>
                       {formatPercent(h.yieldPercent, locale)}
