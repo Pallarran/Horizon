@@ -100,13 +100,20 @@ export async function fetchPrices() {
           update: { priceCents, source: "yahoo" },
         });
 
-        // Also update Security.annualDividendCents if available from quote
+        // Also update Security metadata from quote (zero extra API calls)
+        const secUpdate: Record<string, unknown> = {};
         if (quote.trailingAnnualDividendRate && quote.trailingAnnualDividendRate > 0) {
+          secUpdate.annualDividendCents = BigInt(Math.round(quote.trailingAnnualDividendRate * 100));
+        }
+        if (Number.isFinite(quote.trailingPE)) secUpdate.trailingPeRatio = quote.trailingPE;
+        if (Number.isFinite(quote.marketCap)) secUpdate.marketCapCents = BigInt(Math.round(quote.marketCap * 100));
+        if (Number.isFinite(quote.fiftyTwoWeekHigh)) secUpdate.fiftyTwoWeekHighCents = BigInt(Math.round(quote.fiftyTwoWeekHigh * 100));
+        if (Number.isFinite(quote.fiftyTwoWeekLow)) secUpdate.fiftyTwoWeekLowCents = BigInt(Math.round(quote.fiftyTwoWeekLow * 100));
+
+        if (Object.keys(secUpdate).length > 0) {
           await prisma.security.update({
             where: { id: sec.id },
-            data: {
-              annualDividendCents: BigInt(Math.round(quote.trailingAnnualDividendRate * 100)),
-            },
+            data: secUpdate,
           });
         }
 

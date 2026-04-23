@@ -12,6 +12,7 @@ export interface ComputedPosition {
   exchange: string;
   currency: string;
   assetClass: string;
+  sector: string | null;
   industry: string | null;
 
   // Account metadata (joined)
@@ -39,6 +40,12 @@ export interface ComputedPosition {
 
   // Dividend growth
   dividendGrowthYears: number | null;
+
+  // Dividend classification
+  isDividendAristocrat: boolean;
+  isDividendKing: boolean;
+  isPaysMonthly: boolean;
+  dividendFrequency: string | null;
 }
 
 /**

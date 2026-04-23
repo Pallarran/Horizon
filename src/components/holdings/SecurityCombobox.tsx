@@ -34,15 +34,18 @@ export interface SecurityOption {
 interface Props {
   value: string | null;
   onChange: (securityId: string | null, security: SecurityOption | null) => void;
+  initialSecurity?: { id: string; symbol: string; name: string } | null;
 }
 
-export function SecurityCombobox({ value, onChange }: Props) {
+export function SecurityCombobox({ value, onChange, initialSecurity }: Props) {
   const t = useTranslations("holdings");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [localResults, setLocalResults] = useState<SecurityOption[]>([]);
   const [yahooResults, setYahooResults] = useState<YahooSearchResult[]>([]);
-  const [selected, setSelected] = useState<SecurityOption | null>(null);
+  const [selected, setSelected] = useState<SecurityOption | null>(
+    initialSecurity ? { ...initialSecurity, exchange: "", currency: "" } : null,
+  );
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
 

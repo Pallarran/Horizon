@@ -2,13 +2,19 @@
 
 import { useActionState, useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { createTransactionAction, type TransactionActionState } from "@/lib/actions/transactions";
+import {
+  createTransactionAction,
+  updateTransactionAction,
+  type TransactionActionState,
+  type SerializedTransaction,
+} from "@/lib/actions/transactions";
 import { SecurityCombobox } from "./SecurityCombobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { TXN_TYPES, TXN_TYPES_WITH_SECURITY, TXN_TYPES_WITH_QTY } from "@/lib/constants/transactions";
 
 interface Account {
   id: string;
@@ -18,36 +24,53 @@ interface Account {
 
 interface Props {
   accounts: Account[];
+  transaction?: SerializedTransaction;
   onSuccess?: () => void;
   onCancel?: () => void;
+  defaultAccountId?: string;
+  defaultSecurityId?: string;
+  defaultSecuritySymbol?: string;
+  defaultSecurityName?: string;
 }
 
-const TXN_TYPES_WITH_SECURITY = ["BUY", "SELL", "DIVIDEND", "DRIP", "SPLIT", "MERGER"];
-const TXN_TYPES_WITH_QTY = ["BUY", "SELL", "DRIP", "SPLIT"];
+function centsToDollarsStr(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
 
-export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
+export function TransactionForm({ accounts, transaction, onSuccess, onCancel, defaultAccountId, defaultSecurityId, defaultSecuritySymbol, defaultSecurityName }: Props) {
   const t = useTranslations("holdings");
   const tc = useTranslations("common");
+  const isEdit = !!transaction;
+
   const [state, formAction, pending] = useActionState<TransactionActionState, FormData>(
-    createTransactionAction,
+    isEdit ? updateTransactionAction : createTransactionAction,
     {},
   );
 
-  const [txnType, setTxnType] = useState("BUY");
+  const [txnType, setTxnType] = useState(transaction?.type ?? "BUY");
   const [accountId, setAccountId] = useState(() => {
+    if (transaction) return transaction.accountId;
+    if (defaultAccountId) return defaultAccountId;
     if (typeof window !== "undefined") {
       return localStorage.getItem("horizon_lastAccountId") ?? accounts[0]?.id ?? "";
     }
     return accounts[0]?.id ?? "";
   });
-  const [securityId, setSecurityId] = useState<string | null>(null);
-  const [currency, setCurrency] = useState("CAD");
-  const [quantity, setQuantity] = useState("");
-  const [priceDollars, setPriceDollars] = useState("");
-  const [amountDollars, setAmountDollars] = useState("");
+  const [securityId, setSecurityId] = useState<string | null>(transaction?.securityId ?? defaultSecurityId ?? null);
+  const [currency, setCurrency] = useState(transaction?.currency ?? "CAD");
+  const [quantity, setQuantity] = useState(
+    transaction?.quantity != null ? String(transaction.quantity) : "",
+  );
+  const [priceDollars, setPriceDollars] = useState(
+    transaction?.priceCents != null ? centsToDollarsStr(transaction.priceCents) : "",
+  );
+  const [amountDollars, setAmountDollars] = useState(
+    transaction ? centsToDollarsStr(transaction.amountCents) : "",
+  );
+
   // Auto-compute amount when quantity and price change (for BUY/SELL)
   useEffect(() => {
-    if (TXN_TYPES_WITH_QTY.includes(txnType) && quantity && priceDollars) {
+    if ((TXN_TYPES_WITH_QTY as readonly string[]).includes(txnType) && quantity && priceDollars) {
       const qty = parseFloat(quantity);
       const price = parseFloat(priceDollars);
       if (!isNaN(qty) && !isNaN(price)) {
@@ -72,8 +95,8 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
     if (state.success) onSuccess?.();
   }, [state.success, onSuccess]);
 
-  const needsSecurity = TXN_TYPES_WITH_SECURITY.includes(txnType);
-  const needsQty = TXN_TYPES_WITH_QTY.includes(txnType);
+  const needsSecurity = (TXN_TYPES_WITH_SECURITY as readonly string[]).includes(txnType);
+  const needsQty = (TXN_TYPES_WITH_QTY as readonly string[]).includes(txnType);
   const today = new Date().toISOString().split("T")[0];
 
   return (
@@ -83,6 +106,7 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
       )}
 
       {/* Hidden fields for server action */}
+      {isEdit && <input type="hidden" name="id" value={transaction.id} />}
       <input type="hidden" name="accountId" value={accountId} />
       <input type="hidden" name="securityId" value={securityId ?? ""} />
       <input type="hidden" name="currency" value={currency} />
@@ -97,10 +121,8 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {["BUY", "SELL", "DIVIDEND", "DRIP", "DEPOSIT", "WITHDRAWAL",
-                "INTEREST", "FEE", "TAX_WITHHELD", "SPLIT", "MERGER", "ADJUSTMENT",
-              ].map((type) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
+              {TXN_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>{t(`txnType${type}` as Parameters<typeof t>[0])}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -124,7 +146,7 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
         {/* Date */}
         <div className="space-y-2">
           <Label>{t("date")}</Label>
-          <Input type="date" name="date" defaultValue={today} required />
+          <Input type="date" name="date" defaultValue={transaction?.date ?? today} required />
         </div>
 
         {/* Currency */}
@@ -149,6 +171,13 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
           <SecurityCombobox
             value={securityId}
             onChange={(id) => setSecurityId(id)}
+            initialSecurity={
+              transaction?.securityId
+                ? { id: transaction.securityId, symbol: transaction.securitySymbol!, name: transaction.securityName! }
+                : defaultSecurityId && defaultSecuritySymbol && defaultSecurityName
+                  ? { id: defaultSecurityId, symbol: defaultSecuritySymbol, name: defaultSecurityName }
+                  : null
+            }
           />
         </div>
       )}
@@ -203,19 +232,25 @@ export function TransactionForm({ accounts, onSuccess, onCancel }: Props) {
       {/* Fee */}
       <div className="space-y-2">
         <Label>{t("feeDollars")}</Label>
-        <Input type="number" name="feeDollars" step="0.01" min="0" defaultValue="0" />
+        <Input
+          type="number"
+          name="feeDollars"
+          step="0.01"
+          min="0"
+          defaultValue={transaction ? centsToDollarsStr(transaction.feeCents) : "0"}
+        />
       </div>
 
       {/* Note */}
       <div className="space-y-2">
         <Label>{t("note")}</Label>
-        <Textarea name="note" rows={2} maxLength={500} />
+        <Textarea name="note" rows={2} maxLength={500} defaultValue={transaction?.note ?? ""} />
       </div>
 
       {/* Actions */}
       <div className="flex gap-2 pt-2">
         <Button type="submit" disabled={pending}>
-          {pending ? tc("loading") : t("addTransaction")}
+          {pending ? tc("loading") : isEdit ? tc("save") : t("addTransaction")}
         </Button>
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel}>

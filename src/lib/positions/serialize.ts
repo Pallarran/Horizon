@@ -12,6 +12,7 @@ export interface SerializedPosition {
   exchange: string;
   currency: string;
   assetClass: string;
+  sector: string | null;
   industry: string | null;
   accountName: string;
   accountType: string;
@@ -29,6 +30,10 @@ export interface SerializedPosition {
   yieldPercent: number | null;
   yieldOnCostPercent: number | null;
   dividendGrowthYears: number | null;
+  isDividendAristocrat: boolean;
+  isDividendKing: boolean;
+  isPaysMonthly: boolean;
+  dividendFrequency: string | null;
 }
 
 export function serializePosition(p: ComputedPosition): SerializedPosition {
@@ -40,6 +45,7 @@ export function serializePosition(p: ComputedPosition): SerializedPosition {
     exchange: p.exchange,
     currency: p.currency,
     assetClass: p.assetClass,
+    sector: p.sector,
     industry: p.industry,
     accountName: p.accountName,
     accountType: p.accountType,
@@ -57,6 +63,10 @@ export function serializePosition(p: ComputedPosition): SerializedPosition {
     yieldPercent: p.yieldPercent,
     yieldOnCostPercent: p.yieldOnCostPercent,
     dividendGrowthYears: p.dividendGrowthYears,
+    isDividendAristocrat: p.isDividendAristocrat,
+    isDividendKing: p.isDividendKing,
+    isPaysMonthly: p.isPaysMonthly,
+    dividendFrequency: p.dividendFrequency,
   };
 }
 

@@ -130,6 +130,27 @@ model Security {
   dividendGrowthYears Int?                         // consecutive years of dividend increases
   manualDividendOverride Boolean @default(false)
 
+  // Yahoo profile data — populated by quoteSummary at creation + backfill
+  longBusinessSummary    String?
+  website                String?
+  employeeCount          Int?
+  payoutRatio            Float?
+  fiveYearAvgDividendYield Float?
+  exDividendDate         DateTime?
+  nextEarningsDate       DateTime?
+  debtToEquityRatio      Float?
+  freeCashFlowCents      BigInt?
+  analystRecommendationMean Float?
+  numberOfAnalystOpinions Int?
+
+  // Nightly-updated from quote() — zero extra API calls
+  trailingPeRatio        Float?
+  fiftyTwoWeekHighCents  BigInt?
+  fiftyTwoWeekLowCents   BigInt?
+  marketCapCents         BigInt?
+
+  yahooProfileFetchedAt  DateTime?              // when quoteSummary was last run
+
   createdAt        DateTime  @default(now())
 
   transactions     Transaction[]

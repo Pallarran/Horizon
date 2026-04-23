@@ -34,9 +34,14 @@ interface SecurityInfo {
   exchange: string;
   currency: string;
   assetClass: string;
+  sector: string | null;
   industry: string | null;
   annualDividendCents: bigint | null;
   dividendGrowthYears: number | null;
+  isDividendAristocrat: boolean;
+  isDividendKing: boolean;
+  isPaysMonthly: boolean;
+  dividendFrequency: string | null;
 }
 
 interface AccountInfo {
@@ -203,6 +208,7 @@ export function buildPositions(
       exchange: sec.exchange,
       currency: sec.currency,
       assetClass: sec.assetClass,
+      sector: sec.sector,
       industry: sec.industry,
       accountName: acct.name,
       accountType: acct.type,
@@ -220,6 +226,10 @@ export function buildPositions(
       yieldPercent,
       yieldOnCostPercent,
       dividendGrowthYears: sec.dividendGrowthYears,
+      isDividendAristocrat: sec.isDividendAristocrat,
+      isDividendKing: sec.isDividendKing,
+      isPaysMonthly: sec.isPaysMonthly,
+      dividendFrequency: sec.dividendFrequency,
     });
   }
 

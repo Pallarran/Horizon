@@ -86,6 +86,95 @@ export async function getSecuritiesAction() {
   return prisma.security.findMany({ orderBy: { symbol: "asc" } });
 }
 
+// --------------- Yahoo Finance helpers ---------------
+
+/** Map our internal exchange codes to Yahoo Finance suffix */
+function toYahooSymbol(symbol: string, exchange: string): string {
+  switch (exchange) {
+    case "TSX":
+      return `${symbol}.TO`;
+    case "NEO":
+      return `${symbol}.NE`;
+    default:
+      return symbol;
+  }
+}
+
+/**
+ * Fetch industry, sector, valuation, and other profile data from Yahoo Finance
+ * and persist to the Security record. Non-blocking, non-critical.
+ */
+async function fetchAndStoreYahooProfile(
+  securityId: string,
+  yahooSym: string,
+): Promise<void> {
+  try {
+    const yf = new (
+      YahooFinance as unknown as new (
+        opts?: object,
+      ) => InstanceType<typeof YahooFinance>
+    )({ suppressNotices: ["yahooSurvey"] });
+
+    const result = await yf.quoteSummary(yahooSym, {
+      modules: ["assetProfile", "summaryDetail", "calendarEvents", "financialData"] as never,
+    });
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const profile = result.assetProfile as Record<string, any> | undefined;
+    const summary = result.summaryDetail as Record<string, any> | undefined;
+    const calendar = result.calendarEvents as Record<string, any> | undefined;
+    const financial = result.financialData as Record<string, any> | undefined;
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    const data: Record<string, unknown> = {
+      yahooProfileFetchedAt: new Date(),
+    };
+
+    // assetProfile
+    if (profile) {
+      if (profile.sector) data.sector = String(profile.sector);
+      if (profile.industry) data.industry = String(profile.industry);
+      if (profile.longBusinessSummary) data.longBusinessSummary = String(profile.longBusinessSummary);
+      if (profile.website) data.website = String(profile.website);
+      if (Number.isFinite(profile.fullTimeEmployees)) data.employeeCount = profile.fullTimeEmployees;
+    }
+
+    // summaryDetail
+    if (summary) {
+      if (Number.isFinite(summary.payoutRatio)) data.payoutRatio = summary.payoutRatio;
+      if (Number.isFinite(summary.fiveYearAvgDividendYield)) data.fiveYearAvgDividendYield = summary.fiveYearAvgDividendYield;
+      if (Number.isFinite(summary.trailingPE)) data.trailingPeRatio = summary.trailingPE;
+      if (Number.isFinite(summary.fiftyTwoWeekHigh)) data.fiftyTwoWeekHighCents = BigInt(Math.round(summary.fiftyTwoWeekHigh * 100));
+      if (Number.isFinite(summary.fiftyTwoWeekLow)) data.fiftyTwoWeekLowCents = BigInt(Math.round(summary.fiftyTwoWeekLow * 100));
+      if (Number.isFinite(summary.marketCap)) data.marketCapCents = BigInt(Math.round(summary.marketCap * 100));
+    }
+
+    // calendarEvents
+    if (calendar) {
+      if (calendar.exDividendDate instanceof Date) data.exDividendDate = calendar.exDividendDate;
+      const earningsDates = calendar.earnings?.earningsDate;
+      if (Array.isArray(earningsDates) && earningsDates.length > 0 && earningsDates[0] instanceof Date) {
+        data.nextEarningsDate = earningsDates[0];
+      }
+    }
+
+    // financialData
+    if (financial) {
+      if (Number.isFinite(financial.debtToEquity)) data.debtToEquityRatio = financial.debtToEquity;
+      if (Number.isFinite(financial.freeCashflow)) data.freeCashFlowCents = BigInt(Math.round(financial.freeCashflow * 100));
+      if (Number.isFinite(financial.recommendationMean)) data.analystRecommendationMean = financial.recommendationMean;
+      if (Number.isFinite(financial.numberOfAnalystOpinions)) data.numberOfAnalystOpinions = financial.numberOfAnalystOpinions;
+    }
+
+    await prisma.security.update({
+      where: { id: securityId },
+      data,
+    });
+  } catch {
+    // Silently ignore — profile data is non-critical
+  }
+}
+
 // --------------- Yahoo Finance search + auto-create ---------------
 
 export interface YahooSearchResult {
@@ -213,6 +302,9 @@ export async function findOrCreateSecurityAction(data: {
       dataSource: "YAHOO",
     },
   });
+
+  // Fire-and-forget: fetch profile data from Yahoo in the background
+  fetchAndStoreYahooProfile(security.id, toYahooSymbol(data.symbol, data.exchange)).catch(() => {});
 
   return { securityId: security.id };
 }

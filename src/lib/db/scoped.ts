@@ -141,6 +141,15 @@ export function scopedPrisma(userId: string) {
         return prisma.transaction.create(args);
       },
 
+      update: async (args: Parameters<typeof prisma.transaction.update>[0]) => {
+        const existing = await prisma.transaction.findUnique({
+          where: args.where,
+          include: { account: true },
+        });
+        if (!existing || existing.account.userId !== userId) throw new Error("Not found");
+        return prisma.transaction.update(args);
+      },
+
       delete: async (args: Parameters<typeof prisma.transaction.delete>[0]) => {
         const existing = await prisma.transaction.findUnique({
           where: args.where,

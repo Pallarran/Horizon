@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import type { SerializedPosition } from "@/lib/positions/serialize";
 import { deleteAccountAction } from "@/lib/actions/accounts";
-import { formatMoney } from "@/lib/money/format";
+import { formatMoney, formatPercent } from "@/lib/money/format";
 import { AccountForm } from "./AccountForm";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Account {
@@ -46,17 +46,43 @@ export function AccountsTab({ accounts, positions, locale }: Props) {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
 
   const accountStats = useMemo(() => {
-    const grouped = new Map<string, SerializedPosition[]>();
-    for (const p of positions) {
-      const list = grouped.get(p.accountId) ?? [];
-      list.push(p);
-      grouped.set(p.accountId, list);
-    }
-    return grouped;
-  }, [positions]);
+    const portfolioTotal = positions.reduce(
+      (s, p) => s + (p.marketValueCents ?? p.totalCostCents),
+      0,
+    );
+
+    return accounts.map((account) => {
+      const ap = positions.filter((p) => p.accountId === account.id);
+      const marketValue = ap.reduce(
+        (s, p) => s + (p.marketValueCents ?? p.totalCostCents),
+        0,
+      );
+      const totalCost = ap.reduce((s, p) => s + p.totalCostCents, 0);
+      const gain = marketValue - totalCost;
+      const gainPercent = totalCost > 0 ? gain / totalCost : null;
+      const income = ap.reduce(
+        (s, p) => s + (p.expectedIncomeCents ?? 0),
+        0,
+      );
+      const yieldPct = marketValue > 0 ? income / marketValue : null;
+      const weight = portfolioTotal > 0 ? marketValue / portfolioTotal : 0;
+
+      return {
+        ...account,
+        marketValue,
+        totalCost,
+        gain,
+        gainPercent,
+        income,
+        yieldPct,
+        weight,
+        positionCount: ap.length,
+      };
+    });
+  }, [accounts, positions]);
 
   async function handleDelete(accountId: string) {
     setDeleteError(null);
@@ -65,134 +91,175 @@ export function AccountsTab({ accounts, positions, locale }: Props) {
       setDeleteError(result.error);
       return;
     }
+    toast.success(t("accountDeleted"));
     startTransition(() => router.refresh());
   }
 
-  function handleSuccess() {
+  function handleCreateSuccess() {
     setCreateDialogOpen(false);
+    toast.success(t("accountCreated"));
+    startTransition(() => router.refresh());
+  }
+
+  function handleEditSuccess() {
     setEditingAccount(null);
+    toast.success(t("accountUpdated"));
     startTransition(() => router.refresh());
   }
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{t("accountsTab")}</h2>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          {t("createAccount")}
-        </Button>
-      </div>
-
       {deleteError && (
         <p className="mb-4 text-sm text-destructive">{deleteError}</p>
       )}
 
-      {accounts.length === 0 ? (
-        <div className="py-12 text-center text-muted-foreground">
-          <p>{t("noAccounts")}</p>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {accounts.map((acct) => {
-            const acctPositions = accountStats.get(acct.id) ?? [];
-            const totalValue = acctPositions.reduce(
-              (s, p) => s + (p.marketValueCents ?? p.totalCostCents),
-              0,
-            );
-            const totalCost = acctPositions.reduce(
-              (s, p) => s + p.totalCostCents,
-              0,
-            );
-            const unrealizedGain = totalValue - totalCost;
-            const expectedIncome = acctPositions.reduce(
-              (s, p) => s + (p.expectedIncomeCents ?? 0),
-              0,
-            );
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {accountStats.map((acct) => (
+          <Link
+            key={acct.id}
+            href={`/${locale}/holdings?account=${acct.id}`}
+            className={`block rounded-xl border p-5 shadow-sm transition-colors hover:border-primary/30 ${
+              acct.positionCount === 0
+                ? "border-dashed bg-card/50"
+                : "bg-card"
+            }`}
+          >
+            {/* Top row: type · currency + menu */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">
+                {t(`accountType${acct.type}` as Parameters<typeof t>[0])} ·{" "}
+                {acct.currency}
+              </p>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-muted-foreground"
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <circle cx="12" cy="5" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="12" cy="19" r="2" />
+                    </svg>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => setEditingAccount(acct)}
+                  >
+                    {tc("edit")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => setDeleteTarget(acct)}
+                  >
+                    {tc("delete")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
-            return (
-              <Card key={acct.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">{acct.name}</CardTitle>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          ···
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => setEditingAccount(acct)}
-                        >
-                          {tc("edit")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => setDeleteTarget(acct.id)}
-                        >
-                          {tc("delete")}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{acct.type}</Badge>
-                    <Badge variant="secondary">{acct.currency}</Badge>
-                  </div>
+            {/* Account name */}
+            <p className="mt-1 text-sm font-medium">{acct.name}</p>
 
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        {t("totalValue")}
-                      </span>
-                      <span className="font-medium tabular-nums">
-                        {formatMoney(totalValue, locale)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        {t("unrealizedGain")}
-                      </span>
-                      <span
-                        className={`tabular-nums ${unrealizedGain >= 0 ? "text-gain" : "text-loss"}`}
-                      >
-                        {unrealizedGain >= 0 ? "+" : ""}
-                        {formatMoney(unrealizedGain, locale)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        {t("expectedIncome")}
-                      </span>
-                      <span className="tabular-nums">
-                        {formatMoney(expectedIncome, locale)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        {t("positions")}
-                      </span>
-                      <span>{acctPositions.length}</span>
-                    </div>
-                    {acct.externalId && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          {t("broker")}
-                        </span>
-                        <span className="font-mono text-xs">
-                          {acct.externalId}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+            {/* Hero value */}
+            <p className="mt-4 text-center text-2xl font-bold tabular-nums">
+              {formatMoney(acct.marketValue, locale)}
+            </p>
+
+            {/* Gain line */}
+            <p
+              className={`mt-1 text-center text-sm tabular-nums ${
+                acct.gain >= 0 ? "text-gain" : "text-loss"
+              }`}
+            >
+              {acct.gain >= 0 ? "+" : ""}
+              {formatMoney(acct.gain, locale)}
+              {acct.gainPercent !== null && (
+                <> ({acct.gainPercent >= 0 ? "+" : ""}{formatPercent(acct.gainPercent, locale)})</>
+              )}
+            </p>
+
+            {/* Mini stats row */}
+            <div className="mt-4 grid grid-cols-3 divide-x text-center">
+              <div className="px-2">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {t("weight")}
+                </p>
+                <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                  {formatPercent(acct.weight, locale, 1)}
+                </p>
+              </div>
+              <div className="px-2">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {t("income")}
+                </p>
+                <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                  {formatMoney(acct.income, locale)}
+                </p>
+              </div>
+              <div className="px-2">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {t("yield")}
+                </p>
+                <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                  {acct.yieldPct !== null
+                    ? formatPercent(acct.yieldPct, locale)
+                    : "—"}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <p className="mt-4 text-xs text-muted-foreground">
+              {acct.positionCount === 0 ? (
+                t("emptyAccount")
+              ) : (
+                <>
+                  {acct.positionCount} {t("positions")}
+                  {acct.externalId && (
+                    <> · {t("broker")} {acct.externalId}</>
+                  )}
+                </>
+              )}
+            </p>
+          </Link>
+        ))}
+
+        {/* Create account placeholder card */}
+        <button
+          type="button"
+          onClick={() => setCreateDialogOpen(true)}
+          className="flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" x2="12" y1="8" y2="16" />
+            <line x1="8" x2="16" y1="12" y2="12" />
+          </svg>
+          <span className="mt-2 text-sm font-medium">
+            {t("createAccount")}
+          </span>
+        </button>
+      </div>
 
       {/* Create Account Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -201,7 +268,7 @@ export function AccountsTab({ accounts, positions, locale }: Props) {
             <DialogTitle>{t("createAccount")}</DialogTitle>
           </DialogHeader>
           <AccountForm
-            onSuccess={handleSuccess}
+            onSuccess={handleCreateSuccess}
             onCancel={() => setCreateDialogOpen(false)}
           />
         </DialogContent>
@@ -210,13 +277,19 @@ export function AccountsTab({ accounts, positions, locale }: Props) {
       {/* Delete Account Confirm */}
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
         title={tc("delete")}
-        description={tc("confirm") + "?"}
+        description={
+          deleteTarget
+            ? t("deleteAccountDesc", { name: deleteTarget.name, currency: deleteTarget.currency })
+            : ""
+        }
         confirmLabel={tc("delete")}
         cancelLabel={tc("cancel")}
         onConfirm={() => {
-          if (deleteTarget) handleDelete(deleteTarget);
+          if (deleteTarget) handleDelete(deleteTarget.id);
           setDeleteTarget(null);
         }}
       />
@@ -235,7 +308,7 @@ export function AccountsTab({ accounts, positions, locale }: Props) {
           {editingAccount && (
             <AccountForm
               account={editingAccount}
-              onSuccess={handleSuccess}
+              onSuccess={handleEditSuccess}
               onCancel={() => setEditingAccount(null)}
             />
           )}

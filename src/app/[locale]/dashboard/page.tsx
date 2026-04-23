@@ -17,6 +17,7 @@ import { ContributionRoomCard } from "@/components/dashboard/ContributionRoomCar
 import { IncomeCompositionChart } from "@/components/dashboard/IncomeCompositionChart";
 import { MilestoneTable } from "@/components/dashboard/MilestoneTable";
 import { FetchPricesButton } from "@/components/dashboard/FetchPricesButton";
+import { BackfillProfilesButton } from "@/components/dashboard/BackfillProfilesButton";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +86,12 @@ export default async function DashboardPage() {
           <DayMoversCard locale={locale} movers={dayMovers} />
         </div>
 
-        {user.isAdmin && <FetchPricesButton />}
+        {user.isAdmin && (
+          <div className="flex flex-wrap gap-3">
+            <FetchPricesButton />
+            <BackfillProfilesButton />
+          </div>
+        )}
       </main>
     </>
   );

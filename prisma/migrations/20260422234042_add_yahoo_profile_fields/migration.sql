@@ -1,0 +1,17 @@
+-- AlterTable
+ALTER TABLE "Security" ADD COLUMN     "analystRecommendationMean" DOUBLE PRECISION,
+ADD COLUMN     "debtToEquityRatio" DOUBLE PRECISION,
+ADD COLUMN     "employeeCount" INTEGER,
+ADD COLUMN     "exDividendDate" TIMESTAMP(3),
+ADD COLUMN     "fiftyTwoWeekHighCents" BIGINT,
+ADD COLUMN     "fiftyTwoWeekLowCents" BIGINT,
+ADD COLUMN     "fiveYearAvgDividendYield" DOUBLE PRECISION,
+ADD COLUMN     "freeCashFlowCents" BIGINT,
+ADD COLUMN     "longBusinessSummary" TEXT,
+ADD COLUMN     "marketCapCents" BIGINT,
+ADD COLUMN     "nextEarningsDate" TIMESTAMP(3),
+ADD COLUMN     "numberOfAnalystOpinions" INTEGER,
+ADD COLUMN     "payoutRatio" DOUBLE PRECISION,
+ADD COLUMN     "trailingPeRatio" DOUBLE PRECISION,
+ADD COLUMN     "website" TEXT,
+ADD COLUMN     "yahooProfileFetchedAt" TIMESTAMP(3);

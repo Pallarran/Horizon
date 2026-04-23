@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 const NAV_LINKS = [
   { href: "/dashboard", key: "dashboard" },
   { href: "/holdings", key: "holdings" },
+  { href: "/accounts", key: "accounts" },
+  { href: "/transactions", key: "transactions" },
   { href: "/contributions", key: "contributions" },
   { href: "/retirement", key: "retirement" },
 ] as const;
@@ -34,13 +36,8 @@ export function Header({
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Match /fr-CA/dashboard or /en-CA/dashboard etc.
   function isActive(href: string) {
-    // pathname looks like /fr-CA/dashboard or /en-CA/holdings
-    // Strip the locale prefix to compare
-    const segments = pathname.split("/");
-    const pathWithoutLocale = "/" + segments.slice(2).join("/");
-    return pathWithoutLocale === href || pathWithoutLocale.startsWith(href + "/");
+    return pathname === href || pathname.startsWith(href + "/");
   }
 
   async function handleLogout() {
@@ -90,7 +87,7 @@ export function Header({
                     onClick={() => setMobileOpen(false)}
                     className={`rounded-md px-3 py-2 text-sm transition-colors ${
                       isActive(href)
-                        ? "bg-accent font-medium text-accent-foreground"
+                        ? "bg-primary/10 font-medium text-primary"
                         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
@@ -103,7 +100,7 @@ export function Header({
                   onClick={() => setMobileOpen(false)}
                   className={`rounded-md px-3 py-2 text-sm transition-colors ${
                     isActive("/settings")
-                      ? "bg-accent font-medium text-accent-foreground"
+                      ? "bg-primary/10 font-medium text-primary"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   }`}
                 >
@@ -134,8 +131,8 @@ export function Header({
                 href={href}
                 className={`rounded-md px-3 py-1.5 transition-colors ${
                   isActive(href)
-                    ? "bg-accent font-medium text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-primary/10 font-medium text-primary"
+                    : "text-muted-foreground hover:text-primary"
                 }`}
               >
                 {t(key)}
@@ -149,7 +146,7 @@ export function Header({
             href="/settings"
             className={`text-sm transition-colors ${
               isActive("/settings")
-                ? "font-medium text-foreground"
+                ? "font-medium text-primary"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
