@@ -259,7 +259,43 @@ export function parseDesjardinsXlsx(buffer: ArrayBuffer): ParseResult {
   }
 
   const merged = mergeDividendGroups(rows);
+  enrichSymbolsFromDescription(merged);
   return { rows: merged, errors };
+}
+
+/**
+ * Enrich symbolless rows (dividends, interest) with the ticker from other rows
+ * in the same import that share the same description.
+ */
+function enrichSymbolsFromDescription(rows: ParsedRow[]): void {
+  const descToSymbol = new Map<
+    string,
+    { strippedSymbol: string; rawSymbol: string | null; exchange: string | null }
+  >();
+
+  for (const row of rows) {
+    if (row.strippedSymbol && row.description) {
+      const key = row.description.toUpperCase().trim();
+      if (!descToSymbol.has(key)) {
+        descToSymbol.set(key, {
+          strippedSymbol: row.strippedSymbol,
+          rawSymbol: row.rawSymbol,
+          exchange: row.exchange,
+        });
+      }
+    }
+  }
+
+  for (const row of rows) {
+    if (!row.strippedSymbol && row.description) {
+      const match = descToSymbol.get(row.description.toUpperCase().trim());
+      if (match) {
+        row.strippedSymbol = match.strippedSymbol;
+        row.rawSymbol = match.rawSymbol;
+        row.exchange = match.exchange;
+      }
+    }
+  }
 }
 
 /**

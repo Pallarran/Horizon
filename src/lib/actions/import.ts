@@ -108,6 +108,32 @@ export async function parseImportFileAction(
     return { error: parseResult.errors[0]?.message ?? "Failed to parse file" };
   }
 
+  // Enrich symbolless rows by matching description against known securities
+  const symbollessDescs = new Set<string>();
+  for (const row of parseResult.rows) {
+    if (!row.strippedSymbol && row.description) {
+      symbollessDescs.add(row.description);
+    }
+  }
+  if (symbollessDescs.size > 0) {
+    const matches = await prisma.security.findMany({
+      where: { name: { in: [...symbollessDescs], mode: "insensitive" } },
+    });
+    const nameToSec = new Map<string, { symbol: string; exchange: string }>();
+    for (const sec of matches) {
+      nameToSec.set(sec.name.toUpperCase(), { symbol: sec.symbol, exchange: sec.exchange });
+    }
+    for (const row of parseResult.rows) {
+      if (!row.strippedSymbol && row.description) {
+        const match = nameToSec.get(row.description.toUpperCase().trim());
+        if (match) {
+          row.strippedSymbol = match.symbol;
+          row.exchange = match.exchange;
+        }
+      }
+    }
+  }
+
   // Collect unique symbols to look up
   const symbolsToLookup = new Map<string, { exchange: string | null; rawSymbol: string; description: string }>();
   for (const row of parseResult.rows) {
