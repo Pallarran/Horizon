@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/auth/middleware";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { getPositions } from "@/lib/positions/query";
+import { getCrcdComputedPositions } from "@/lib/positions/crcd";
 import { computeNetWorth } from "@/lib/dashboard/net-worth";
 import { computeDividendsSummary } from "@/lib/dashboard/dividends-summary";
 import { computeDividendHistory } from "@/lib/dashboard/dividend-history";
@@ -33,13 +34,18 @@ export default async function DashboardPage() {
   const locale = user.locale;
   const db = scopedPrisma(user.id);
 
-  // Compute all dashboard data server-side
-  const positions = await getPositions(db);
+  // Compute all dashboard data server-side (merge transaction-based + CRCD positions)
+  const [txnPositions, crcdPositions] = await Promise.all([
+    getPositions(db),
+    getCrcdComputedPositions(db),
+  ]);
+  const positions = [...txnPositions, ...crcdPositions];
 
   // Ensure 1 year of historical prices exist for sparkline (one-time backfill)
+  // Exclude CRCD — not publicly traded, no Yahoo data
   const uniqueSecurities = [
     ...new Map(
-      positions.map((p) => [
+      txnPositions.map((p) => [
         p.securityId,
         { securityId: p.securityId, symbol: p.symbol, exchange: p.exchange, currency: p.currency },
       ]),

@@ -5,6 +5,7 @@
  * date, then values them using historical prices and FX rates.
  */
 import type { ScopedPrisma } from "@/lib/db/scoped";
+import { prisma } from "@/lib/db/prisma";
 import { convertCurrency } from "@/lib/money/arithmetic";
 
 export interface PortfolioHistoryPoint {
@@ -151,11 +152,55 @@ export async function computePortfolioHistory(
     });
   }
 
+  // Add CRCD holdings value — these aren't tracked via transactions.
+  // CRCD shares have a stable price, so we use current price (or cost basis)
+  // for all snapshots. This is accurate since CRCD shares don't fluctuate.
+  const crcdValueCents = await computeCrcdValueCents(db);
+  if (crcdValueCents > 0) {
+    for (const point of result) {
+      point.valueCents += crcdValueCents;
+    }
+  }
+
   // Trim leading zero-value points (months with no price data).
   // Keep trailing zeros — a genuine drop to $0 is meaningful.
   const firstNonZero = result.findIndex((p) => p.valueCents > 0);
   if (firstNonZero < 0) return []; // no data at all
   return result.slice(firstNonZero);
+}
+
+/** Compute total CRCD holdings value in CAD cents. */
+async function computeCrcdValueCents(db: ScopedPrisma): Promise<number> {
+  const holdings = await db.crcdHolding.findMany();
+  if (holdings.length === 0) return 0;
+
+  // Get current price from CRCD security
+  const crcdSecurity = await prisma.security.findUnique({
+    where: { symbol_exchange: { symbol: "CRCD", exchange: "DESJARDINS" } },
+  });
+
+  let priceCents: number | null = null;
+  if (crcdSecurity) {
+    const latestPrice = await prisma.price.findFirst({
+      where: { securityId: crcdSecurity.id },
+      orderBy: { date: "desc" },
+    });
+    if (latestPrice) {
+      priceCents = Number(latestPrice.priceCents);
+    } else if (crcdSecurity.manualPrice !== null) {
+      priceCents = Math.round(Number(crcdSecurity.manualPrice) * 100);
+    }
+  }
+
+  let totalCents = 0;
+  for (const h of holdings) {
+    const qty = Number(h.quantity);
+    // Use current price if available, otherwise use cost basis
+    const perShareCents = priceCents ?? Number(h.averagePriceCents);
+    totalCents += Math.round(qty * perShareCents);
+  }
+
+  return totalCents;
 }
 
 // --- Helpers ---
