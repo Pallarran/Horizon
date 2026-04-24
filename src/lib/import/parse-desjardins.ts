@@ -57,6 +57,9 @@ const TYPE_MAP: Record<string, TransactionType | null> = {
   "FRAIS": "FEE",
   "ÉCHANGE": null, // ticker name change — skip silently
   "OFFRE": null, // tender offer / stock swap — no tickers in file, skip silently
+  "DIVIDENDE LIBRE D'IMPÔTS": "DIVIDEND",
+  "FRACTIONNEMENT D'ACTIONS": "SPLIT",
+  "ANNULATION": "ADJUSTMENT", // reversal — user reviews and skips with the cancelled txn
 };
 
 /** Map Desjardins currency codes to ISO */
