@@ -126,6 +126,29 @@ export async function createManualSecurityAction(data: {
   return { securityId: security.id };
 }
 
+/**
+ * Store an import description as an alias on a security (for future matching).
+ * Idempotent — skips if alias already exists.
+ */
+export async function addImportAliasAction(
+  securityId: string,
+  alias: string,
+): Promise<void> {
+  await requireAuth();
+  if (!securityId || !alias.trim()) return;
+
+  const sec = await prisma.security.findUnique({
+    where: { id: securityId },
+    select: { importNames: true },
+  });
+  if (!sec || sec.importNames.includes(alias.trim())) return;
+
+  await prisma.security.update({
+    where: { id: securityId },
+    data: { importNames: { push: alias.trim() } },
+  });
+}
+
 // --------------- Yahoo Finance helpers ---------------
 
 /** Map our internal exchange codes to Yahoo Finance suffix */

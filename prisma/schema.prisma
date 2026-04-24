@@ -124,6 +124,7 @@ model Security {
   delisted         Boolean    @default(false)
   manualPrice      Decimal?                         // for non-traded like CRCD
   notes            String?
+  importNames      String[]  @default([])         // alternate names from import files (e.g. French Desjardins descriptions)
 
   // Dividend metadata — populated by nightly Yahoo fetch unless manualDividendOverride = true
   annualDividendCents BigInt?                      // annual dividend per share in cents

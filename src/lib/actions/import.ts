@@ -109,6 +109,7 @@ export async function parseImportFileAction(
   }
 
   // Enrich symbolless rows by matching description against known securities
+  // Checks both Security.name and Security.importNames (alternate names from prior imports)
   const symbollessDescs = new Set<string>();
   for (const row of parseResult.rows) {
     if (!row.strippedSymbol && row.description) {
@@ -116,16 +117,27 @@ export async function parseImportFileAction(
     }
   }
   if (symbollessDescs.size > 0) {
+    const descArray = [...symbollessDescs];
     const matches = await prisma.security.findMany({
-      where: { name: { in: [...symbollessDescs], mode: "insensitive" } },
+      where: {
+        OR: [
+          { name: { in: descArray, mode: "insensitive" } },
+          { importNames: { hasSome: descArray } },
+        ],
+      },
     });
-    const nameToSec = new Map<string, { symbol: string; exchange: string }>();
+    const descToSec = new Map<string, { symbol: string; exchange: string }>();
     for (const sec of matches) {
-      nameToSec.set(sec.name.toUpperCase(), { symbol: sec.symbol, exchange: sec.exchange });
+      // Index by canonical name
+      descToSec.set(sec.name.toUpperCase(), { symbol: sec.symbol, exchange: sec.exchange });
+      // Index by all import aliases
+      for (const alias of sec.importNames) {
+        descToSec.set(alias.toUpperCase(), { symbol: sec.symbol, exchange: sec.exchange });
+      }
     }
     for (const row of parseResult.rows) {
       if (!row.strippedSymbol && row.description) {
-        const match = nameToSec.get(row.description.toUpperCase().trim());
+        const match = descToSec.get(row.description.toUpperCase().trim());
         if (match) {
           row.strippedSymbol = match.symbol;
           row.exchange = match.exchange;
@@ -190,6 +202,34 @@ export async function parseImportFileAction(
     }
   }
 
+  // Store import descriptions as aliases on resolved securities (for future matching)
+  const aliasUpdates: { id: string; desc: string }[] = [];
+  for (const [symbol, info] of symbolsToLookup) {
+    const sec = securityMap.get(symbol);
+    if (sec && info.description) {
+      aliasUpdates.push({ id: sec.id, desc: info.description.trim() });
+    }
+  }
+  if (aliasUpdates.length > 0) {
+    const ids = [...new Set(aliasUpdates.map((u) => u.id))];
+    const existing = await prisma.security.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, importNames: true },
+    });
+    const existingMap = new Map(existing.map((s) => [s.id, new Set(s.importNames)]));
+    for (const { id, desc } of aliasUpdates) {
+      const names = existingMap.get(id);
+      if (names && !names.has(desc)) {
+        names.add(desc);
+        // Fire-and-forget
+        prisma.security.update({
+          where: { id },
+          data: { importNames: { push: desc } },
+        }).catch(() => {});
+      }
+    }
+  }
+
   // Build unknown securities list
   const unknownSecurities: UnknownSecurity[] = [];
   for (const [symbol, info] of symbolsToLookup) {
@@ -202,6 +242,30 @@ export async function parseImportFileAction(
         exchange: info.exchange,
         rowCount,
       });
+    }
+  }
+
+  // Promote symbolless rows that need a security (DIVIDEND, etc.)
+  // to "needs resolution" by using their description as a temporary key.
+  const SECURITY_TYPES = new Set(["BUY", "SELL", "DIVIDEND", "DRIP", "SPLIT", "MERGER"]);
+  const descGroupCounts = new Map<string, number>();
+  for (const row of parseResult.rows) {
+    if (!row.strippedSymbol && SECURITY_TYPES.has(row.type) && row.description) {
+      descGroupCounts.set(row.description, (descGroupCounts.get(row.description) ?? 0) + 1);
+    }
+  }
+  for (const [desc, count] of descGroupCounts) {
+    unknownSecurities.push({
+      strippedSymbol: desc,
+      rawSymbol: "",
+      description: desc,
+      exchange: null,
+      rowCount: count,
+    });
+  }
+  for (const row of parseResult.rows) {
+    if (!row.strippedSymbol && SECURITY_TYPES.has(row.type) && row.description) {
+      row.strippedSymbol = row.description;
     }
   }
 

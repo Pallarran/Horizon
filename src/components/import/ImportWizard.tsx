@@ -26,6 +26,7 @@ import {
   type UnknownSecurity,
   type CommitImportResult,
 } from "@/lib/actions/import";
+import { addImportAliasAction } from "@/lib/actions/securities";
 
 type Step = "upload" | "preview" | "summary";
 
@@ -147,11 +148,17 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
         }),
       );
       // Remove from unknownSecurities
+      const unknown = unknownSecurities.find((u) => u.strippedSymbol === symbol);
       setUnknownSecurities((prev) =>
         prev.filter((u) => u.strippedSymbol !== symbol),
       );
+      // If this was a description-based resolution (no raw symbol),
+      // store the description as an import alias for future matching
+      if (unknown && !unknown.rawSymbol && unknown.description) {
+        addImportAliasAction(resolution.securityId, unknown.description).catch(() => {});
+      }
     },
-    [],
+    [unknownSecurities],
   );
 
   const handleSkipSymbol = useCallback((symbol: string) => {
