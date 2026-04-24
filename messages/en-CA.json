@@ -1,4 +1,12 @@
 {
+  "errors": {
+    "notFoundTitle": "Page not found",
+    "notFoundDescription": "The page you're looking for doesn't exist or has been moved.",
+    "errorTitle": "Something went wrong",
+    "errorDescription": "An unexpected error occurred. Please try again.",
+    "tryAgain": "Try again",
+    "backToDashboard": "Go to dashboard"
+  },
   "common": {
     "appName": "Horizon",
     "save": "Save",

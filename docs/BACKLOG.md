@@ -26,7 +26,7 @@
 
 ### Infrastructure
 - [x] **15. Auto-fetch prices on login** — Trigger price + FX fetch when user logs in if data is stale (> 4 hours)
-- [ ] **16. Error boundaries + 404 page** — Add error.tsx at locale level + not-found.tsx with friendly UI
+- [x] **16. Error boundaries + 404 page** — Add error.tsx at locale level + not-found.tsx with friendly UI
 
 ---
 
