@@ -59,19 +59,19 @@ export interface ContributionYearRow {
 }
 
 /**
- * Aggregate DEPOSIT transactions by account type and year.
- * Returns a Map with keys like "2024-REER" → total cents deposited.
+ * Aggregate DEPOSIT and WITHDRAWAL transactions by account type and year.
+ * Returns two Maps with keys like "2024-CELI" → total cents.
  */
-async function aggregateDepositsByTypeAndYear(
+async function aggregateFlowsByTypeAndYear(
   db: ScopedPrisma,
   startYear: number,
   endYear: number,
-): Promise<Map<string, number>> {
-  const [accounts, deposits] = await Promise.all([
+): Promise<{ deposits: Map<string, number>; withdrawals: Map<string, number> }> {
+  const [accounts, txns] = await Promise.all([
     db.account.findMany({ select: { id: true, type: true } }),
     db.transaction.findMany({
       where: {
-        type: "DEPOSIT",
+        type: { in: ["DEPOSIT", "WITHDRAWAL"] },
         date: {
           gte: new Date(`${startYear}-01-01`),
           lte: new Date(`${endYear}-12-31`),
@@ -81,16 +81,18 @@ async function aggregateDepositsByTypeAndYear(
   ]);
 
   const accountTypeMap = new Map(accounts.map((a) => [a.id, a.type]));
-  const result = new Map<string, number>();
+  const deposits = new Map<string, number>();
+  const withdrawals = new Map<string, number>();
 
-  for (const txn of deposits) {
+  for (const txn of txns) {
     const acctType = accountTypeMap.get(txn.accountId) ?? "OTHER";
     const year = new Date(txn.date).getFullYear();
     const key = `${year}-${acctType}`;
-    result.set(key, (result.get(key) ?? 0) + Math.abs(Number(txn.amountCents)));
+    const map = txn.type === "DEPOSIT" ? deposits : withdrawals;
+    map.set(key, (map.get(key) ?? 0) + Math.abs(Number(txn.amountCents)));
   }
 
-  return result;
+  return { deposits, withdrawals };
 }
 
 /**
@@ -104,8 +106,8 @@ export async function computeContributionTable(
   const currentYear = new Date().getFullYear();
   const startYear = birthYear + 18;
 
-  // Fetch CRA limits, user records, and deposit aggregates in parallel
-  const [craLimits, userYears, depositMap] = await Promise.all([
+  // Fetch CRA limits, user records, and deposit/withdrawal aggregates in parallel
+  const [craLimits, userYears, flows] = await Promise.all([
     db.craLimit.findMany({
       where: { year: { gte: startYear, lte: currentYear } },
       orderBy: { year: "asc" },
@@ -114,8 +116,9 @@ export async function computeContributionTable(
       where: { year: { gte: startYear, lte: currentYear } },
       orderBy: { year: "asc" },
     }),
-    aggregateDepositsByTypeAndYear(db, startYear, currentYear),
+    aggregateFlowsByTypeAndYear(db, startYear, currentYear),
   ]);
+  const { deposits: depositMap, withdrawals: withdrawalMap } = flows;
 
   // Index CRA limits by year+type
   const craMap = new Map<string, bigint>();
@@ -132,6 +135,7 @@ export async function computeContributionTable(
   let celiCumulativeRoom = 0;
   let crcdCumulativeInvested = 0;
   let previousGoal = 0;
+  let previousCeliWithdrawal = 0;
 
   for (let year = startYear; year <= currentYear; year++) {
     const age = year - birthYear;
@@ -160,9 +164,14 @@ export async function computeContributionTable(
     const otherDeposit = depositMap.get(`${year}-OTHER`) ?? 0;
     const totalDeposit = reerDeposit + celiDeposit + crcdDeposit + margeDeposit + cashDeposit + otherDeposit;
 
+    // CELI withdrawal from THIS year (added back to room next year)
+    const celiWithdrawal = withdrawalMap.get(`${year}-CELI`) ?? 0;
+
     // Forward propagation of cumulative room
+    // CELI: withdrawals from previous year are added back to room
     reerCumulativeRoom += reerLimit - reerDeposit;
-    celiCumulativeRoom += celiLimit - celiDeposit;
+    celiCumulativeRoom += celiLimit - celiDeposit + previousCeliWithdrawal;
+    previousCeliWithdrawal = celiWithdrawal;
 
     // CRCD cumulative lifetime tracking
     crcdCumulativeInvested += crcdDeposit;
