@@ -3,7 +3,7 @@
 import crypto from "crypto";
 import { requireAuth } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db/prisma";
-import { parseDesjardinsXlsx, DEFAULT_SKIPPED_TYPES, type ParsedRow, type ParseError } from "@/lib/import/parse-desjardins";
+import { parseDesjardinsXlsx, type ParsedRow, type ParseError } from "@/lib/import/parse-desjardins";
 import { dollarsToCents } from "@/lib/money/arithmetic";
 import type { TransactionType } from "@/generated/prisma/client";
 
@@ -186,8 +186,6 @@ export async function parseImportFileAction(
       if (existing) {
         status = "duplicate";
         duplicateOfId = existing.id;
-      } else if (DEFAULT_SKIPPED_TYPES.has(row.type)) {
-        status = "skipped";
       } else {
         status = "ready";
       }

@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import type { TransactionType } from "@/generated/prisma/client";
+import { TXN_TYPES_WITH_QTY } from "@/lib/constants/transactions";
 
 export interface ParsedRow {
   date: string; // YYYY-MM-DD
@@ -43,30 +44,33 @@ const COL = {
   accountCurrency: "Devise du compte",
 } as const;
 
-/** Map Desjardins French transaction types to our enum (null = skip silently) */
+/**
+ * Map Desjardins French transaction types to our enum.
+ * null = skip silently (complex types best entered manually).
+ * Import focuses on: BUY, SELL, DIVIDEND, DEPOSIT, INTEREST, TAX_WITHHELD, FEE.
+ */
 const TYPE_MAP: Record<string, TransactionType | null> = {
+  // Imported
   "ACHAT": "BUY",
   "VENTE": "SELL",
   "DIVIDENDE": "DIVIDEND",
   "DIVIDENDE SOCIÉTÉ FIDUCIE": "DIVIDEND",
+  "DIVIDENDE LIBRE D'IMPÔTS": "DIVIDEND",
   "DÉPÔT REÇU D'UNE CAISSE": "DEPOSIT",
   "COTISATION": "DEPOSIT",
-  "CONVERSION DE DEVISE": "ADJUSTMENT",
   "INTÉRÊTS": "INTEREST",
   "IMPÔT DE NON-RÉSIDENT": "TAX_WITHHELD",
   "IMPÔT ÉTRANGER PAYÉ": "TAX_WITHHELD",
   "RETENUE D'IMPÔT": "TAX_WITHHELD",
   "FRAIS": "FEE",
-  "ÉCHANGE": null, // ticker name change — skip silently
-  "OFFRE": null, // tender offer / stock swap — no tickers in file, skip silently
-  "DIVIDENDE LIBRE D'IMPÔTS": "DIVIDEND",
-  "FRACTIONNEMENT D'ACTIONS": "SPLIT",
-  "ANNULATION": "ADJUSTMENT", // reversal — user reviews and skips with the cancelled txn
-  "DIVIDENDE EN ACTIONS": "DRIP", // stock dividend — default skipped in preview
+  // Skipped — complex types, enter manually
+  "CONVERSION DE DEVISE": null,
+  "ÉCHANGE": null,
+  "OFFRE": null,
+  "FRACTIONNEMENT D'ACTIONS": null,
+  "ANNULATION": null,
+  "DIVIDENDE EN ACTIONS": null,
 };
-
-/** Transaction types that should default to "skipped" in the import preview */
-export const DEFAULT_SKIPPED_TYPES: ReadonlySet<TransactionType> = new Set(["DRIP"]);
 
 /** Map Desjardins currency codes to ISO */
 function mapCurrency(raw: string | undefined | null): "CAD" | "USD" {
@@ -225,8 +229,9 @@ export function parseDesjardinsXlsx(buffer: ArrayBuffer): ParseResult {
     }
 
     // Parse other fields
-    const quantity = parseNumber(row[COL.quantity]);
-    const price = parseNumber(row[COL.price]);
+    const hasQty = (TXN_TYPES_WITH_QTY as readonly string[]).includes(type);
+    const rawQuantity = parseNumber(row[COL.quantity]);
+    const rawPrice = parseNumber(row[COL.price]);
     const fee = parseNumber(row[COL.fee]) ?? 0;
     const currency = mapCurrency(row[COL.accountCurrency] as string);
     const description = String(row[COL.description] ?? "").trim();
@@ -238,8 +243,8 @@ export function parseDesjardinsXlsx(buffer: ArrayBuffer): ParseResult {
       strippedSymbol,
       description,
       exchange,
-      quantity: quantity != null ? Math.abs(quantity) : null,
-      price: price != null ? Math.abs(price) : null,
+      quantity: hasQty && rawQuantity != null ? Math.abs(rawQuantity) : null,
+      price: hasQty && rawPrice != null ? Math.abs(rawPrice) : null,
       amount,
       currency,
       fee: Math.abs(fee),
