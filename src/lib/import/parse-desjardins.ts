@@ -56,6 +56,7 @@ const TYPE_MAP: Record<string, TransactionType | null> = {
   "IMPÔT DE NON-RÉSIDENT": "TAX_WITHHELD",
   "FRAIS": "FEE",
   "ÉCHANGE": null, // ticker name change — skip silently
+  "OFFRE": null, // tender offer / stock swap — no tickers in file, skip silently
 };
 
 /** Map Desjardins currency codes to ISO */
