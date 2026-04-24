@@ -54,6 +54,7 @@ const TYPE_MAP: Record<string, TransactionType | null> = {
   "CONVERSION DE DEVISE": "ADJUSTMENT",
   "INTÉRÊTS": "INTEREST",
   "IMPÔT DE NON-RÉSIDENT": "TAX_WITHHELD",
+  "IMPÔT ÉTRANGER PAYÉ": "TAX_WITHHELD",
   "FRAIS": "FEE",
   "ÉCHANGE": null, // ticker name change — skip silently
   "OFFRE": null, // tender offer / stock swap — no tickers in file, skip silently
