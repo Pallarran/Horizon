@@ -6,6 +6,7 @@ import {
   searchSecuritiesAction,
   searchYahooAction,
   findOrCreateSecurityAction,
+  createManualSecurityAction,
   type YahooSearchResult,
 } from "@/lib/actions/securities";
 import {
@@ -21,7 +22,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Loader2, Plus } from "lucide-react";
 
 export interface SecurityOption {
   id: string;
@@ -37,6 +47,8 @@ interface Props {
   initialSecurity?: { id: string; symbol: string; name: string } | null;
 }
 
+const EXCHANGES = ["TSX", "NYSE", "NASDAQ", "NEO", "CBOE", "OTHER"] as const;
+
 export function SecurityCombobox({ value, onChange, initialSecurity }: Props) {
   const t = useTranslations("holdings");
   const [open, setOpen] = useState(false);
@@ -48,6 +60,12 @@ export function SecurityCombobox({ value, onChange, initialSecurity }: Props) {
   );
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+
+  // Manual creation state
+  const [manualSymbol, setManualSymbol] = useState("");
+  const [manualName, setManualName] = useState("");
+  const [manualExchange, setManualExchange] = useState("");
+  const [manualCurrency, setManualCurrency] = useState("CAD");
 
   const search = useCallback(async (q: string) => {
     if (q.length < 1) {
@@ -114,7 +132,40 @@ export function SecurityCombobox({ value, onChange, initialSecurity }: Props) {
     setOpen(false);
   }
 
+  async function handleManualCreate() {
+    if (!manualSymbol.trim() || !manualName.trim() || !manualExchange) return;
+    setCreating(true);
+    const { securityId, error } = await createManualSecurityAction({
+      symbol: manualSymbol.trim().toUpperCase(),
+      exchange: manualExchange,
+      name: manualName.trim(),
+      currency: manualCurrency,
+    });
+    setCreating(false);
+
+    if (error || !securityId) return;
+
+    const sec: SecurityOption = {
+      id: securityId,
+      symbol: manualSymbol.trim().toUpperCase(),
+      name: manualName.trim(),
+      exchange: manualExchange,
+      currency: manualCurrency,
+    };
+    setSelected(sec);
+    onChange(securityId, sec);
+    setOpen(false);
+  }
+
   const hasResults = localResults.length > 0 || yahooResults.length > 0;
+  const noResults = !loading && !hasResults && query.length >= 2;
+
+  // Pre-fill manual symbol from query when no results appear
+  useEffect(() => {
+    if (noResults) {
+      setManualSymbol(query.toUpperCase());
+    }
+  }, [noResults, query]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -141,7 +192,7 @@ export function SecurityCombobox({ value, onChange, initialSecurity }: Props) {
             onValueChange={setQuery}
           />
           <CommandList>
-            {!hasResults && !loading && query.length > 0 && (
+            {noResults && (
               <CommandEmpty>{t("noSecuritiesFound")}</CommandEmpty>
             )}
 
@@ -196,6 +247,66 @@ export function SecurityCombobox({ value, onChange, initialSecurity }: Props) {
             )}
           </CommandList>
         </Command>
+
+        {/* Manual creation form — shown when no results found */}
+        {noResults && (
+          <div className="space-y-2 border-t border-dashed p-3">
+            <div>
+              <p className="text-sm font-medium">{t("createManually")}</p>
+              <p className="text-xs text-muted-foreground">{t("createManuallyHint")}</p>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={manualSymbol}
+                onChange={(e) => setManualSymbol(e.target.value.toUpperCase())}
+                placeholder={t("manualSymbol")}
+                className="w-24 shrink-0 font-mono text-sm"
+              />
+              <Input
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+                placeholder={t("manualName")}
+                className="text-sm"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Select value={manualExchange} onValueChange={(v) => {
+                setManualExchange(v);
+                setManualCurrency(["NYSE", "NASDAQ", "CBOE"].includes(v) ? "USD" : "CAD");
+              }}>
+                <SelectTrigger className="w-32 text-sm">
+                  <SelectValue placeholder={t("manualExchange")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {EXCHANGES.map((ex) => (
+                    <SelectItem key={ex} value={ex}>{ex}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={manualCurrency} onValueChange={setManualCurrency}>
+                <SelectTrigger className="w-24 text-sm">
+                  <SelectValue placeholder={t("manualCurrency")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CAD">CAD</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                onClick={handleManualCreate}
+                disabled={creating || !manualSymbol.trim() || !manualName.trim() || !manualExchange}
+              >
+                {creating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-1 h-4 w-4" />
+                )}
+                {t("createBtn")}
+              </Button>
+            </div>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );
