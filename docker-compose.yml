@@ -31,7 +31,7 @@ services:
       TZ: America/Toronto
       NODE_ENV: production
     ports:
-      - "3000:3000"
+      - "3001:3000"
 
   jobs:
     build:
