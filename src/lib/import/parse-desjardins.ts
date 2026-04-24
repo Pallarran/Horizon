@@ -62,7 +62,11 @@ const TYPE_MAP: Record<string, TransactionType | null> = {
   "DIVIDENDE LIBRE D'IMPÔTS": "DIVIDEND",
   "FRACTIONNEMENT D'ACTIONS": "SPLIT",
   "ANNULATION": "ADJUSTMENT", // reversal — user reviews and skips with the cancelled txn
+  "DIVIDENDE EN ACTIONS": "DRIP", // stock dividend — default skipped in preview
 };
+
+/** Transaction types that should default to "skipped" in the import preview */
+export const DEFAULT_SKIPPED_TYPES: ReadonlySet<TransactionType> = new Set(["DRIP"]);
 
 /** Map Desjardins currency codes to ISO */
 function mapCurrency(raw: string | undefined | null): "CAD" | "USD" {
