@@ -236,18 +236,6 @@ export function parseDesjardinsXlsx(buffer: ArrayBuffer): ParseResult {
     const currency = mapCurrency(row[COL.accountCurrency] as string);
     const description = String(row[COL.description] ?? "").trim();
 
-    // Enforce sign convention (see schema comment on Transaction.amountCents):
-    //   Negative: BUY, FEE, TAX_WITHHELD
-    //   Positive: SELL, DIVIDEND, INTEREST, DEPOSIT
-    const NEGATIVE_TYPES: readonly string[] = ["BUY", "FEE", "TAX_WITHHELD"];
-    const POSITIVE_TYPES: readonly string[] = ["SELL", "DIVIDEND", "INTEREST", "DEPOSIT"];
-    let signedAmount = amount;
-    if (NEGATIVE_TYPES.includes(type) && signedAmount > 0) {
-      signedAmount = -signedAmount;
-    } else if (POSITIVE_TYPES.includes(type) && signedAmount < 0) {
-      signedAmount = -signedAmount;
-    }
-
     rows.push({
       date,
       type,
@@ -257,7 +245,7 @@ export function parseDesjardinsXlsx(buffer: ArrayBuffer): ParseResult {
       exchange,
       quantity: hasQty && rawQuantity != null ? Math.abs(rawQuantity) : null,
       price: hasQty && rawPrice != null ? Math.abs(rawPrice) : null,
-      amount: signedAmount,
+      amount,
       currency,
       fee: Math.abs(fee),
       rowIndex: i,

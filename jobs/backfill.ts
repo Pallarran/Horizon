@@ -37,8 +37,8 @@ export async function backfillPrices(securityIds?: string[]) {
 
   try {
     const where = securityIds?.length
-      ? { dataSource: "YAHOO" as const, id: { in: securityIds } }
-      : { dataSource: "YAHOO" as const };
+      ? { dataSource: "YAHOO" as const, delisted: false, id: { in: securityIds } }
+      : { dataSource: "YAHOO" as const, delisted: false };
 
     const securities = await prisma.security.findMany({ where });
 

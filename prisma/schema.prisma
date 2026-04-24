@@ -121,6 +121,7 @@ model Security {
   isDividendKing   Boolean   @default(false)
   isPaysMonthly    Boolean   @default(false)
   dataSource       DataSource @default(YAHOO)
+  delisted         Boolean    @default(false)
   manualPrice      Decimal?                         // for non-traded like CRCD
   notes            String?
 

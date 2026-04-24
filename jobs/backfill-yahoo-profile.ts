@@ -40,6 +40,7 @@ export async function backfillYahooProfiles(securityIds?: string[], force = fals
     // When specific IDs or force flag are provided, refresh even if already fetched
     const where = {
       dataSource: "YAHOO" as const,
+      delisted: false,
       ...(securityIds?.length
         ? { id: { in: securityIds } }
         : force ? {} : { yahooProfileFetchedAt: null }),

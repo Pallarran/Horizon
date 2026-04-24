@@ -80,6 +80,7 @@ export function ImportPreviewTable({
   const needsRes = rows.filter((r) => r.status === "needs_resolution").length;
   const dupes = rows.filter((r) => r.status === "duplicate").length;
   const skipped = rows.filter((r) => r.status === "skipped").length;
+  const errors = rows.filter((r) => r.status === "error").length;
 
   return (
     <div className="space-y-4">
@@ -101,6 +102,11 @@ export function ImportPreviewTable({
         {skipped > 0 && (
           <span className="text-muted-foreground">
             {skipped} {t("skippedCount")}
+          </span>
+        )}
+        {errors > 0 && (
+          <span className="text-destructive">
+            {errors} {t("errorsLabel")}
           </span>
         )}
       </div>
@@ -168,7 +174,9 @@ export function ImportPreviewTable({
                   {row.resolvedSecuritySymbol ?? row.strippedSymbol ?? "—"}
                 </TableCell>
                 <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground">
-                  {row.description}
+                  {row.status === "error" && row.errorMessage
+                    ? <span className="text-destructive">{row.errorMessage}</span>
+                    : row.description}
                 </TableCell>
                 <TableCell className="text-right font-mono text-xs">
                   {formatAmount(row.amount, row.currency)}

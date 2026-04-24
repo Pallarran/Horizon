@@ -31,11 +31,11 @@ export interface PreviewRow extends ParsedRow {
   resolvedSecurityId: string | null;
   resolvedSecuritySymbol: string | null;
   duplicateOfId: string | null;
+  errorMessage: string | null;
 }
 
 export interface ParseImportResult {
   rows: PreviewRow[];
-  errors: ParseError[];
   unknownSecurities: UnknownSecurity[];
   fileChecksum: string;
   existingBatchDate: string | null;
@@ -119,7 +119,7 @@ export async function parseImportFileAction(
     }
   }
 
-  // Look up existing securities
+  // Look up existing securities (strict: symbol + exchange)
   const securityMap = new Map<string, ResolvedSecurity>();
   if (symbolsToLookup.size > 0) {
     const symbols = [...symbolsToLookup.keys()];
@@ -142,6 +142,25 @@ export async function parseImportFileAction(
         name: sec.name,
       });
     }
+
+    // Fallback: symbol-only lookup for any still-missing symbols
+    // Handles cases where parser infers "NYSE" but security was created as "NASDAQ"
+    const missing = symbols.filter((s) => !securityMap.has(s));
+    if (missing.length > 0) {
+      const fallback = await prisma.security.findMany({
+        where: { symbol: { in: missing } },
+      });
+      for (const sec of fallback) {
+        if (!securityMap.has(sec.symbol)) {
+          securityMap.set(sec.symbol, {
+            id: sec.id,
+            symbol: sec.symbol,
+            exchange: sec.exchange,
+            name: sec.name,
+          });
+        }
+      }
+    }
   }
 
   // Build unknown securities list
@@ -159,9 +178,58 @@ export async function parseImportFileAction(
     }
   }
 
-  // Check duplicates for each row
+  // Build preview rows — merge parsed rows and error rows inline
   const previewRows: PreviewRow[] = [];
+
+  // Create a set of error row indices for quick lookup
+  const errorByIndex = new Map<number, string>();
+  for (const err of parseResult.errors) {
+    errorByIndex.set(err.rowIndex, err.message);
+  }
+
+  // Merge all rows (parsed + errors) sorted by original row index
+  const allIndices = new Set([
+    ...parseResult.rows.map((r) => r.rowIndex),
+    ...parseResult.errors.map((e) => e.rowIndex),
+  ]);
+  const sortedIndices = [...allIndices].sort((a, b) => a - b);
+
+  // Index parsed rows by rowIndex for quick lookup
+  const parsedByIndex = new Map<number, ParsedRow>();
   for (const row of parseResult.rows) {
+    parsedByIndex.set(row.rowIndex, row);
+  }
+
+  for (const idx of sortedIndices) {
+    const errorMsg = errorByIndex.get(idx);
+
+    if (errorMsg && !parsedByIndex.has(idx)) {
+      // Error-only row — add as an error entry
+      previewRows.push({
+        date: "",
+        type: "BUY", // placeholder, won't be imported
+        rawSymbol: null,
+        strippedSymbol: null,
+        description: "",
+        exchange: null,
+        quantity: null,
+        price: null,
+        amount: 0,
+        currency: "CAD",
+        fee: 0,
+        rowIndex: idx,
+        status: "error",
+        resolvedSecurityId: null,
+        resolvedSecuritySymbol: null,
+        duplicateOfId: null,
+        errorMessage: errorMsg,
+      });
+      continue;
+    }
+
+    const row = parsedByIndex.get(idx);
+    if (!row) continue;
+
     const resolvedSec = row.strippedSymbol ? securityMap.get(row.strippedSymbol) : null;
     const needsSecurity = row.strippedSymbol && !resolvedSec;
 
@@ -197,17 +265,17 @@ export async function parseImportFileAction(
       resolvedSecurityId: resolvedSec?.id ?? null,
       resolvedSecuritySymbol: resolvedSec?.symbol ?? null,
       duplicateOfId,
+      errorMessage: null,
     });
   }
 
   return {
     data: {
       rows: previewRows,
-      errors: parseResult.errors,
       unknownSecurities,
       fileChecksum,
       existingBatchDate: existingBatch?.createdAt.toISOString() ?? null,
-      totalRows: parseResult.rows.length + parseResult.errors.length,
+      totalRows: sortedIndices.length,
     },
   };
 }

@@ -55,7 +55,6 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
   const [unknownSecurities, setUnknownSecurities] = useState<UnknownSecurity[]>([]);
   const [fileChecksum, setFileChecksum] = useState("");
   const [existingBatchDate, setExistingBatchDate] = useState<string | null>(null);
-  const [parseErrors, setParseErrors] = useState<{ rowIndex: number; message: string }[]>([]);
 
   // Security resolver
   const [resolverOpen, setResolverOpen] = useState(false);
@@ -98,7 +97,6 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
         setUnknownSecurities(result.data.unknownSecurities);
         setFileChecksum(result.data.fileChecksum);
         setExistingBatchDate(result.data.existingBatchDate);
-        setParseErrors(result.data.errors);
         setResolutions(new Map());
         setStep("preview");
       } catch {
@@ -173,6 +171,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
   const readyRows = rows.filter((r) => r.status === "ready");
   const hasUnresolved = rows.some((r) => r.status === "needs_resolution");
   const skippedCount = rows.filter((r) => r.status === "skipped" || r.status === "duplicate").length;
+  const errorCount = rows.filter((r) => r.status === "error").length;
 
   const handleCommit = useCallback(async () => {
     setLoading(true);
@@ -234,7 +233,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
       <ImportSummary
         created={importResult.created}
         skipped={skippedCount}
-        errors={parseErrors.length}
+        errors={errorCount}
         batchId={importResult.batchId}
       />
     );
@@ -343,26 +342,6 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
             <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               {error}
-            </div>
-          )}
-
-          {parseErrors.length > 0 && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              <p className="font-medium">
-                {t("parseErrorsTitle", { count: parseErrors.length })}
-              </p>
-              <ul className="mt-1 list-inside list-disc">
-                {parseErrors.slice(0, 5).map((e, i) => (
-                  <li key={i}>
-                    {t("rowError", { row: e.rowIndex + 2, message: e.message })}
-                  </li>
-                ))}
-                {parseErrors.length > 5 && (
-                  <li>
-                    {t("moreErrors", { count: parseErrors.length - 5 })}
-                  </li>
-                )}
-              </ul>
             </div>
           )}
 

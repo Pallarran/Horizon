@@ -86,6 +86,46 @@ export async function getSecuritiesAction() {
   return prisma.security.findMany({ orderBy: { symbol: "asc" } });
 }
 
+/**
+ * Create a security manually (for delisted / unlisted tickers not on Yahoo).
+ * Used by the import resolver when Yahoo search returns nothing.
+ */
+export async function createManualSecurityAction(data: {
+  symbol: string;
+  exchange: string;
+  name: string;
+  currency: string;
+}): Promise<{ securityId: string; error?: string }> {
+  await requireAuth();
+
+  const { symbol, exchange, name, currency } = data;
+  if (!symbol || !exchange || !name || !currency) {
+    return { securityId: "", error: "All fields are required" };
+  }
+
+  const existing = await prisma.security.findUnique({
+    where: { symbol_exchange: { symbol, exchange } },
+  });
+  if (existing) return { securityId: existing.id };
+
+  const isCanadian = ["TSX", "NEO"].includes(exchange);
+  const assetClass: AssetClass = isCanadian ? "CANADIAN_EQUITY" : "US_EQUITY";
+
+  const security = await prisma.security.create({
+    data: {
+      symbol,
+      exchange,
+      name,
+      currency,
+      assetClass,
+      dataSource: "MANUAL",
+      delisted: true,
+    },
+  });
+
+  return { securityId: security.id };
+}
+
 // --------------- Yahoo Finance helpers ---------------
 
 /** Map our internal exchange codes to Yahoo Finance suffix */

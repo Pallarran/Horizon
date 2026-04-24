@@ -39,7 +39,7 @@ export async function fetchPrices() {
   try {
     // Get all securities that use Yahoo as data source
     const securities = await prisma.security.findMany({
-      where: { dataSource: "YAHOO" },
+      where: { dataSource: "YAHOO", delisted: false },
     });
 
     if (securities.length === 0) {

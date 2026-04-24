@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -13,11 +13,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, Search, Plus } from "lucide-react";
 import {
   searchSecuritiesAction,
   searchYahooAction,
   findOrCreateSecurityAction,
+  createManualSecurityAction,
   type YahooSearchResult,
 } from "@/lib/actions/securities";
 import type { UnknownSecurity } from "@/lib/actions/import";
@@ -45,6 +53,8 @@ interface DbResult {
   currency: string;
 }
 
+const EXCHANGES = ["TSX", "NYSE", "NASDAQ", "NEO", "CBOE", "OTHER"] as const;
+
 export function SecurityResolverDialog({
   open,
   onOpenChange,
@@ -60,6 +70,12 @@ export function SecurityResolverDialog({
   const [yahooResults, setYahooResults] = useState<YahooSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [adding, setAdding] = useState(false);
+
+  // Manual creation form state
+  const [manualName, setManualName] = useState("");
+  const [manualExchange, setManualExchange] = useState("");
+  const [manualCurrency, setManualCurrency] = useState("CAD");
+  const [creating, setCreating] = useState(false);
 
   const handleSearch = useCallback(async (q: string) => {
     setQuery(q);
@@ -117,29 +133,74 @@ export function SecurityResolverDialog({
     }
   };
 
+  const handleCreateManual = async () => {
+    if (!security || !manualName.trim() || !manualExchange) return;
+    setCreating(true);
+    try {
+      const { securityId, error } = await createManualSecurityAction({
+        symbol: security.strippedSymbol,
+        exchange: manualExchange,
+        name: manualName.trim(),
+        currency: manualCurrency,
+      });
+      if (error) return;
+      onResolved(security.strippedSymbol, {
+        securityId,
+        symbol: security.strippedSymbol,
+        exchange: manualExchange,
+        name: manualName.trim(),
+      });
+      onOpenChange(false);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const handleSkip = () => {
     if (!security) return;
     onSkip(security.strippedSymbol);
     onOpenChange(false);
   };
 
-  // Auto-search with stripped symbol when dialog opens
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen && security) {
+  // Auto-search and pre-fill when dialog opens (or security changes)
+  const prevSecurityRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (open && security && security.strippedSymbol !== prevSecurityRef.current) {
+      prevSecurityRef.current = security.strippedSymbol;
       setQuery(security.strippedSymbol);
       handleSearch(security.strippedSymbol);
-    } else {
+      setManualName(security.description || "");
+      setManualExchange(security.exchange || "TSX");
+      setManualCurrency(
+        security.exchange && ["NYSE", "NASDAQ", "CBOE"].includes(security.exchange)
+          ? "USD"
+          : "CAD",
+      );
+    }
+    if (!open) {
+      prevSecurityRef.current = null;
+    }
+  }, [open, security, handleSearch]);
+
+  // Clean up state when dialog closes
+  const handleDialogChange = (isOpen: boolean) => {
+    if (!isOpen) {
       setQuery("");
       setDbResults([]);
       setYahooResults([]);
+      setManualName("");
+      setManualExchange("");
+      setManualCurrency("CAD");
     }
     onOpenChange(isOpen);
   };
 
   if (!security) return null;
 
+  const noResults = !searching && query.length >= 2 && dbResults.length === 0 && yahooResults.length === 0;
+
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t("resolveTitle")}</DialogTitle>
@@ -236,12 +297,73 @@ export function SecurityResolverDialog({
             </div>
           )}
 
-          {!searching && query.length >= 2 && dbResults.length === 0 && yahooResults.length === 0 && (
+          {noResults && (
             <p className="py-4 text-center text-sm text-muted-foreground">
               {tH("noSecuritiesFound")}
             </p>
           )}
         </div>
+
+        {/* Manual creation form — shown when no Yahoo results found */}
+        {noResults && (
+          <div className="space-y-3 rounded-md border border-dashed p-3">
+            <div>
+              <p className="text-sm font-medium">{t("createManually")}</p>
+              <p className="text-xs text-muted-foreground">{t("createManuallyHint")}</p>
+            </div>
+            <div className="flex gap-2">
+              <div className="w-20 shrink-0">
+                <Input
+                  value={security.strippedSymbol}
+                  disabled
+                  className="font-mono text-sm"
+                />
+              </div>
+              <Input
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+                placeholder={t("manualName")}
+                className="text-sm"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Select value={manualExchange} onValueChange={(v) => {
+                setManualExchange(v);
+                setManualCurrency(["NYSE", "NASDAQ", "CBOE"].includes(v) ? "USD" : "CAD");
+              }}>
+                <SelectTrigger className="w-32 text-sm">
+                  <SelectValue placeholder={t("manualExchange")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {EXCHANGES.map((ex) => (
+                    <SelectItem key={ex} value={ex}>{ex}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={manualCurrency} onValueChange={setManualCurrency}>
+                <SelectTrigger className="w-24 text-sm">
+                  <SelectValue placeholder={t("manualCurrency")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CAD">CAD</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                onClick={handleCreateManual}
+                disabled={creating || !manualName.trim() || !manualExchange}
+              >
+                {creating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-1 h-4 w-4" />
+                )}
+                {t("createBtn")}
+              </Button>
+            </div>
+          </div>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={handleSkip}>
