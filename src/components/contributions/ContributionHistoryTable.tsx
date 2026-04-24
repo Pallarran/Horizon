@@ -183,7 +183,12 @@ export function ContributionHistoryTable({
                     {formatMoney(row.celiLimitCents, locale)}
                   </TableCell>
                   <TableCell className="text-right">
-                    {formatMoney(row.celiDepositCents, locale)}
+                    <span>{formatMoney(row.celiDepositCents, locale)}</span>
+                    {row.celiWithdrawalCents > 0 && (
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        (−{formatMoney(row.celiWithdrawalCents, locale)})
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {formatMoney(row.celiCumulativeRoomCents, locale)}

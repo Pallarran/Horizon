@@ -33,9 +33,10 @@ export interface ContributionYearRow {
   celiLimitCents: number;
   crcdLimitCents: number;   // 0 = user not participating in CRCD
 
-  // Auto-computed from DEPOSIT transactions
+  // Auto-computed from DEPOSIT/WITHDRAWAL transactions
   reerDepositCents: number;
   celiDepositCents: number;
+  celiWithdrawalCents: number;
   crcdDepositCents: number;
   margeDepositCents: number;
   cashDepositCents: number;
@@ -197,6 +198,7 @@ export async function computeContributionTable(
       crcdLimitCents: crcdLimit,
       reerDepositCents: reerDeposit,
       celiDepositCents: celiDeposit,
+      celiWithdrawalCents: celiWithdrawal,
       crcdDepositCents: crcdDeposit,
       margeDepositCents: margeDeposit,
       cashDepositCents: cashDeposit,
