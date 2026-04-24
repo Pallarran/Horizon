@@ -9,7 +9,6 @@ services:
       TZ: America/Toronto
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./backups:/backups
     ports:
       - "5432:5432"
     healthcheck:
@@ -44,8 +43,11 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://horizon:${DB_PASSWORD}@db:5432/horizon
+      BACKUP_DIR: /backups
       TZ: America/Toronto
       NODE_ENV: production
+    volumes:
+      - ./backups:/backups
     command: ["node", "--import", "tsx", "jobs/index.ts"]
 
 volumes:

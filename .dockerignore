@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.local
+backups
+*.code-workspace
+.vscode
+.idea
+*.md
+!README.md

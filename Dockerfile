@@ -22,17 +22,22 @@ RUN pnpm build
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# pg_dump for database backups (jobs container)
+RUN apk add --no-cache postgresql16-client
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
+# Next.js standalone output
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 # Prisma schema + config for migrations
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-# Jobs runner dependencies
+# Generated Prisma client (jobs import from src/generated/prisma/client)
+COPY --from=builder /app/src/generated ./src/generated
+# Jobs runner + full node_modules (jobs need node-cron, pino, yahoo-finance2, etc.)
 COPY --from=builder /app/jobs ./jobs
-COPY --from=builder /app/node_modules/tsx ./node_modules/tsx
+COPY --from=deps /app/node_modules ./node_modules
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
