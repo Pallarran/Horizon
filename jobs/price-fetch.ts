@@ -104,6 +104,10 @@ export async function fetchPrices() {
         const secUpdate: Record<string, unknown> = {};
         if (quote.trailingAnnualDividendRate && quote.trailingAnnualDividendRate > 0) {
           secUpdate.annualDividendCents = BigInt(Math.round(quote.trailingAnnualDividendRate * 100));
+        } else if (quote.dividendYield && quote.dividendYield > 0 && quote.regularMarketPrice) {
+          // Some ETFs only report yield (%), not rate — compute rate from price
+          const annualDiv = (quote.dividendYield / 100) * quote.regularMarketPrice;
+          secUpdate.annualDividendCents = BigInt(Math.round(annualDiv * 100));
         }
         if (Number.isFinite(quote.trailingPE)) secUpdate.trailingPeRatio = quote.trailingPE;
         if (Number.isFinite(quote.marketCap)) secUpdate.marketCapCents = BigInt(Math.round(quote.marketCap * 100));
