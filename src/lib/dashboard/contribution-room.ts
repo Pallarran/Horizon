@@ -1,6 +1,6 @@
 /**
  * Contribution room summary for the dashboard card.
- * Delegates to the full computation engine from Phase 6.
+ * Delegates to the full computation engine.
  */
 import type { ScopedPrisma } from "@/lib/db/scoped";
 import { computeContributionTable } from "@/lib/contributions/compute";
@@ -12,6 +12,8 @@ export interface ContributionRoomData {
   crcd: { limitCents: number; contributedCents: number; remainingCents: number };
   reerCumulativeRemainingCents: number;
   celiCumulativeRemainingCents: number;
+  savingsGoalCents: number;
+  totalDepositCents: number;
 }
 
 export async function computeContributionRoom(
@@ -30,42 +32,41 @@ export async function computeContributionRoom(
         year: currentYear,
         reer: {
           limitCents: currentRow.reerLimitCents,
-          contributedCents: currentRow.reerContributionCents,
-          remainingCents: currentRow.reerLimitCents - currentRow.reerContributionCents,
+          contributedCents: currentRow.reerDepositCents,
+          remainingCents: currentRow.reerLimitCents - currentRow.reerDepositCents,
         },
         celi: {
           limitCents: currentRow.celiLimitCents,
-          contributedCents: currentRow.celiContributionCents,
-          remainingCents: currentRow.celiLimitCents - currentRow.celiContributionCents,
+          contributedCents: currentRow.celiDepositCents,
+          remainingCents: currentRow.celiLimitCents - currentRow.celiDepositCents,
         },
         crcd: {
-          limitCents: currentRow.crcdCraLimitCents,
-          contributedCents: currentRow.crcdContributionCents,
+          limitCents: currentRow.crcdLimitCents,
+          contributedCents: currentRow.crcdDepositCents,
           remainingCents: currentRow.crcdRemainingCents,
         },
         reerCumulativeRemainingCents: currentRow.reerCumulativeRoomCents,
         celiCumulativeRemainingCents: currentRow.celiCumulativeRoomCents,
+        savingsGoalCents: currentRow.savingsGoalCents,
+        totalDepositCents: currentRow.totalDepositCents,
       };
     }
   }
 
-  // Fallback: get CRA limits for display when no contribution data exists
-  const [reerLimit, celiLimit, crcdLimit] = await Promise.all([
-    db.craLimit.findFirst({ where: { year: currentYear, type: "REER" } }),
-    db.craLimit.findFirst({ where: { year: currentYear, type: "CELI" } }),
-    db.craLimit.findFirst({ where: { year: currentYear, type: "CRCD" } }),
-  ]);
-
-  const reerLimitCents = reerLimit ? Number(reerLimit.limitCents) : 0;
+  // Fallback: REER/CRCD are user-entered (0 until set), CELI uses CRA limit
+  const celiLimit = await db.craLimit.findFirst({
+    where: { year: currentYear, type: "CELI" },
+  });
   const celiLimitCents = celiLimit ? Number(celiLimit.limitCents) : 0;
-  const crcdLimitCents = crcdLimit ? Number(crcdLimit.limitCents) : 500_000;
 
   return {
     year: currentYear,
-    reer: { limitCents: reerLimitCents, contributedCents: 0, remainingCents: reerLimitCents },
+    reer: { limitCents: 0, contributedCents: 0, remainingCents: 0 },
     celi: { limitCents: celiLimitCents, contributedCents: 0, remainingCents: celiLimitCents },
-    crcd: { limitCents: crcdLimitCents, contributedCents: 0, remainingCents: crcdLimitCents },
-    reerCumulativeRemainingCents: reerLimitCents,
+    crcd: { limitCents: 0, contributedCents: 0, remainingCents: 0 },
+    reerCumulativeRemainingCents: 0,
     celiCumulativeRemainingCents: celiLimitCents,
+    savingsGoalCents: 0,
+    totalDepositCents: 0,
   };
 }

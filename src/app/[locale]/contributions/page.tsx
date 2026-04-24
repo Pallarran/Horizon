@@ -2,8 +2,7 @@ import { requireAuth } from "@/lib/auth/middleware";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { computeContributionTable } from "@/lib/contributions/compute";
 import { Header } from "@/components/layout/Header";
-import { ContributionTable } from "@/components/contributions/ContributionTable";
-import { CurrentYearSummary } from "@/components/contributions/CurrentYearSummary";
+import { ContributionsPageClient } from "@/components/contributions/ContributionsPageClient";
 
 export const dynamic = "force-dynamic";
 
@@ -12,23 +11,20 @@ export default async function ContributionsPage() {
   const locale = user.locale;
   const db = scopedPrisma(user.id);
 
-  const rows = await computeContributionTable(db, user.birthYear);
-  const currentYear = new Date().getFullYear();
-  const currentYearRow = rows.find((r) => r.year === currentYear);
+  const [rows, crcdHoldings] = await Promise.all([
+    computeContributionTable(db, user.birthYear),
+    db.crcdHolding.findMany({ where: {} }),
+  ]);
 
   return (
     <>
       <Header displayName={user.displayName} isAdmin={user.isAdmin} />
-      <main className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
-        {currentYearRow && (
-          <div className="mb-6">
-            <CurrentYearSummary row={currentYearRow} locale={locale} />
-          </div>
-        )}
-
-        <div className="rounded-xl border bg-card p-6 shadow-sm">
-          <ContributionTable rows={rows} locale={locale} />
-        </div>
+      <main className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
+        <ContributionsPageClient
+          initialRows={rows}
+          locale={locale}
+          hasCrcdHoldings={crcdHoldings.length > 0}
+        />
       </main>
     </>
   );

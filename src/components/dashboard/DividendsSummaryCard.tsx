@@ -3,17 +3,33 @@
 import { useTranslations } from "next-intl";
 import { formatMoney, formatPercent } from "@/lib/money/format";
 import type { DividendsSummaryData } from "@/lib/dashboard/dividends-summary";
+import type { DividendHistoryPoint } from "@/lib/dashboard/dividend-history";
 import { Separator } from "@/components/ui/separator";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 interface DividendsSummaryCardProps {
   locale: string;
   dividends: DividendsSummaryData;
+  history?: DividendHistoryPoint[];
 }
 
-export function DividendsSummaryCard({ locale, dividends }: DividendsSummaryCardProps) {
+export function DividendsSummaryCard({ locale, dividends, history }: DividendsSummaryCardProps) {
   const t = useTranslations("dashboard");
 
   const growthPositive = dividends.ytdGrowthPercent >= 0;
+
+  const chartData = history?.map((p) => ({
+    year: p.year,
+    dollars: p.totalCents / 100,
+    totalCents: p.totalCents,
+  }));
 
   return (
     <div className="rounded-xl border bg-card p-6 shadow-sm">
@@ -53,6 +69,56 @@ export function DividendsSummaryCard({ locale, dividends }: DividendsSummaryCard
           </span>
         </div>
       </div>
+
+      {chartData && chartData.length > 0 && (
+        <>
+          <Separator className="my-4" />
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            {t("dividendHistory")}
+          </p>
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                <XAxis
+                  dataKey="year"
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v: number) =>
+                    v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`
+                  }
+                  width={45}
+                />
+                <Tooltip
+                  formatter={(_value, _name, item) => [
+                    formatMoney(
+                      (item.payload as Record<string, number>).totalCents,
+                      locale,
+                    ),
+                  ]}
+                  labelFormatter={(label) => String(label)}
+                  contentStyle={{
+                    backgroundColor: "var(--popover)",
+                    borderColor: "var(--border)",
+                    color: "var(--popover-foreground)",
+                    borderRadius: "0.5rem",
+                  }}
+                />
+                <Bar
+                  dataKey="dollars"
+                  fill="var(--chart-2)"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
     </div>
   );
 }

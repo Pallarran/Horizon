@@ -44,6 +44,8 @@ export async function updateProfileAction(
   const displayName = formData.get("displayName") as string;
   const locale = formData.get("locale") as string;
   const theme = formData.get("theme") as string;
+  const currentSalaryRaw = formData.get("currentSalary") as string;
+  const retirementAgeRaw = formData.get("targetRetirementAge") as string;
 
   if (!displayName?.trim()) {
     return { error: "Display name is required." };
@@ -57,12 +59,24 @@ export async function updateProfileAction(
     return { error: "Invalid theme." };
   }
 
+  const currentSalaryDollars = Number(currentSalaryRaw);
+  if (isNaN(currentSalaryDollars) || currentSalaryDollars < 0) {
+    return { error: "Invalid salary." };
+  }
+
+  const targetRetirementAge = parseInt(retirementAgeRaw, 10);
+  if (isNaN(targetRetirementAge) || targetRetirementAge < 40 || targetRetirementAge > 80) {
+    return { error: "Retirement age must be between 40 and 80." };
+  }
+
   await prisma.user.update({
     where: { id: session.user.id },
     data: {
       displayName: displayName.trim(),
       locale,
       theme,
+      currentSalaryCents: BigInt(Math.round(currentSalaryDollars * 100)),
+      targetRetirementAge,
     },
   });
 

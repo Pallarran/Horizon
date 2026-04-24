@@ -40,7 +40,6 @@ export async function createScenarioAction(
       data: {
         ...rest,
         monthlyContributionCents: BigInt(Math.round(monthlyContributionDollars * 100)),
-        contributionAllocation: {},
       } as never,
     });
     return { success: true };

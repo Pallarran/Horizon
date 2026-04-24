@@ -28,6 +28,10 @@ export interface IncomeStreamInput {
   endAge: number | null;  // null = lifetime
   annualAmountCents: number;
   inflationIndexed: boolean;
+  /** Whether this stream originates from a defined-benefit pension plan */
+  isPension?: boolean;
+  /** Custom annual growth rate (overrides inflation when set, e.g. for partial indexation) */
+  customGrowthRate?: number;
 }
 
 export interface ProjectionYear {
@@ -86,10 +90,9 @@ export function projectFire(
     let otherIncome = 0;
     for (const stream of params.incomeStreams) {
       if (age >= stream.startAge && (stream.endAge === null || age <= stream.endAge)) {
-        const inflationFactor = stream.inflationIndexed
-          ? Math.pow(1 + params.assumedInflation, yearsFromNow)
-          : 1;
-        otherIncome += Math.round(stream.annualAmountCents * inflationFactor);
+        const growthRate = stream.customGrowthRate ?? (stream.inflationIndexed ? params.assumedInflation : 0);
+        const growthFactor = Math.pow(1 + growthRate, yearsFromNow);
+        otherIncome += Math.round(stream.annualAmountCents * growthFactor);
       }
     }
 

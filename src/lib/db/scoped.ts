@@ -61,6 +61,12 @@ export function scopedPrisma(userId: string) {
         if (!existing || existing.userId !== userId) throw new Error("Not found");
         return prisma.pension.update(args);
       },
+
+      delete: async (args: Parameters<typeof prisma.pension.delete>[0]) => {
+        const existing = await prisma.pension.findUnique({ where: args.where });
+        if (!existing || existing.userId !== userId) throw new Error("Not found");
+        return prisma.pension.delete(args);
+      },
     },
 
     scenario: {
@@ -116,6 +122,12 @@ export function scopedPrisma(userId: string) {
       create: (args: Parameters<typeof prisma.watchlistItem.create>[0]) =>
         prisma.watchlistItem.create({ ...args, data: withUserId(args.data) }),
 
+      update: async (args: Parameters<typeof prisma.watchlistItem.update>[0]) => {
+        const existing = await prisma.watchlistItem.findUnique({ where: args.where });
+        if (!existing || existing.userId !== userId) throw new Error("Not found");
+        return prisma.watchlistItem.update(args);
+      },
+
       delete: async (args: Parameters<typeof prisma.watchlistItem.delete>[0]) => {
         const existing = await prisma.watchlistItem.findUnique({ where: args.where });
         if (!existing || existing.userId !== userId) throw new Error("Not found");
@@ -157,6 +169,40 @@ export function scopedPrisma(userId: string) {
         });
         if (!existing || existing.account.userId !== userId) throw new Error("Not found");
         return prisma.transaction.delete(args);
+      },
+    },
+
+    crcdHolding: {
+      findMany: (args?: Parameters<typeof prisma.cRCDHolding.findMany>[0]) =>
+        prisma.cRCDHolding.findMany({
+          ...args,
+          where: { ...args?.where, account: { userId } },
+        }),
+
+      create: async (args: Parameters<typeof prisma.cRCDHolding.create>[0]) => {
+        const account = await prisma.account.findUnique({
+          where: { id: (args.data as Record<string, unknown>).accountId as string },
+        });
+        if (!account || account.userId !== userId) throw new Error("Not found");
+        return prisma.cRCDHolding.create(args);
+      },
+
+      update: async (args: Parameters<typeof prisma.cRCDHolding.update>[0]) => {
+        const existing = await prisma.cRCDHolding.findUnique({
+          where: args.where,
+          include: { account: true },
+        });
+        if (!existing || existing.account.userId !== userId) throw new Error("Not found");
+        return prisma.cRCDHolding.update(args);
+      },
+
+      delete: async (args: Parameters<typeof prisma.cRCDHolding.delete>[0]) => {
+        const existing = await prisma.cRCDHolding.findUnique({
+          where: args.where,
+          include: { account: true },
+        });
+        if (!existing || existing.account.userId !== userId) throw new Error("Not found");
+        return prisma.cRCDHolding.delete(args);
       },
     },
 

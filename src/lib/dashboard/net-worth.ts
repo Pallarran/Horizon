@@ -19,6 +19,8 @@ export interface NetWorthData {
   dayChangeCents: number;
   /** Day change as a decimal */
   dayChangePercent: number;
+  /** Latest USD→CAD FX rate used for conversion */
+  usdCadRate: number;
 }
 
 /**
@@ -42,13 +44,11 @@ export async function computeNetWorth(
     const isUsd = pos.currency === "USD";
     const rate = isUsd ? usdCadRate : 1;
 
-    // Market value
-    if (pos.marketValueCents !== null) {
-      const mvCad = isUsd
-        ? convertCurrency(pos.marketValueCents, rate)
-        : pos.marketValueCents;
-      netWorthCents += mvCad;
-    }
+    // Market value — use current price when available, else fall back to cost
+    const mvCad = pos.marketValueCents !== null
+      ? (isUsd ? convertCurrency(pos.marketValueCents, rate) : pos.marketValueCents)
+      : (isUsd ? convertCurrency(pos.totalCostCents, rate) : pos.totalCostCents);
+    netWorthCents += mvCad;
 
     // Cost basis
     const costCad = isUsd
@@ -56,17 +56,17 @@ export async function computeNetWorth(
       : pos.totalCostCents;
     totalCostCents += costCad;
 
-    // Day change
+    // Day change (pos.dayChangeCents already includes quantity)
     if (pos.dayChangeCents !== null) {
       const dcCad = isUsd
-        ? convertCurrency(pos.dayChangeCents * BigInt(pos.quantity), rate)
-        : pos.dayChangeCents * BigInt(pos.quantity);
+        ? convertCurrency(pos.dayChangeCents, rate)
+        : pos.dayChangeCents;
       dayChangeCents += dcCad;
     }
 
     // Previous day value for % calculation
     if (pos.marketValueCents !== null && pos.dayChangeCents !== null) {
-      const prevValue = pos.marketValueCents - pos.dayChangeCents * BigInt(pos.quantity);
+      const prevValue = pos.marketValueCents - pos.dayChangeCents;
       const prevCad = isUsd ? convertCurrency(prevValue, rate) : prevValue;
       prevNetWorthCents += prevCad;
     } else if (pos.marketValueCents !== null) {
@@ -94,6 +94,7 @@ export async function computeNetWorth(
     unrealizedGainPercent,
     dayChangeCents: Number(dayChangeCents),
     dayChangePercent,
+    usdCadRate,
   };
 }
 

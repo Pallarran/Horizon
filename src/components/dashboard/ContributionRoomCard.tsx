@@ -3,7 +3,6 @@
 import { useTranslations } from "next-intl";
 import { formatMoney } from "@/lib/money/format";
 import type { ContributionRoomData } from "@/lib/dashboard/contribution-room";
-import { Progress } from "@/components/ui/progress";
 
 interface ContributionRoomCardProps {
   locale: string;
@@ -13,32 +12,54 @@ interface ContributionRoomCardProps {
 export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps) {
   const t = useTranslations("dashboard");
 
+  const goalCents = room.savingsGoalCents;
+  const totalCents = room.totalDepositCents;
+  const goalPct = goalCents > 0 ? Math.min(100, Math.round((totalCents / goalCents) * 100)) : 0;
+  const goalMet = goalCents > 0 && totalCents >= goalCents;
+
   return (
     <div className="rounded-xl border bg-card p-6 shadow-sm">
       <p className="text-sm font-medium">
-        {t("contributionRoom", { year: room.year })}
+        {t("contributions", { year: room.year })}
       </p>
 
-      <div className="mt-4 space-y-4">
+      {/* Savings goal */}
+      {goalCents > 0 && (
+        <div className="mt-3">
+          <div className="flex items-baseline justify-between text-sm">
+            <span className="text-muted-foreground">{t("savingsGoal")}</span>
+            <span className="font-medium">
+              {formatMoney(totalCents, locale)}
+              <span className="text-muted-foreground"> / {formatMoney(goalCents, locale)}</span>
+            </span>
+          </div>
+          <div className="relative mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
+            <div
+              className={`h-full rounded-full transition-all ${goalMet ? "bg-gain" : "bg-primary"}`}
+              style={{ width: `${goalPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Contribution room bars */}
+      <div className="mt-3 space-y-2">
         <RoomRow
           label={t("reerRoom")}
           contributedCents={room.reer.contributedCents}
           limitCents={room.reer.limitCents}
-          remainingCents={room.reerCumulativeRemainingCents}
           locale={locale}
         />
         <RoomRow
           label={t("celiRoom")}
           contributedCents={room.celi.contributedCents}
           limitCents={room.celi.limitCents}
-          remainingCents={room.celiCumulativeRemainingCents}
           locale={locale}
         />
         <RoomRow
           label={t("crcdContributed")}
           contributedCents={room.crcd.contributedCents}
           limitCents={room.crcd.limitCents}
-          remainingCents={room.crcd.remainingCents}
           locale={locale}
         />
       </div>
@@ -50,29 +71,34 @@ function RoomRow({
   label,
   contributedCents,
   limitCents,
-  remainingCents,
   locale,
 }: {
   label: string;
   contributedCents: number;
   limitCents: number;
-  remainingCents: number;
   locale: string;
 }) {
-  const pct = limitCents > 0 ? Math.round((contributedCents / limitCents) * 100) : 0;
+  const contributedPct = limitCents > 0 ? Math.min(100, Math.round((contributedCents / limitCents) * 100)) : 0;
+
+  const barColor =
+    contributedPct >= 90
+      ? "bg-gain"
+      : contributedPct >= 50
+        ? "bg-warning"
+        : "bg-chart-1";
 
   return (
-    <div>
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium">
-          {formatMoney(remainingCents, locale)}
-        </span>
+    <div className="flex items-center gap-3 text-sm">
+      <span className="w-14 shrink-0 text-muted-foreground">{label}</span>
+      <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className={`h-full rounded-full transition-all ${barColor}`}
+          style={{ width: `${contributedPct}%` }}
+        />
       </div>
-      <Progress value={pct} className="mt-1 h-2" />
-      <p className="mt-0.5 text-right text-xs text-muted-foreground">
+      <span className="shrink-0 text-xs text-muted-foreground">
         {formatMoney(contributedCents, locale)} / {formatMoney(limitCents, locale)}
-      </p>
+      </span>
     </div>
   );
 }

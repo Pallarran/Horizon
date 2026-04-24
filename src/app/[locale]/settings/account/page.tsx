@@ -13,6 +13,8 @@ export default async function AccountSettingsPage() {
         displayName={user.displayName}
         locale={user.locale}
         theme={user.theme}
+        currentSalaryCents={Number(user.currentSalaryCents)}
+        targetRetirementAge={user.targetRetirementAge}
       />
     </div>
   );

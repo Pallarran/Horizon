@@ -38,6 +38,9 @@ export interface ComputedPosition {
   yieldPercent: number | null;
   yieldOnCostPercent: number | null;
 
+  // Actual dividends received (from transactions)
+  totalDividendsReceivedCents: bigint;
+
   // Dividend growth
   dividendGrowthYears: number | null;
 
@@ -56,4 +59,5 @@ export interface AcbState {
   accountId: string;
   quantity: number;       // current share count
   totalCostCents: bigint; // running ACB total
+  totalDividendsReceivedCents: bigint; // sum of DIVIDEND transaction amounts
 }

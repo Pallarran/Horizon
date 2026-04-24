@@ -21,7 +21,7 @@ export default async function TransactionsPage() {
   return (
     <>
       <Header displayName={user.displayName} isAdmin={user.isAdmin} />
-      <main className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
+      <main className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
         <ActivitiesTab
           transactions={transactions}
           accounts={accounts}

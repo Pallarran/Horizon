@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SettingsLoading() {
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-6 py-8">
+    <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-8">
       <Skeleton className="h-8 w-36" />
 
       {/* Tabs */}

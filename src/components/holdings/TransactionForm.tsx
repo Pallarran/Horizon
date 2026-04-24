@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useCallback } from "react";
+import { useActionState, useEffect, useState, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import {
   createTransactionAction,
@@ -46,6 +46,22 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
     isEdit ? updateTransactionAction : createTransactionAction,
     {},
   );
+
+  // Duplicate warning: track locally so we can clear when user edits fields
+  const forceRef = useRef<HTMLInputElement>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | undefined>();
+
+  useEffect(() => {
+    setDuplicateWarning(state.duplicateWarning);
+    if (forceRef.current) forceRef.current.value = "";
+  }, [state.duplicateWarning]);
+
+  function clearDuplicateWarning() {
+    if (duplicateWarning) {
+      setDuplicateWarning(undefined);
+      if (forceRef.current) forceRef.current.value = "";
+    }
+  }
 
   const [txnType, setTxnType] = useState(transaction?.type ?? "BUY");
   const [accountId, setAccountId] = useState(() => {
@@ -105,7 +121,16 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
         <p className="text-sm text-destructive">{state.error}</p>
       )}
 
+      {/* Duplicate warning banner */}
+      {duplicateWarning && (
+        <div className="rounded-lg border border-amber-500/50 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          <p className="font-medium">{t("duplicateWarning")}</p>
+          <p className="mt-1 text-xs">{duplicateWarning}</p>
+        </div>
+      )}
+
       {/* Hidden fields for server action */}
+      <input ref={forceRef} type="hidden" name="force" value="" />
       {isEdit && <input type="hidden" name="id" value={transaction.id} />}
       <input type="hidden" name="accountId" value={accountId} />
       <input type="hidden" name="securityId" value={securityId ?? ""} />
@@ -116,7 +141,7 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
         {/* Transaction Type */}
         <div className="space-y-2">
           <Label>{t("type")}</Label>
-          <Select value={txnType} onValueChange={setTxnType} name="type">
+          <Select value={txnType} onValueChange={(v) => { setTxnType(v); clearDuplicateWarning(); }} name="type">
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -131,7 +156,7 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
         {/* Account */}
         <div className="space-y-2">
           <Label>{t("account")}</Label>
-          <Select value={accountId} onValueChange={handleAccountChange}>
+          <Select value={accountId} onValueChange={(v) => { handleAccountChange(v); clearDuplicateWarning(); }}>
             <SelectTrigger>
               <SelectValue placeholder={t("selectAccount")} />
             </SelectTrigger>
@@ -170,7 +195,7 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
           <Label>{t("symbol")}</Label>
           <SecurityCombobox
             value={securityId}
-            onChange={(id) => setSecurityId(id)}
+            onChange={(id) => { setSecurityId(id); clearDuplicateWarning(); }}
             initialSecurity={
               transaction?.securityId
                 ? { id: transaction.securityId, symbol: transaction.securitySymbol!, name: transaction.securityName! }
@@ -193,7 +218,7 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
               step="any"
               min="0"
               value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
+              onChange={(e) => { setQuantity(e.target.value); clearDuplicateWarning(); }}
               required
             />
           </div>
@@ -205,7 +230,7 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
               step="0.01"
               min="0"
               value={priceDollars}
-              onChange={(e) => setPriceDollars(e.target.value)}
+              onChange={(e) => { setPriceDollars(e.target.value); clearDuplicateWarning(); }}
               required
             />
           </div>
@@ -219,7 +244,7 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
           type="number"
           step="0.01"
           value={amountDollars}
-          onChange={(e) => setAmountDollars(e.target.value)}
+          onChange={(e) => { setAmountDollars(e.target.value); clearDuplicateWarning(); }}
           readOnly={needsQty}
           required
           className={needsQty ? "bg-muted" : ""}
@@ -249,13 +274,34 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
 
       {/* Actions */}
       <div className="flex gap-2 pt-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? tc("loading") : isEdit ? tc("save") : t("addTransaction")}
-        </Button>
-        {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
-            {tc("cancel")}
-          </Button>
+        {duplicateWarning ? (
+          <>
+            <Button
+              type="submit"
+              variant="outline"
+              className="border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/30"
+              disabled={pending}
+              onClick={() => { if (forceRef.current) forceRef.current.value = "1"; }}
+            >
+              {pending ? tc("loading") : t("saveAnyway")}
+            </Button>
+            {onCancel && (
+              <Button type="button" variant="outline" onClick={onCancel}>
+                {tc("cancel")}
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            <Button type="submit" disabled={pending}>
+              {pending ? tc("loading") : isEdit ? tc("save") : t("addTransaction")}
+            </Button>
+            {onCancel && (
+              <Button type="button" variant="outline" onClick={onCancel}>
+                {tc("cancel")}
+              </Button>
+            )}
+          </>
         )}
       </div>
     </form>

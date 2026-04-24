@@ -1,0 +1,224 @@
+/**
+ * Portfolio history — computes monthly net worth snapshots for the past 12 months.
+ *
+ * Replays transactions chronologically to reconstruct positions at each snapshot
+ * date, then values them using historical prices and FX rates.
+ */
+import type { ScopedPrisma } from "@/lib/db/scoped";
+import { convertCurrency } from "@/lib/money/arithmetic";
+
+export interface PortfolioHistoryPoint {
+  date: string; // ISO date "2025-05-01"
+  valueCents: number; // portfolio value in CAD cents
+}
+
+export async function computePortfolioHistory(
+  db: ScopedPrisma,
+): Promise<PortfolioHistoryPoint[]> {
+  // 1. Generate snapshot dates: 1st of each month for past 12 months + today
+  const snapshotDates = generateSnapshotDates();
+
+  // 2. Fetch all transactions with security positions
+  const transactions = await db.transaction.findMany({
+    where: { securityId: { not: null } },
+    orderBy: { date: "asc" },
+    select: {
+      id: true,
+      securityId: true,
+      type: true,
+      date: true,
+      quantity: true,
+    },
+  });
+
+  if (transactions.length === 0) return [];
+
+  // 3. Fetch security currencies
+  const securities = await db.security.findMany({
+    select: { id: true, currency: true },
+  });
+  const currencyMap = new Map(securities.map((s) => [s.id, s.currency]));
+
+  // Collect all security IDs that appear in transactions
+  const securityIds = [
+    ...new Set(
+      transactions
+        .map((t) => t.securityId)
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+
+  // 4. Batch-fetch prices (with 7-day buffer before earliest snapshot for weekends)
+  const earliest = new Date(snapshotDates[0]);
+  earliest.setDate(earliest.getDate() - 7);
+
+  const [allPrices, allFxRates] = await Promise.all([
+    db.price.findMany({
+      where: {
+        securityId: { in: securityIds },
+        date: { gte: earliest },
+      },
+      orderBy: { date: "asc" },
+      select: { securityId: true, date: true, priceCents: true },
+    }),
+    db.fxRate.findMany({
+      where: {
+        fromCurrency: "USD",
+        toCurrency: "CAD",
+        date: { gte: earliest },
+      },
+      orderBy: { date: "asc" },
+      select: { date: true, rate: true },
+    }),
+  ]);
+
+  // 5. Build lookup structures
+  const pricesBySecurity = new Map<
+    string,
+    Array<{ time: number; priceCents: bigint }>
+  >();
+  for (const p of allPrices) {
+    const arr = pricesBySecurity.get(p.securityId) ?? [];
+    arr.push({ time: p.date.getTime(), priceCents: p.priceCents });
+    pricesBySecurity.set(p.securityId, arr);
+  }
+
+  const fxRateEntries = allFxRates.map((r) => ({
+    time: r.date.getTime(),
+    rate: Number(r.rate),
+  }));
+
+  // 6. Walk transactions, snapshot positions at each date
+  const positions = new Map<string, number>(); // securityId → total quantity
+  let txnIdx = 0;
+  const result: PortfolioHistoryPoint[] = [];
+
+  for (const snapshotDate of snapshotDates) {
+    const snapshotTime = snapshotDate.getTime();
+
+    // Advance through transactions up to this snapshot date
+    while (
+      txnIdx < transactions.length &&
+      transactions[txnIdx].date.getTime() <= snapshotTime
+    ) {
+      const txn = transactions[txnIdx];
+      const secId = txn.securityId!;
+      const qty = txn.quantity !== null ? Number(txn.quantity) : 0;
+      const current = positions.get(secId) ?? 0;
+
+      switch (txn.type) {
+        case "BUY":
+        case "DRIP":
+          positions.set(secId, current + qty);
+          break;
+        case "SELL":
+          positions.set(secId, Math.max(0, current - qty));
+          break;
+        case "SPLIT":
+          positions.set(secId, current + qty);
+          break;
+      }
+
+      txnIdx++;
+    }
+
+    // 7. Value the portfolio at this snapshot
+    let totalCadCents = 0n;
+
+    for (const [secId, qty] of positions) {
+      if (qty <= 0) continue;
+
+      const prices = pricesBySecurity.get(secId);
+      if (!prices) continue;
+
+      const priceCents = findClosestOnOrBefore(prices, snapshotTime);
+      if (priceCents === null) continue;
+
+      const valueCents = BigInt(Math.round(qty * Number(priceCents)));
+      const currency = currencyMap.get(secId) ?? "CAD";
+
+      if (currency === "USD") {
+        const fxRate = findClosestFxRate(fxRateEntries, snapshotTime);
+        totalCadCents += convertCurrency(valueCents, fxRate);
+      } else {
+        totalCadCents += valueCents;
+      }
+    }
+
+    result.push({
+      date: formatDate(snapshotDate),
+      valueCents: Number(totalCadCents),
+    });
+  }
+
+  // Trim leading zero-value points (months with no price data).
+  // Keep trailing zeros — a genuine drop to $0 is meaningful.
+  const firstNonZero = result.findIndex((p) => p.valueCents > 0);
+  if (firstNonZero < 0) return []; // no data at all
+  return result.slice(firstNonZero);
+}
+
+// --- Helpers ---
+
+export function generateSnapshotDates(): Date[] {
+  const today = new Date();
+  const dates: Date[] = [];
+
+  for (let i = 12; i >= 1; i--) {
+    dates.push(new Date(today.getFullYear(), today.getMonth() - i, 1));
+  }
+  dates.push(today);
+
+  return dates;
+}
+
+export function formatDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Binary search for the most recent entry on or before target time. */
+export function findClosestOnOrBefore(
+  sorted: Array<{ time: number; priceCents: bigint }>,
+  targetTime: number,
+): bigint | null {
+  let lo = 0;
+  let hi = sorted.length - 1;
+  let result: bigint | null = null;
+
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    if (sorted[mid].time <= targetTime) {
+      result = sorted[mid].priceCents;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  return result;
+}
+
+/** Binary search for the most recent FX rate on or before target time. */
+function findClosestFxRate(
+  sorted: Array<{ time: number; rate: number }>,
+  targetTime: number,
+): number {
+  let lo = 0;
+  let hi = sorted.length - 1;
+  let result = 1.0; // fallback
+
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    if (sorted[mid].time <= targetTime) {
+      result = sorted[mid].rate;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  return result;
+}

@@ -18,10 +18,14 @@ export function AccountSettingsForm({
   displayName,
   locale,
   theme,
+  currentSalaryCents,
+  targetRetirementAge,
 }: {
   displayName: string;
   locale: string;
   theme: string;
+  currentSalaryCents: number;
+  targetRetirementAge: number;
 }) {
   const t = useTranslations("settings");
   const tSetup = useTranslations("setup");
@@ -79,6 +83,38 @@ export function AccountSettingsForm({
             <SelectItem value="dark">{t("themeDark")}</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="currentSalary">{tSetup("salary")}</Label>
+        <div className="relative max-w-48">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+          <Input
+            id="currentSalary"
+            name="currentSalary"
+            type="number"
+            className="pl-7"
+            defaultValue={Math.round(currentSalaryCents / 100)}
+            min={0}
+            step={1}
+            required
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="targetRetirementAge">{tSetup("retirementAge")}</Label>
+        <Input
+          id="targetRetirementAge"
+          name="targetRetirementAge"
+          type="number"
+          className="max-w-24"
+          defaultValue={targetRetirementAge}
+          min={40}
+          max={80}
+          step={1}
+          required
+        />
       </div>
 
       <Button type="submit" disabled={pending}>

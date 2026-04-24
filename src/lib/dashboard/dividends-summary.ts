@@ -44,7 +44,14 @@ export async function computeDividendsSummary(
   const priorYearStart = new Date(now.getFullYear() - 1, 0, 1);
   const priorYearEnd = new Date(now.getFullYear() - 1, 11, 31);
 
-  const [ytdTxns, priorYearTxns] = await Promise.all([
+  // Same-period cutoff for prior year (Jan 1 → same month/day last year)
+  const priorYearSamePeriodEnd = new Date(
+    now.getFullYear() - 1,
+    now.getMonth(),
+    now.getDate(),
+  );
+
+  const [ytdTxns, priorYearTxns, priorYearSamePeriodTxns] = await Promise.all([
     db.transaction.findMany({
       where: {
         type: "DIVIDEND",
@@ -56,6 +63,13 @@ export async function computeDividendsSummary(
       where: {
         type: "DIVIDEND",
         date: { gte: priorYearStart, lte: priorYearEnd },
+      },
+      include: { security: true },
+    }),
+    db.transaction.findMany({
+      where: {
+        type: "DIVIDEND",
+        date: { gte: priorYearStart, lte: priorYearSamePeriodEnd },
       },
       include: { security: true },
     }),
@@ -80,15 +94,21 @@ export async function computeDividendsSummary(
     priorYearCents += amountCad > 0n ? amountCad : -amountCad;
   }
 
-  // 3. YoY growth — annualize YTD then compare to prior year
-  const monthsElapsed = now.getMonth() + 1; // 1-12
-  const ytdAnnualized =
-    monthsElapsed > 0
-      ? (Number(ytdCents) / monthsElapsed) * 12
-      : Number(ytdCents);
+  // 3. Prior year same period total (for YoY comparison)
+  let priorYearSamePeriodCents = 0n;
+  for (const txn of priorYearSamePeriodTxns) {
+    const isUsd = txn.currency === "USD";
+    const amountCad = isUsd
+      ? convertCurrency(txn.amountCents, usdCadRate)
+      : txn.amountCents;
+    priorYearSamePeriodCents += amountCad > 0n ? amountCad : -amountCad;
+  }
+
+  // 4. YoY growth — compare YTD to same period last year
   const ytdGrowthPercent =
-    Number(priorYearCents) > 0
-      ? (ytdAnnualized - Number(priorYearCents)) / Number(priorYearCents)
+    Number(priorYearSamePeriodCents) > 0
+      ? (Number(ytdCents) - Number(priorYearSamePeriodCents)) /
+        Number(priorYearSamePeriodCents)
       : 0;
 
   return {

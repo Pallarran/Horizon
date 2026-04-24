@@ -16,7 +16,7 @@ export default async function SettingsLayout({
   return (
     <>
       <Header displayName={user.displayName} isAdmin={user.isAdmin} />
-      <div className="mx-auto max-w-5xl p-6 lg:p-8">
+      <div className="mx-auto max-w-[1200px] p-6 lg:p-8">
         <h1 className="mb-6 text-2xl font-bold tracking-tight">{t("title")}</h1>
 
         <div className="flex gap-8">

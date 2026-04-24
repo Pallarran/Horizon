@@ -77,6 +77,7 @@ export function computeAcbStates(transactions: TransactionRow[]): Map<string, Ac
       accountId: txn.accountId,
       quantity: 0,
       totalCostCents: 0n,
+      totalDividendsReceivedCents: 0n,
     };
 
     const qty = txn.quantity ?? 0;
@@ -120,7 +121,13 @@ export function computeAcbStates(transactions: TransactionRow[]): Map<string, Ac
         break;
       }
 
-      // DIVIDEND, INTEREST, FEE, etc. — don't affect position/ACB
+      case "DIVIDEND": {
+        // Accumulate dividends received (amountCents is positive for dividends)
+        state.totalDividendsReceivedCents += txn.amountCents > 0n ? txn.amountCents : -txn.amountCents;
+        break;
+      }
+
+      // INTEREST, FEE, etc. — don't affect position/ACB
       default:
         break;
     }
@@ -225,6 +232,7 @@ export function buildPositions(
       expectedIncomeCents,
       yieldPercent,
       yieldOnCostPercent,
+      totalDividendsReceivedCents: state.totalDividendsReceivedCents,
       dividendGrowthYears: sec.dividendGrowthYears,
       isDividendAristocrat: sec.isDividendAristocrat,
       isDividendKing: sec.isDividendKing,

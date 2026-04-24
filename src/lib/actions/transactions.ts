@@ -10,6 +10,7 @@ export interface TransactionActionState {
   error?: string;
   success?: boolean;
   transactionId?: string;
+  duplicateWarning?: string;
 }
 
 export async function createTransactionAction(
@@ -38,6 +39,26 @@ export async function createTransactionAction(
   }
 
   const { priceDollars, amountDollars, feeDollars, date, quantity, ...rest } = result.data;
+  const amountCents = dollarsToCents(amountDollars);
+
+  // Duplicate detection (skip if user chose "Save anyway")
+  const force = formData.get("force") === "1";
+  if (!force) {
+    const existing = await db.transaction.findMany({
+      where: {
+        accountId: rest.accountId,
+        securityId: rest.securityId,
+        type: rest.type as never,
+        date: new Date(date),
+        amountCents,
+      },
+    });
+    if (existing.length > 0) {
+      return {
+        duplicateWarning: `${rest.type} · ${date} · $${Math.abs(amountDollars).toFixed(2)}`,
+      };
+    }
+  }
 
   const txn = await db.transaction.create({
     data: {
@@ -45,7 +66,7 @@ export async function createTransactionAction(
       date: new Date(date),
       quantity: quantity,
       priceCents: priceDollars !== null ? dollarsToCents(priceDollars) : null,
-      amountCents: dollarsToCents(amountDollars),
+      amountCents,
       feeCents: dollarsToCents(feeDollars),
     },
   });

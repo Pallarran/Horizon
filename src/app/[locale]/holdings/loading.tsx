@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function HoldingsLoading() {
   return (
-    <div className="mx-auto max-w-7xl space-y-4 px-6 py-8">
+    <div className="mx-auto max-w-[1600px] space-y-4 px-6 py-8">
       {/* Filter bar */}
       <div className="flex flex-wrap gap-3">
         <Skeleton className="h-9 w-[180px]" />

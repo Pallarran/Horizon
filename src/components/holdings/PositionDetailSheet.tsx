@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ExternalLinkIcon } from "lucide-react";
+import { toast } from "sonner";
+import { Pencil, Check, X, Plus, Trash2 } from "lucide-react";
 import { formatMoney, formatPercent, formatNumber } from "@/lib/money/format";
 import type { SerializedPosition } from "@/lib/positions/serialize";
 import type { SecurityProfile } from "@/lib/positions/security-profile";
+import type { SerializedCrcdHolding } from "@/lib/actions/crcd-holdings";
+import {
+  saveCrcdHoldingAction,
+  deleteCrcdHoldingAction,
+  updateCrcdPriceAction,
+} from "@/lib/actions/crcd-holdings";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +25,20 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DetailRow, SectionHeading } from "@/components/detail-sheet/detail-helpers";
+import {
+  SecurityInfoSection,
+  DividendSafetySection,
+  KeyDatesSection,
+  ValuationSection,
+  FinancialHealthSection,
+  AnalystViewSection,
+  AboutSection,
+} from "@/components/detail-sheet/profile-sections";
 
 interface Props {
   position: SerializedPosition | null;
@@ -26,96 +47,9 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   locale: string;
   onAddTransaction?: (accountId: string, securityId: string, symbol: string, name: string) => void;
-}
-
-function DetailRow({
-  label,
-  value,
-  sub,
-  color,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  color?: "gain" | "loss";
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-2 py-1">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <div className="text-right">
-        <span
-          className={`text-sm font-medium tabular-nums ${
-            color === "gain"
-              ? "text-gain"
-              : color === "loss"
-                ? "text-loss"
-                : ""
-          }`}
-        >
-          {value}
-        </span>
-        {sub && (
-          <p
-            className={`text-[10px] tabular-nums ${
-              color === "gain"
-                ? "text-gain"
-                : color === "loss"
-                  ? "text-loss"
-                  : "text-muted-foreground"
-            }`}
-          >
-            {sub}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-      {children}
-    </p>
-  );
-}
-
-function formatCompactMoney(cents: number, locale: string): string {
-  const value = cents / 100;
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(1)}T`;
-  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  return formatMoney(cents, locale);
-}
-
-function formatDate(isoString: string, locale: string): string {
-  return new Date(isoString).toLocaleDateString(locale === "fr" ? "fr-CA" : "en-CA", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function recommendationLabel(mean: number, t: ReturnType<typeof useTranslations<"holdings">>): string {
-  if (mean <= 1.5) return t("strongBuy");
-  if (mean <= 2.5) return t("buy");
-  if (mean <= 3.5) return t("hold");
-  if (mean <= 4.5) return t("sell");
-  return t("strongSell");
-}
-
-function recommendationColor(mean: number): string {
-  if (mean <= 1.5) return "text-gain";
-  if (mean <= 2.5) return "text-gain";
-  if (mean <= 3.5) return "text-muted-foreground";
-  return "text-loss";
-}
-
-function payoutRatioColor(ratio: number): string {
-  if (ratio < 0.6) return "text-gain";
-  if (ratio < 0.8) return "text-amber-600 dark:text-amber-400";
-  return "text-loss";
+  watchedSecurityIds?: Set<string>;
+  onToggleWatch?: (securityId: string, isWatched: boolean) => void;
+  crcdHoldings?: SerializedCrcdHolding[];
 }
 
 export function PositionDetailSheet({
@@ -125,26 +59,39 @@ export function PositionDetailSheet({
   onOpenChange,
   locale,
   onAddTransaction,
+  watchedSecurityIds,
+  onToggleWatch,
+  crcdHoldings,
 }: Props) {
   const t = useTranslations("holdings");
-  const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const tw = useTranslations("watchlist");
+  const tc = useTranslations("common");
 
   if (!position) return null;
   const h = position;
   const p = profile;
+  const isCrcd = h.assetClass === "CRCD_SHARE";
+
+  // For non-CRCD positions, render the standard layout
+  if (isCrcd) {
+    return (
+      <CrcdDetailSheet
+        position={h}
+        holdings={crcdHoldings ?? []}
+        open={open}
+        onOpenChange={onOpenChange}
+        locale={locale}
+      />
+    );
+  }
+
+  const isWatched = watchedSecurityIds?.has(h.securityId) ?? false;
 
   const frequencyKey = h.dividendFrequency
     ? (`frequency${h.dividendFrequency.charAt(0).toUpperCase()}${h.dividendFrequency.slice(1)}` as Parameters<typeof t>[0])
     : null;
 
-  const hasSecurityInfo = h.sector || h.industry;
-  const hasKeyDates = p?.exDividendDate || p?.nextEarningsDate;
-  const hasValuation = p?.trailingPeRatio != null || p?.marketCapCents != null || (p?.fiftyTwoWeekLowCents != null && p?.fiftyTwoWeekHighCents != null);
-  const hasDividendIncome = h.annualDividendPerShareCents !== null || h.expectedIncomeCents !== null;
-  const hasDividendSafety = p?.payoutRatio != null || p?.fiveYearAvgDividendYield != null;
-  const hasFinancialHealth = p?.debtToEquityRatio != null || p?.freeCashFlowCents != null;
-  const hasAnalyst = p?.analystRecommendationMean != null;
-  const hasAbout = p?.longBusinessSummary || p?.website || p?.employeeCount;
+  const hasDividendIncome = h.annualDividendPerShareCents !== null || h.expectedIncomeCents !== null || h.totalDividendsReceivedCents > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -205,7 +152,6 @@ export function PositionDetailSheet({
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* ── Column 1: Your Position ── */}
           <div className="flex flex-col gap-4">
-            {/* Cost Basis & Performance */}
             <div>
               <SectionHeading>{t("costBasis")}</SectionHeading>
               <DetailRow
@@ -242,26 +188,15 @@ export function PositionDetailSheet({
               )}
             </div>
 
-            {/* Security Info */}
-            {hasSecurityInfo && (
-              <>
-                <Separator />
-                <div>
-                  <SectionHeading>{t("securityInfo")}</SectionHeading>
-                  {h.sector && (
-                    <DetailRow label={t("sector")} value={h.sector} />
-                  )}
-                  {h.industry && (
-                    <DetailRow label={t("industry")} value={h.industry} />
-                  )}
-                </div>
-              </>
-            )}
+            <SecurityInfoSection
+              sector={h.sector}
+              industry={h.industry}
+              locale={locale}
+            />
           </div>
 
           {/* ── Column 2: Dividends ── */}
           <div className="flex flex-col gap-4">
-            {/* Dividend Income */}
             {hasDividendIncome && (
               <div>
                 <SectionHeading>{t("dividendIncome")}</SectionHeading>
@@ -275,6 +210,12 @@ export function PositionDetailSheet({
                   <DetailRow
                     label={t("expectedIncome")}
                     value={formatMoney(h.expectedIncomeCents, locale)}
+                  />
+                )}
+                {h.totalDividendsReceivedCents > 0 && (
+                  <DetailRow
+                    label={t("totalDividendsReceived")}
+                    value={formatMoney(h.totalDividendsReceivedCents, locale)}
                   />
                 )}
                 {h.yieldPercent !== null && (
@@ -321,184 +262,41 @@ export function PositionDetailSheet({
               </div>
             )}
 
-            {/* Dividend Safety */}
-            {hasDividendSafety && (
-              <>
-                {hasDividendIncome && <Separator />}
-                <div>
-                  <SectionHeading>{t("dividendSafety")}</SectionHeading>
-                  {p?.payoutRatio != null && (
-                    <div className="flex items-baseline justify-between gap-2 py-1">
-                      <span className="text-sm text-muted-foreground">{t("payoutRatio")}</span>
-                      <span className={`text-sm font-medium tabular-nums ${payoutRatioColor(p.payoutRatio)}`}>
-                        {formatPercent(p.payoutRatio, locale)}
-                      </span>
-                    </div>
-                  )}
-                  {p?.fiveYearAvgDividendYield != null && (
-                    <DetailRow
-                      label={t("fiveYearAvgYield")}
-                      value={formatPercent(p.fiveYearAvgDividendYield / 100, locale)}
-                    />
-                  )}
-                </div>
-              </>
+            {p && (
+              <DividendSafetySection
+                profile={p}
+                locale={locale}
+                showSeparator={hasDividendIncome}
+              />
             )}
-
-            {/* Key Dates */}
-            {hasKeyDates && (
-              <>
-                {(hasDividendIncome || hasDividendSafety) && <Separator />}
-                <div>
-                  <SectionHeading>{t("keyDates")}</SectionHeading>
-                  {p?.exDividendDate && (
-                    <DetailRow
-                      label={t("exDividendDate")}
-                      value={formatDate(p.exDividendDate, locale)}
-                    />
-                  )}
-                  {p?.nextEarningsDate && (
-                    <DetailRow
-                      label={t("nextEarningsDate")}
-                      value={formatDate(p.nextEarningsDate, locale)}
-                    />
-                  )}
-                </div>
-              </>
+            {p && (
+              <KeyDatesSection
+                profile={p}
+                locale={locale}
+              />
             )}
           </div>
 
           {/* ── Column 3: Market Analysis ── */}
           <div className="flex flex-col gap-4">
-            {/* Valuation */}
-            {hasValuation && (
-              <div>
-                <SectionHeading>{t("valuation")}</SectionHeading>
-                {p?.trailingPeRatio != null && (
-                  <DetailRow
-                    label={t("trailingPE")}
-                    value={p.trailingPeRatio.toFixed(1)}
-                  />
-                )}
-                {p?.marketCapCents != null && (
-                  <DetailRow
-                    label={t("marketCap")}
-                    value={formatCompactMoney(p.marketCapCents, locale)}
-                  />
-                )}
-                {p?.fiftyTwoWeekLowCents != null && p?.fiftyTwoWeekHighCents != null && (
-                  <div className="py-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-sm text-muted-foreground">{t("fiftyTwoWeekRange")}</span>
-                    </div>
-                    <div className="mt-1.5 flex items-center gap-2 text-[11px] tabular-nums text-muted-foreground">
-                      <span>{formatMoney(p.fiftyTwoWeekLowCents, locale)}</span>
-                      <div className="relative h-1.5 flex-1 rounded-full bg-muted">
-                        {h.currentPriceCents != null && (
-                          <div
-                            className="absolute top-1/2 size-2.5 -translate-y-1/2 rounded-full bg-primary"
-                            style={{
-                              left: `${Math.min(100, Math.max(0, ((h.currentPriceCents - p.fiftyTwoWeekLowCents) / (p.fiftyTwoWeekHighCents - p.fiftyTwoWeekLowCents)) * 100))}%`,
-                            }}
-                          />
-                        )}
-                      </div>
-                      <span>{formatMoney(p.fiftyTwoWeekHighCents, locale)}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
+            {p && (
+              <ValuationSection
+                profile={p}
+                locale={locale}
+                currentPriceCents={h.currentPriceCents}
+              />
             )}
-
-            {/* Financial Health */}
-            {hasFinancialHealth && (
-              <>
-                {hasValuation && <Separator />}
-                <div>
-                  <SectionHeading>{t("financialHealth")}</SectionHeading>
-                  {p?.debtToEquityRatio != null && (
-                    <DetailRow
-                      label={t("debtToEquity")}
-                      value={p.debtToEquityRatio.toFixed(1)}
-                    />
-                  )}
-                  {p?.freeCashFlowCents != null && (
-                    <DetailRow
-                      label={t("freeCashFlow")}
-                      value={formatCompactMoney(p.freeCashFlowCents, locale)}
-                    />
-                  )}
-                </div>
-              </>
+            {p && (
+              <FinancialHealthSection profile={p} locale={locale} />
             )}
-
-            {/* Analyst View */}
-            {hasAnalyst && p?.analystRecommendationMean != null && (
-              <>
-                {(hasValuation || hasFinancialHealth) && <Separator />}
-                <div>
-                  <SectionHeading>{t("analystView")}</SectionHeading>
-                  <div className="flex items-baseline justify-between gap-2 py-1">
-                    <span className="text-sm text-muted-foreground">{t("recommendation")}</span>
-                    <span className={`text-sm font-medium ${recommendationColor(p.analystRecommendationMean)}`}>
-                      {recommendationLabel(p.analystRecommendationMean, t)} ({p.analystRecommendationMean.toFixed(1)})
-                    </span>
-                  </div>
-                  {p.numberOfAnalystOpinions != null && (
-                    <div className="flex items-baseline justify-between gap-2 py-1">
-                      <span className="text-sm text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">
-                        {t("analysts", { count: p.numberOfAnalystOpinions })}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </>
+            {p && (
+              <AnalystViewSection profile={p} locale={locale} />
             )}
           </div>
         </div>
 
         {/* About (full width) */}
-        {hasAbout && (
-          <>
-            <Separator />
-            <div>
-              <SectionHeading>{t("about")}</SectionHeading>
-              {p?.longBusinessSummary && (
-                <div className="mb-2">
-                  <p className={`text-sm text-muted-foreground ${summaryExpanded ? "" : "line-clamp-3"}`}>
-                    {p.longBusinessSummary}
-                  </p>
-                  {p.longBusinessSummary.length > 200 && (
-                    <button
-                      type="button"
-                      className="mt-1 text-xs font-medium text-primary hover:underline"
-                      onClick={() => setSummaryExpanded(!summaryExpanded)}
-                    >
-                      {summaryExpanded ? t("showLess") : t("showMore")}
-                    </button>
-                  )}
-                </div>
-              )}
-              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                {p?.employeeCount != null && (
-                  <span>{t("employees", { count: p.employeeCount.toLocaleString(locale === "fr" ? "fr-CA" : "en-CA") })}</span>
-                )}
-                {p?.website && (
-                  <a
-                    href={p.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-primary hover:underline"
-                  >
-                    {new URL(p.website).hostname.replace("www.", "")}
-                    <ExternalLinkIcon className="size-3" />
-                  </a>
-                )}
-              </div>
-            </div>
-          </>
-        )}
+        {p && <AboutSection profile={p} locale={locale} />}
 
         {/* Actions */}
         <DialogFooter className="flex-col items-center gap-2 sm:flex-row sm:justify-center">
@@ -520,8 +318,457 @@ export function PositionDetailSheet({
               {t("addTransaction")}
             </Button>
           )}
+          {onToggleWatch && (
+            <Button
+              variant={isWatched ? "secondary" : "outline"}
+              className="w-full sm:w-auto"
+              onClick={() => onToggleWatch(h.securityId, isWatched)}
+            >
+              {isWatched ? tw("unwatch") : tw("watch")}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  CRCD-specific detail sheet                                        */
+/* ------------------------------------------------------------------ */
+
+function CrcdDetailSheet({
+  position,
+  holdings,
+  open,
+  onOpenChange,
+  locale,
+}: {
+  position: SerializedPosition;
+  holdings: SerializedCrcdHolding[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  locale: string;
+}) {
+  const t = useTranslations("holdings");
+  const tc = useTranslations("common");
+  const router = useRouter();
+  const h = position;
+
+  // Price editing
+  const [editingPrice, setEditingPrice] = useState(false);
+  const [priceInput, setPriceInput] = useState(
+    h.currentPriceCents !== null ? (h.currentPriceCents / 100).toFixed(2) : "",
+  );
+  const [isPricePending, startPriceTransition] = useTransition();
+
+  function handleSavePrice() {
+    const dollars = parseFloat(priceInput);
+    if (isNaN(dollars) || dollars <= 0) return;
+    startPriceTransition(async () => {
+      const result = await updateCrcdPriceAction(dollars);
+      if (result.success) {
+        setEditingPrice(false);
+        toast.success(t("crcdPriceUpdated"));
+        router.refresh();
+      }
+    });
+  }
+
+  // Tranche form
+  const [showForm, setShowForm] = useState(false);
+  const [editingTranche, setEditingTranche] = useState<SerializedCrcdHolding | null>(null);
+  const [isFormPending, startFormTransition] = useTransition();
+
+  // Delete
+  const [deleteTarget, setDeleteTarget] = useState<SerializedCrcdHolding | null>(null);
+  const [isDeletePending, startDeleteTransition] = useTransition();
+
+  function handleDelete(id: string) {
+    startDeleteTransition(async () => {
+      const result = await deleteCrcdHoldingAction(id);
+      if (result.success) {
+        toast.success(t("crcdTrancheDeleted"));
+        setDeleteTarget(null);
+        router.refresh();
+      }
+    });
+  }
+
+  function handleFormSubmit(formData: FormData) {
+    startFormTransition(async () => {
+      const result = await saveCrcdHoldingAction({}, formData);
+      if (result.success) {
+        toast.success(editingTranche ? t("crcdTrancheUpdated") : t("crcdTrancheAdded"));
+        setShowForm(false);
+        setEditingTranche(null);
+        router.refresh();
+      } else if (result.error) {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  function startEdit(tranche: SerializedCrcdHolding) {
+    setEditingTranche(tranche);
+    setShowForm(true);
+  }
+
+  function cancelForm() {
+    setShowForm(false);
+    setEditingTranche(null);
+  }
+
+  const currentPrice = h.currentPriceCents !== null ? h.currentPriceCents / 100 : null;
+  const today = new Date();
+
+  // Compute totals
+  const totalShares = holdings.reduce((s, t) => s + t.quantity, 0);
+  const totalCost = holdings.reduce((s, t) => s + (t.quantity * t.averagePriceCents) / 100, 0);
+  const totalMarketValue = currentPrice !== null ? totalShares * currentPrice : null;
+  const totalGain = totalMarketValue !== null ? totalMarketValue - totalCost : null;
+  const totalGainPercent = totalGain !== null && totalCost > 0 ? totalGain / totalCost : null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
+        {/* Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <DialogHeader className="flex-1 space-y-1">
+            <DialogTitle className="text-lg">CRCD</DialogTitle>
+            <DialogDescription>
+              Capital régional et coopératif Desjardins · {h.accountName}
+            </DialogDescription>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <Badge variant="outline">CAD</Badge>
+              <Badge variant="secondary">
+                {t(`accountType${h.accountType}` as Parameters<typeof t>[0])}
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          <div className="text-left sm:text-right sm:shrink-0 sm:pt-6">
+            <p className="text-2xl font-bold tabular-nums">
+              {h.marketValueCents !== null
+                ? formatMoney(h.marketValueCents, locale)
+                : formatMoney(h.totalCostCents, locale)}
+            </p>
+            {h.unrealizedGainCents !== null && (
+              <p className={`text-sm tabular-nums ${h.unrealizedGainCents >= 0 ? "text-gain" : "text-loss"}`}>
+                {h.unrealizedGainCents >= 0 ? "+" : ""}
+                {formatMoney(h.unrealizedGainCents, locale)}
+                {h.unrealizedGainPercent !== null && (
+                  <> ({h.unrealizedGainPercent >= 0 ? "+" : ""}{formatPercent(h.unrealizedGainPercent, locale)})</>
+                )}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Current price with edit */}
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-muted-foreground">{t("crcdCurrentPrice")}:</span>
+          {editingPrice ? (
+            <div className="flex items-center gap-1">
+              <span className="text-sm">$</span>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={priceInput}
+                onChange={(e) => setPriceInput(e.target.value)}
+                className="h-7 w-24 text-sm"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSavePrice();
+                  if (e.key === "Escape") setEditingPrice(false);
+                }}
+              />
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSavePrice} disabled={isPricePending}>
+                <Check className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingPrice(false)}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingPrice(true)}
+              className="flex items-center gap-1.5 text-sm font-semibold hover:text-primary"
+            >
+              {currentPrice !== null ? `$${currentPrice.toFixed(2)}` : "—"}
+              <Pencil className="h-3 w-3 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+
+        {/* Tranches table */}
+        <div>
+          <div className="flex items-center justify-between">
+            <SectionHeading>{t("crcdTranches")}</SectionHeading>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setEditingTranche(null); setShowForm(true); }}
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              {t("crcdAddTranche")}
+            </Button>
+          </div>
+
+          {/* Add/Edit form */}
+          {showForm && (
+            <CrcdTrancheForm
+              tranche={editingTranche}
+              accountId={h.accountId}
+              onSubmit={handleFormSubmit}
+              onCancel={cancelForm}
+              isPending={isFormPending}
+              t={t}
+              tc={tc}
+            />
+          )}
+
+          {holdings.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              {t("crcdNoTranches")}
+            </p>
+          ) : (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <th className="pb-2 pr-3">{t("crcdPurchaseYear")}</th>
+                    <th className="pb-2 pr-3 text-right">{t("crcdShares")}</th>
+                    <th className="pb-2 pr-3 text-right">{t("crcdBuyPrice")}</th>
+                    <th className="pb-2 pr-3 text-right">{t("crcdTotalCost")}</th>
+                    <th className="pb-2 pr-3">{t("crcdRedeemableFrom")}</th>
+                    <th className="pb-2 pr-3 text-right">{t("crcdMarketValue")}</th>
+                    <th className="pb-2 pr-3 text-right">{t("gain")}</th>
+                    <th className="pb-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {holdings.map((tranche) => {
+                    const cost = (tranche.quantity * tranche.averagePriceCents) / 100;
+                    const mv = currentPrice !== null ? tranche.quantity * currentPrice : null;
+                    const gain = mv !== null ? mv - cost : null;
+                    const gainPct = gain !== null && cost > 0 ? gain / cost : null;
+                    const redeemDate = new Date(tranche.redemptionEligibleDate);
+                    const isRedeemable = redeemDate <= today;
+                    const mustRedeem = tranche.purchaseYear >= 2025 &&
+                      today > new Date(`${tranche.purchaseYear + 14}-03-01`);
+
+                    return (
+                      <tr key={tranche.id} className="border-b last:border-0">
+                        <td className="py-2.5 pr-3 font-medium">{tranche.purchaseYear}</td>
+                        <td className="py-2.5 pr-3 text-right tabular-nums">
+                          {formatNumber(tranche.quantity, locale, 4)}
+                        </td>
+                        <td className="py-2.5 pr-3 text-right tabular-nums">
+                          {formatMoney(tranche.averagePriceCents, locale)}
+                        </td>
+                        <td className="py-2.5 pr-3 text-right tabular-nums">
+                          {formatMoney(Math.round(cost * 100), locale)}
+                        </td>
+                        <td className="py-2.5 pr-3">
+                          <div className="flex items-center gap-2">
+                            <span className="tabular-nums">{tranche.redemptionEligibleDate}</span>
+                            {mustRedeem ? (
+                              <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 text-[10px]">
+                                {t("crcdStatusMustRedeem")}
+                              </Badge>
+                            ) : isRedeemable ? (
+                              <Badge variant="outline" className="border-green-500 text-green-600 dark:text-green-400 text-[10px]">
+                                {t("crcdStatusRedeemable")}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px]">
+                                {t("crcdStatusLocked")}
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2.5 pr-3 text-right tabular-nums">
+                          {mv !== null ? formatMoney(Math.round(mv * 100), locale) : "—"}
+                        </td>
+                        <td className="py-2.5 pr-3 text-right tabular-nums">
+                          {gain !== null ? (
+                            <span className={gain >= 0 ? "text-gain" : "text-loss"}>
+                              {gain >= 0 ? "+" : ""}{formatMoney(Math.round(gain * 100), locale)}
+                              {gainPct !== null && (
+                                <span className="ml-1 text-[11px]">
+                                  ({gainPct >= 0 ? "+" : ""}{formatPercent(gainPct, locale)})
+                                </span>
+                              )}
+                            </span>
+                          ) : "—"}
+                        </td>
+                        <td className="py-2.5">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => startEdit(tranche)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive"
+                              onClick={() => setDeleteTarget(tranche)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* Totals row */}
+                  <tr className="border-t-2 font-semibold">
+                    <td className="py-2.5 pr-3">{t("total")}</td>
+                    <td className="py-2.5 pr-3 text-right tabular-nums">
+                      {formatNumber(totalShares, locale, 4)}
+                    </td>
+                    <td className="py-2.5 pr-3" />
+                    <td className="py-2.5 pr-3 text-right tabular-nums">
+                      {formatMoney(Math.round(totalCost * 100), locale)}
+                    </td>
+                    <td className="py-2.5 pr-3" />
+                    <td className="py-2.5 pr-3 text-right tabular-nums">
+                      {totalMarketValue !== null ? formatMoney(Math.round(totalMarketValue * 100), locale) : "—"}
+                    </td>
+                    <td className="py-2.5 pr-3 text-right tabular-nums">
+                      {totalGain !== null ? (
+                        <span className={totalGain >= 0 ? "text-gain" : "text-loss"}>
+                          {totalGain >= 0 ? "+" : ""}{formatMoney(Math.round(totalGain * 100), locale)}
+                          {totalGainPercent !== null && (
+                            <span className="ml-1 text-[11px]">
+                              ({totalGainPercent >= 0 ? "+" : ""}{formatPercent(totalGainPercent, locale)})
+                            </span>
+                          )}
+                        </span>
+                      ) : "—"}
+                    </td>
+                    <td className="py-2.5" />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Delete confirmation */}
+        <ConfirmDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+          title={tc("delete")}
+          description={deleteTarget ? t("crcdDeleteDesc", { year: deleteTarget.purchaseYear }) : ""}
+          confirmLabel={tc("delete")}
+          cancelLabel={tc("cancel")}
+          onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget.id); }}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  CRCD tranche add/edit form                                        */
+/* ------------------------------------------------------------------ */
+
+function CrcdTrancheForm({
+  tranche,
+  accountId,
+  onSubmit,
+  onCancel,
+  isPending,
+  t,
+  tc,
+}: {
+  tranche: SerializedCrcdHolding | null;
+  accountId: string;
+  onSubmit: (formData: FormData) => void;
+  onCancel: () => void;
+  isPending: boolean;
+  t: ReturnType<typeof useTranslations<"holdings">>;
+  tc: ReturnType<typeof useTranslations<"common">>;
+}) {
+  const currentYear = new Date().getFullYear();
+  const defaultRedemptionDate = `${currentYear + 7}-03-01`;
+
+  return (
+    <form
+      action={onSubmit}
+      className="mt-3 space-y-3 rounded-lg border bg-muted/30 p-4"
+    >
+      {tranche && <input type="hidden" name="id" value={tranche.id} />}
+      <input type="hidden" name="accountId" value={accountId} />
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-1">
+          <Label className="text-xs">{t("crcdPurchaseYear")}</Label>
+          <Input
+            type="number"
+            name="purchaseYear"
+            min="2001"
+            max={currentYear}
+            defaultValue={tranche?.purchaseYear ?? currentYear}
+            required
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">{t("crcdShares")}</Label>
+          <Input
+            type="number"
+            name="quantity"
+            step="any"
+            min="0"
+            defaultValue={tranche?.quantity ?? ""}
+            required
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">{t("crcdBuyPrice")}</Label>
+          <Input
+            type="number"
+            name="priceDollars"
+            step="0.01"
+            min="0"
+            defaultValue={tranche ? (tranche.averagePriceCents / 100).toFixed(2) : ""}
+            required
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">{t("crcdRedeemableFrom")}</Label>
+          <Input
+            type="date"
+            name="redemptionDate"
+            defaultValue={tranche?.redemptionEligibleDate ?? defaultRedemptionDate}
+            required
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs">{t("note")}</Label>
+        <Input name="notes" maxLength={500} defaultValue={tranche?.notes ?? ""} />
+      </div>
+
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" disabled={isPending}>
+          {isPending ? tc("loading") : tranche ? tc("save") : t("crcdAddTranche")}
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+          {tc("cancel")}
+        </Button>
+      </div>
+    </form>
   );
 }

@@ -258,19 +258,43 @@ model FxRate {
 // PLANNING ENTITIES
 // ============================================================================
 
-// Pension — user's defined-benefit pension(s)
+// Pension — employer pension plans (DB formula, DB statement, or DC)
 model Pension {
-  id                    String  @id @default(cuid())
-  userId                String
-  user                  User    @relation(fields: [userId], references: [id])
-  name                  String                         // "RRMD"
-  startYear             Int                            // service start year
-  baseAccrualRate       Decimal                        // e.g., 0.015 (1.5%)
-  initialBaseYears      Int     @default(2)
-  earlyRetirementReduction Decimal @default(0.04)      // 4% per year before normalAge
-  normalRetirementAge   Int     @default(65)
-  salaryBasisCents      BigInt
-  isActive              Boolean @default(true)
+  id                       String          @id @default(cuid())
+  userId                   String
+  user                     User            @relation(fields: [userId], references: [id])
+  name                     String                                  // "RRMD", "Sun Life DC", etc.
+  planType                 PensionPlanType @default(DB_FORMULA)
+  isActive                 Boolean         @default(true)
+
+  // ── DB_FORMULA fields (nullable for other types) ──
+  startYear                Int?                                    // service start year
+  baseAccrualRate          Decimal?                                // e.g. 0.02 (2%)
+  earlyRetirementReduction Decimal?                                // per year before normalAge
+  normalRetirementAge      Int?                                    // full pension age
+  salaryBasisCents         BigInt?                                 // salary for formula
+
+  // ── DB_STATEMENT fields ──
+  statementAnnualCents     BigInt?                                 // projected annual pension from statement
+  statementRetirementAge   Int?                                    // age the statement projection is for
+
+  // ── Shared DB fields (bridge + indexation) ──
+  bridgeBenefitCents       BigInt?                                 // annual bridge supplement before 65
+  bridgeEndAge             Int?            @default(65)            // when bridge stops (CPP/QPP start)
+  indexationRate           Decimal?        @default(0)             // annual indexation (0 = none)
+
+  // ── DC fields ──
+  currentBalanceCents      BigInt?                                 // current account balance
+  employeeContribRate      Decimal?                                // employee % of salary
+  employerContribRate      Decimal?                                // employer match %
+  dcSalaryCents            BigInt?                                 // salary for contribution calc
+  assumedGrowthRate        Decimal?        @default(0.05)          // assumed annual growth
+}
+
+enum PensionPlanType {
+  DB_FORMULA
+  DB_STATEMENT
+  DC
 }
 
 // IncomeStream — non-investment income sources for retirement projection
@@ -307,7 +331,6 @@ model Scenario {
   assumedDividendGrowth Decimal
   assumedInflation    Decimal  @default(0.025)
   monthlyContributionCents BigInt
-  contributionAllocation Json  // { [accountId: string]: number } — percentages summing to 1.0
   reinvestDividends   Boolean  @default(true)
   isBaseline          Boolean  @default(false)
   createdAt           DateTime @default(now())
@@ -334,8 +357,12 @@ model ContributionYear {
 
   // CRCD
   crcdContributionCents BigInt @default(0)
+  crcdLimitCents        BigInt @default(0)       // user's CRCD limit for the year (0 = not participating)
 
   notes String?
+
+  // Per-year savings goal (carries forward from prior year if not set)
+  savingsGoalCents BigInt @default(0)
 
   @@unique([userId, year])
 }
@@ -359,7 +386,6 @@ model CRCDHolding {
   quantity              Decimal
   averagePriceCents     BigInt
   redemptionEligibleDate DateTime @db.Date
-  taxCreditClaimedCents BigInt   @default(0)
   notes                 String?
 }
 

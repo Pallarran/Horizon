@@ -85,6 +85,25 @@ export async function updateAccountAction(
   return { success: true };
 }
 
+export async function reorderAccountsAction(
+  accountIds: string[],
+): Promise<AccountActionState> {
+  const { user } = await requireAuth();
+  const db = scopedPrisma(user.id);
+
+  try {
+    await Promise.all(
+      accountIds.map((id, index) =>
+        db.account.update({ where: { id }, data: { orderIndex: index } as never }),
+      ),
+    );
+  } catch {
+    return { error: "Failed to reorder accounts" };
+  }
+
+  return { success: true };
+}
+
 export async function getAccountsAction() {
   const { user } = await requireAuth();
   const db = scopedPrisma(user.id);

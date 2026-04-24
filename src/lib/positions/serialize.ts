@@ -29,6 +29,7 @@ export interface SerializedPosition {
   expectedIncomeCents: number | null;
   yieldPercent: number | null;
   yieldOnCostPercent: number | null;
+  totalDividendsReceivedCents: number;
   dividendGrowthYears: number | null;
   isDividendAristocrat: boolean;
   isDividendKing: boolean;
@@ -62,6 +63,7 @@ export function serializePosition(p: ComputedPosition): SerializedPosition {
     expectedIncomeCents: p.expectedIncomeCents !== null ? Number(p.expectedIncomeCents) : null,
     yieldPercent: p.yieldPercent,
     yieldOnCostPercent: p.yieldOnCostPercent,
+    totalDividendsReceivedCents: Number(p.totalDividendsReceivedCents),
     dividendGrowthYears: p.dividendGrowthYears,
     isDividendAristocrat: p.isDividendAristocrat,
     isDividendKing: p.isDividendKing,

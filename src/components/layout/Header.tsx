@@ -19,7 +19,10 @@ const NAV_LINKS = [
   { href: "/accounts", key: "accounts" },
   { href: "/transactions", key: "transactions" },
   { href: "/contributions", key: "contributions" },
-  { href: "/retirement", key: "retirement" },
+  { href: "/retirement", key: "pension" },
+  { href: "/income", key: "income" },
+  { href: "/projections", key: "projections" },
+  { href: "/watchlist", key: "watchlist" },
 ] as const;
 
 export function Header({
@@ -47,7 +50,7 @@ export function Header({
 
   return (
     <header className="border-b bg-card">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
+      <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-3">
         <div className="flex items-center gap-6">
           {/* Mobile hamburger */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
