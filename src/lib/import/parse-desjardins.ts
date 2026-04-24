@@ -11,9 +11,12 @@ export interface ParsedRow {
   exchange: string | null; // TSX, NYSE, etc.
   quantity: number | null;
   price: number | null;
-  amount: number; // signed dollars
+  amount: number; // signed dollars (NET for merged dividends)
   currency: "CAD" | "USD";
-  fee: number; // dollars
+  fee: number; // dollars (absolute)
+  taxWithheld: number; // dollars (absolute, 0 if no tax)
+  grossAmount: number | null; // dollars, gross before tax/fee (null if not merged)
+  mergedRowIndices: number[] | null; // row indices consumed by merge (null if standalone)
   rowIndex: number; // 0-based data row index (for error reporting)
 }
 
@@ -248,9 +251,98 @@ export function parseDesjardinsXlsx(buffer: ArrayBuffer): ParseResult {
       amount,
       currency,
       fee: Math.abs(fee),
+      taxWithheld: 0,
+      grossAmount: null,
+      mergedRowIndices: null,
       rowIndex: i,
     });
   }
 
-  return { rows, errors };
+  const merged = mergeDividendGroups(rows);
+  return { rows: merged, errors };
+}
+
+/**
+ * Merge DIVIDEND/INTEREST rows with their associated TAX_WITHHELD and FEE rows.
+ *
+ * Desjardins exports split dividend events across multiple rows sharing the
+ * same settlement date, description, and currency. This function groups those
+ * rows and collapses them into a single DIVIDEND/INTEREST row with:
+ *  - amount = NET (sum of all amounts in the group — anchor + tax + fee)
+ *  - taxWithheld = absolute sum of TAX_WITHHELD amounts
+ *  - fee = absolute sum of FEE amounts (merged into the anchor's fee)
+ *  - grossAmount = original anchor amount (before tax/fee deductions)
+ */
+function mergeDividendGroups(rows: ParsedRow[]): ParsedRow[] {
+  const ANCHOR_TYPES: TransactionType[] = ["DIVIDEND", "INTEREST"];
+  const ABSORBED_TYPES: TransactionType[] = ["TAX_WITHHELD", "FEE"];
+
+  // Only attempt merging on symbolless rows (dividend/tax/fee rows have no symbol)
+  // Rows with symbols pass through untouched.
+  const withSymbol: ParsedRow[] = [];
+  const withoutSymbol: ParsedRow[] = [];
+
+  for (const row of rows) {
+    if (row.strippedSymbol) {
+      withSymbol.push(row);
+    } else {
+      withoutSymbol.push(row);
+    }
+  }
+
+  // Group symbolless rows by (date, description, currency)
+  const groups = new Map<string, ParsedRow[]>();
+  for (const row of withoutSymbol) {
+    const key = `${row.date}|${row.description}|${row.currency}`;
+    const group = groups.get(key);
+    if (group) {
+      group.push(row);
+    } else {
+      groups.set(key, [row]);
+    }
+  }
+
+  const mergedRows: ParsedRow[] = [];
+
+  for (const group of groups.values()) {
+    const anchors = group.filter((r) => ANCHOR_TYPES.includes(r.type));
+    const absorbed = group.filter((r) => ABSORBED_TYPES.includes(r.type));
+
+    // Only merge if there's exactly 1 anchor and at least 1 absorbed row
+    if (anchors.length !== 1 || absorbed.length === 0) {
+      mergedRows.push(...group);
+      continue;
+    }
+
+    const anchor = anchors[0]!;
+
+    // Sum TAX_WITHHELD amounts (these are negative in the file)
+    const taxRows = absorbed.filter((r) => r.type === "TAX_WITHHELD");
+    const totalTax = taxRows.reduce((sum, r) => sum + Math.abs(r.amount), 0);
+
+    // Sum FEE amounts (these are negative in the file)
+    const feeRows = absorbed.filter((r) => r.type === "FEE");
+    const totalFee = feeRows.reduce((sum, r) => sum + Math.abs(r.amount), 0);
+
+    // Net = sum of all amounts in the group (anchor positive, tax/fee negative)
+    const netAmount = group.reduce((sum, r) => sum + r.amount, 0);
+
+    // Collect all row indices consumed by this merge
+    const allIndices = group.map((r) => r.rowIndex).sort((a, b) => a - b);
+
+    mergedRows.push({
+      ...anchor,
+      amount: netAmount,
+      fee: anchor.fee + totalFee,
+      taxWithheld: totalTax,
+      grossAmount: anchor.amount,
+      mergedRowIndices: allIndices,
+    });
+  }
+
+  // Combine: rows with symbols + merged symbolless rows, sorted by original row index
+  const result = [...withSymbol, ...mergedRows];
+  result.sort((a, b) => a.rowIndex - b.rowIndex);
+
+  return result;
 }

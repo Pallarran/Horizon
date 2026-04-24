@@ -204,6 +204,7 @@ model Transaction {
   amountCents   BigInt                               // total signed amount in transaction currency
   currency      String                               // transaction currency, not base
   feeCents      BigInt          @default(0)
+  taxWithheldCents BigInt       @default(0)
   note          String?
   importBatchId String?
   importBatch   ImportBatch?    @relation(fields: [importBatchId], references: [id])

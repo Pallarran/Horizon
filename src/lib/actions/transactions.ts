@@ -30,6 +30,7 @@ export async function createTransactionAction(
     amountDollars: formData.get("amountDollars"),
     currency: formData.get("currency"),
     feeDollars: formData.get("feeDollars") || 0,
+    taxWithheldDollars: formData.get("taxWithheldDollars") || 0,
     note: formData.get("note") || undefined,
   };
 
@@ -38,7 +39,7 @@ export async function createTransactionAction(
     return { error: result.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { priceDollars, amountDollars, feeDollars, date, quantity, ...rest } = result.data;
+  const { priceDollars, amountDollars, feeDollars, taxWithheldDollars, date, quantity, ...rest } = result.data;
   const amountCents = dollarsToCents(amountDollars);
 
   // Duplicate detection (skip if user chose "Save anyway")
@@ -68,6 +69,7 @@ export async function createTransactionAction(
       priceCents: priceDollars !== null ? dollarsToCents(priceDollars) : null,
       amountCents,
       feeCents: dollarsToCents(feeDollars),
+      taxWithheldCents: dollarsToCents(taxWithheldDollars),
     },
   });
 
@@ -94,6 +96,7 @@ export async function updateTransactionAction(
     amountDollars: formData.get("amountDollars"),
     currency: formData.get("currency"),
     feeDollars: formData.get("feeDollars") || 0,
+    taxWithheldDollars: formData.get("taxWithheldDollars") || 0,
     note: formData.get("note") || undefined,
   };
 
@@ -102,7 +105,7 @@ export async function updateTransactionAction(
     return { error: result.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { priceDollars, amountDollars, feeDollars, date, quantity, ...rest } = result.data;
+  const { priceDollars, amountDollars, feeDollars, taxWithheldDollars, date, quantity, ...rest } = result.data;
 
   try {
     await db.transaction.update({
@@ -114,6 +117,7 @@ export async function updateTransactionAction(
         priceCents: priceDollars !== null ? dollarsToCents(priceDollars) : null,
         amountCents: dollarsToCents(amountDollars),
         feeCents: dollarsToCents(feeDollars),
+        taxWithheldCents: dollarsToCents(taxWithheldDollars),
       },
     });
   } catch {
@@ -157,6 +161,7 @@ export interface SerializedTransaction {
   amountCents: number;
   currency: string;
   feeCents: number;
+  taxWithheldCents: number;
   note: string | null;
   createdAt: string;
 }
@@ -209,6 +214,7 @@ export async function getTransactions(
     amountCents: Number(t.amountCents),
     currency: t.currency,
     feeCents: Number(t.feeCents),
+    taxWithheldCents: Number(t.taxWithheldCents),
     note: t.note,
     createdAt: t.createdAt.toISOString(),
   }));

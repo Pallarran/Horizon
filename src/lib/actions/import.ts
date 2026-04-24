@@ -55,6 +55,7 @@ export interface CommitImportInput {
     amount: number;
     currency: string;
     fee: number;
+    taxWithheld: number;
     note: string | null;
   }[];
 }
@@ -217,6 +218,9 @@ export async function parseImportFileAction(
         amount: 0,
         currency: "CAD",
         fee: 0,
+        taxWithheld: 0,
+        grossAmount: null,
+        mergedRowIndices: null,
         rowIndex: idx,
         status: "error",
         resolvedSecurityId: null,
@@ -328,6 +332,7 @@ export async function commitImportAction(
             amountCents: dollarsToCents(row.amount),
             currency: row.currency,
             feeCents: dollarsToCents(row.fee),
+            taxWithheldCents: dollarsToCents(row.taxWithheld),
             note: row.note,
             importBatchId: batch.id,
           },

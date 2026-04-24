@@ -191,7 +191,10 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
           amount: r.amount,
           currency: r.currency,
           fee: r.fee,
-          note: null,
+          taxWithheld: r.taxWithheld,
+          note: r.mergedRowIndices
+            ? `Gross: $${r.grossAmount?.toFixed(2)} | Tax: -$${r.taxWithheld.toFixed(2)}${r.fee > 0 ? ` | Fee: -$${r.fee.toFixed(2)}` : ""}`
+            : null,
         })),
       });
 

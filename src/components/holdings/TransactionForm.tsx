@@ -266,6 +266,20 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
         />
       </div>
 
+      {/* Tax withheld (for DIVIDEND / INTEREST) */}
+      {(txnType === "DIVIDEND" || txnType === "INTEREST") && (
+        <div className="space-y-2">
+          <Label>{t("taxWithheldDollars")}</Label>
+          <Input
+            type="number"
+            name="taxWithheldDollars"
+            step="0.01"
+            min="0"
+            defaultValue={transaction ? centsToDollarsStr(transaction.taxWithheldCents) : "0"}
+          />
+        </div>
+      )}
+
       {/* Note */}
       <div className="space-y-2">
         <Label>{t("note")}</Label>

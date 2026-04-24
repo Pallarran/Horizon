@@ -173,10 +173,23 @@ export function ImportPreviewTable({
                 <TableCell className="font-mono text-xs">
                   {row.resolvedSecuritySymbol ?? row.strippedSymbol ?? "—"}
                 </TableCell>
-                <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground">
+                <TableCell className="max-w-[200px] text-xs text-muted-foreground">
                   {row.status === "error" && row.errorMessage
                     ? <span className="text-destructive">{row.errorMessage}</span>
-                    : row.description}
+                    : (
+                      <div>
+                        <div className="truncate">{row.description}</div>
+                        {row.mergedRowIndices && (
+                          <div className="mt-0.5 text-[10px] text-muted-foreground/70">
+                            {t("mergedBreakdown", {
+                              gross: row.grossAmount?.toFixed(2) ?? "0.00",
+                              tax: row.taxWithheld.toFixed(2),
+                              fee: row.fee.toFixed(2),
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
                 </TableCell>
                 <TableCell className="text-right font-mono text-xs">
                   {formatAmount(row.amount, row.currency)}

@@ -15,6 +15,7 @@ export const createTransactionSchema = z.object({
   amountDollars: z.coerce.number(),
   currency: z.enum(["CAD", "USD"]),
   feeDollars: z.coerce.number().nonnegative().default(0),
+  taxWithheldDollars: z.coerce.number().nonnegative().default(0),
   note: z.string().max(500).optional(),
 });
 
