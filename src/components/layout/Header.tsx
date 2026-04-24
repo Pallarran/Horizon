@@ -23,6 +23,7 @@ const NAV_LINKS = [
   { href: "/income", key: "income" },
   { href: "/projections", key: "projections" },
   { href: "/watchlist", key: "watchlist" },
+  { href: "/transactions/import", key: "import" },
 ] as const;
 
 export function Header({
