@@ -95,8 +95,9 @@ function parseSymbol(
   const sym = rawSymbol.trim();
 
   // Desjardins uses suffixes like -C (Canadian) and -U (US)
+  // Also uses dots for TSX class suffixes (PMZ.UN, RCI.B) where Yahoo uses dashes
   if (sym.endsWith("-C")) {
-    return { strippedSymbol: sym.slice(0, -2), exchange: "TSX" };
+    return { strippedSymbol: sym.slice(0, -2).replace(/\./g, "-"), exchange: "TSX" };
   }
   if (sym.endsWith("-U")) {
     return { strippedSymbol: sym.slice(0, -2), exchange: "NYSE" };
@@ -105,7 +106,7 @@ function parseSymbol(
   // Fall back to market column
   const mkt = String(market ?? "").trim().toUpperCase();
   if (mkt === "CAN" || mkt === "CA") {
-    return { strippedSymbol: sym, exchange: "TSX" };
+    return { strippedSymbol: sym.replace(/\./g, "-"), exchange: "TSX" };
   }
   if (mkt === "USA" || mkt === "US") {
     return { strippedSymbol: sym, exchange: "NYSE" };
