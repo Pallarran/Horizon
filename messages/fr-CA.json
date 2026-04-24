@@ -261,6 +261,7 @@
     "txnTypeADJUSTMENT": "Ajustement",
     "txnTypeRETURN_OF_CAPITAL": "Remboursement de capital",
     "txnTypeFRACTION_CASH": "Fraction (espèces)",
+    "txnTypeTRANSFER": "Transfert",
     "transactionAdded": "Transaction ajoutée",
     "transactionUpdated": "Transaction mise à jour",
     "accountCreated": "Compte créé",

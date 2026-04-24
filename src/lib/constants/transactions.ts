@@ -1,7 +1,7 @@
 export const TXN_TYPES = [
   "BUY", "SELL", "DIVIDEND", "DRIP", "DEPOSIT", "WITHDRAWAL",
   "INTEREST", "FEE", "TAX_WITHHELD", "SPLIT", "MERGER", "ADJUSTMENT",
-  "RETURN_OF_CAPITAL", "FRACTION_CASH",
+  "RETURN_OF_CAPITAL", "FRACTION_CASH", "TRANSFER",
 ] as const;
 
 export type TxnType = (typeof TXN_TYPES)[number];

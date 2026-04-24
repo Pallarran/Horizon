@@ -231,6 +231,7 @@ enum TransactionType {
   ADJUSTMENT
   RETURN_OF_CAPITAL
   FRACTION_CASH
+  TRANSFER
 }
 
 // Price — daily close prices for a security
