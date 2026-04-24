@@ -247,7 +247,7 @@ export async function parseImportFileAction(
 
   // Promote symbolless rows that need a security (DIVIDEND, etc.)
   // to "needs resolution" by using their description as a temporary key.
-  const SECURITY_TYPES = new Set(["BUY", "SELL", "DIVIDEND", "DRIP", "SPLIT", "MERGER", "RETURN_OF_CAPITAL", "FRACTION_CASH"]);
+  const SECURITY_TYPES = new Set(["BUY", "SELL", "DIVIDEND", "DRIP", "SPLIT", "MERGER", "RETURN_OF_CAPITAL", "FRACTION_CASH", "ADJUSTMENT"]);
   const descGroupCounts = new Map<string, number>();
   for (const row of parseResult.rows) {
     if (!row.strippedSymbol && SECURITY_TYPES.has(row.type) && row.description) {

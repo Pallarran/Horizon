@@ -68,12 +68,12 @@ const TYPE_MAP: Record<string, TransactionType | null> = {
   "FRAIS": "FEE",
   "REMBOURSEMENT SUR CAPITAL": "RETURN_OF_CAPITAL",
   "FRACTION": "FRACTION_CASH",
+  "ANNULATION": "ADJUSTMENT",
   // Skipped — complex types, enter manually
   "CONVERSION DE DEVISE": null,
   "ÉCHANGE": null,
   "OFFRE": null,
   "FRACTIONNEMENT D'ACTIONS": null,
-  "ANNULATION": null,
   "DIVIDENDE EN ACTIONS": null,
 };
 

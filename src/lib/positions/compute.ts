@@ -122,8 +122,9 @@ export function computeAcbStates(transactions: TransactionRow[]): Map<string, Ac
       }
 
       case "DIVIDEND": {
-        // Accumulate dividends received (amountCents is positive for dividends)
-        state.totalDividendsReceivedCents += txn.amountCents > 0n ? txn.amountCents : -txn.amountCents;
+        // Positive = income, negative = reversal (ANNULATION)
+        state.totalDividendsReceivedCents += txn.amountCents;
+        if (state.totalDividendsReceivedCents < 0n) state.totalDividendsReceivedCents = 0n;
         break;
       }
 
@@ -132,6 +133,16 @@ export function computeAcbStates(transactions: TransactionRow[]): Map<string, Ac
         const rocAmount = txn.amountCents > 0n ? txn.amountCents : -txn.amountCents;
         state.totalCostCents -= rocAmount;
         if (state.totalCostCents < 0n) state.totalCostCents = 0n;
+        break;
+      }
+
+      case "ADJUSTMENT": {
+        // ANNULATION reversals: negative = reversing income (dividend)
+        if (txn.amountCents < 0n) {
+          state.totalDividendsReceivedCents += txn.amountCents;
+          if (state.totalDividendsReceivedCents < 0n) state.totalDividendsReceivedCents = 0n;
+        }
+        // Positive (reversing tax/fee outflow) — no ACB impact
         break;
       }
 
