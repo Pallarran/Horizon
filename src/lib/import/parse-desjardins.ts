@@ -43,17 +43,19 @@ const COL = {
   accountCurrency: "Devise du compte",
 } as const;
 
-/** Map Desjardins French transaction types to our enum */
-const TYPE_MAP: Record<string, TransactionType> = {
+/** Map Desjardins French transaction types to our enum (null = skip silently) */
+const TYPE_MAP: Record<string, TransactionType | null> = {
   "ACHAT": "BUY",
   "VENTE": "SELL",
   "DIVIDENDE": "DIVIDEND",
   "DIVIDENDE SOCIÉTÉ FIDUCIE": "DIVIDEND",
   "DÉPÔT REÇU D'UNE CAISSE": "DEPOSIT",
+  "COTISATION": "DEPOSIT",
   "CONVERSION DE DEVISE": "ADJUSTMENT",
   "INTÉRÊTS": "INTEREST",
   "IMPÔT DE NON-RÉSIDENT": "TAX_WITHHELD",
   "FRAIS": "FEE",
+  "ÉCHANGE": null, // ticker name change — skip silently
 };
 
 /** Map Desjardins currency codes to ISO */
@@ -187,12 +189,16 @@ export function parseDesjardinsXlsx(buffer: ArrayBuffer): ParseResult {
 
     // Parse transaction type
     const rawType = String(row[COL.type] ?? "").trim().toUpperCase();
-    const type = TYPE_MAP[rawType];
-    if (!type) {
+    if (!(rawType in TYPE_MAP)) {
       errors.push({
         rowIndex: i,
         message: `Unknown transaction type: "${row[COL.type]}"`,
       });
+      continue;
+    }
+    const type = TYPE_MAP[rawType];
+    if (type === null) {
+      // Silently skip (e.g. ÉCHANGE = ticker name change)
       continue;
     }
 
