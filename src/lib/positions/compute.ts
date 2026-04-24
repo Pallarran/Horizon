@@ -127,7 +127,15 @@ export function computeAcbStates(transactions: TransactionRow[]): Map<string, Ac
         break;
       }
 
-      // INTEREST, FEE, etc. — don't affect position/ACB
+      case "RETURN_OF_CAPITAL": {
+        // ROC reduces ACB (total cost) without changing quantity
+        const rocAmount = txn.amountCents > 0n ? txn.amountCents : -txn.amountCents;
+        state.totalCostCents -= rocAmount;
+        if (state.totalCostCents < 0n) state.totalCostCents = 0n;
+        break;
+      }
+
+      // INTEREST, FEE, FRACTION_CASH, etc. — don't affect position/ACB
       default:
         break;
     }

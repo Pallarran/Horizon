@@ -66,6 +66,8 @@ const TYPE_MAP: Record<string, TransactionType | null> = {
   "IMPÔT ÉTRANGER PAYÉ": "TAX_WITHHELD",
   "RETENUE D'IMPÔT": "TAX_WITHHELD",
   "FRAIS": "FEE",
+  "REMBOURSEMENT SUR CAPITAL": "RETURN_OF_CAPITAL",
+  "FRACTION": "FRACTION_CASH",
   // Skipped — complex types, enter manually
   "CONVERSION DE DEVISE": null,
   "ÉCHANGE": null,
@@ -344,10 +346,16 @@ function mergeDividendGroups(rows: ParsedRow[]): ParsedRow[] {
   for (const group of groups.values()) {
     const anchors = group.filter((r) => ANCHOR_TYPES.includes(r.type));
     const absorbed = group.filter((r) => ABSORBED_TYPES.includes(r.type));
+    // Rows that are neither anchor nor absorbed (e.g. RETURN_OF_CAPITAL, FRACTION_CASH)
+    // pass through individually — they must not be folded into the dividend net amount.
+    const others = group.filter(
+      (r) => !ANCHOR_TYPES.includes(r.type) && !ABSORBED_TYPES.includes(r.type),
+    );
+    mergedRows.push(...others);
 
     // Only merge if there's exactly 1 anchor and at least 1 absorbed row
     if (anchors.length !== 1 || absorbed.length === 0) {
-      mergedRows.push(...group);
+      mergedRows.push(...anchors, ...absorbed);
       continue;
     }
 
@@ -361,11 +369,12 @@ function mergeDividendGroups(rows: ParsedRow[]): ParsedRow[] {
     const feeRows = absorbed.filter((r) => r.type === "FEE");
     const totalFee = feeRows.reduce((sum, r) => sum + Math.abs(r.amount), 0);
 
-    // Net = sum of all amounts in the group (anchor positive, tax/fee negative)
-    const netAmount = group.reduce((sum, r) => sum + r.amount, 0);
+    // Net = sum of anchor + absorbed only (excludes others like ROC/FRACTION)
+    const mergeGroup = [anchor, ...absorbed];
+    const netAmount = mergeGroup.reduce((sum, r) => sum + r.amount, 0);
 
-    // Collect all row indices consumed by this merge
-    const allIndices = group.map((r) => r.rowIndex).sort((a, b) => a - b);
+    // Collect row indices consumed by this merge (anchor + absorbed only)
+    const allIndices = mergeGroup.map((r) => r.rowIndex).sort((a, b) => a - b);
 
     mergedRows.push({
       ...anchor,

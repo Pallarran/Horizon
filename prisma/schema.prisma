@@ -229,6 +229,8 @@ enum TransactionType {
   DRIP
   MERGER
   ADJUSTMENT
+  RETURN_OF_CAPITAL
+  FRACTION_CASH
 }
 
 // Price — daily close prices for a security

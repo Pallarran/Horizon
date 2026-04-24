@@ -3,6 +3,7 @@ import { z } from "zod/v4";
 export const transactionTypes = [
   "BUY", "SELL", "DIVIDEND", "DRIP", "INTEREST", "FEE",
   "DEPOSIT", "WITHDRAWAL", "TAX_WITHHELD", "SPLIT", "MERGER", "ADJUSTMENT",
+  "RETURN_OF_CAPITAL", "FRACTION_CASH",
 ] as const;
 
 export const createTransactionSchema = z.object({
