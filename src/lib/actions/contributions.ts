@@ -53,7 +53,7 @@ export async function saveReerLimitAction(
 
   const db = scopedPrisma(user.id);
   const rows = await computeContributionTable(db, user.birthYear);
-  revalidatePath("/contributions");
+  revalidatePath("/portfolio");
   return { success: true, rows };
 }
 
@@ -92,7 +92,7 @@ export async function saveCrcdLimitAction(
 
   const db = scopedPrisma(user.id);
   const rows = await computeContributionTable(db, user.birthYear);
-  revalidatePath("/contributions");
+  revalidatePath("/portfolio");
   return { success: true, rows };
 }
 
@@ -131,6 +131,6 @@ export async function saveSavingsGoalAction(
 
   const db = scopedPrisma(user.id);
   const rows = await computeContributionTable(db, user.birthYear);
-  revalidatePath("/contributions");
+  revalidatePath("/portfolio");
   return { success: true, rows };
 }

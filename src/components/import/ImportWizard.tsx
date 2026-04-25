@@ -280,7 +280,7 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
                 <SelectContent>
                   {accounts.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
-                      {a.name} ({a.currency})
+                      {a.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -16,9 +16,8 @@ import { Button } from "@/components/ui/button";
 const NAV_LINKS = [
   { href: "/dashboard", key: "dashboard" },
   { href: "/portfolio", key: "portfolio" },
-  { href: "/contributions", key: "contributions" },
-  { href: "/retirement", key: "pension" },
   { href: "/transactions", key: "transactions" },
+  { href: "/retirement", key: "retirement" },
   { href: "/watchlist", key: "watchlist" },
 ] as const;
 

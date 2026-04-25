@@ -96,15 +96,17 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
     }
   }, [quantity, priceDollars, txnType]);
 
-  // Update currency when account changes
+  // Update currency when account changes (only if no security selected)
   const handleAccountChange = useCallback((id: string) => {
     setAccountId(id);
-    const acct = accounts.find((a) => a.id === id);
-    if (acct) setCurrency(acct.currency);
+    if (!securityId) {
+      const acct = accounts.find((a) => a.id === id);
+      if (acct) setCurrency(acct.currency);
+    }
     if (typeof window !== "undefined") {
       localStorage.setItem("horizon_lastAccountId", id);
     }
-  }, [accounts]);
+  }, [accounts, securityId]);
 
   // On success, notify parent
   useEffect(() => {
@@ -195,7 +197,7 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
           <Label>{t("symbol")}</Label>
           <SecurityCombobox
             value={securityId}
-            onChange={(id) => { setSecurityId(id); clearDuplicateWarning(); }}
+            onChange={(id, sec) => { setSecurityId(id); if (sec?.currency) setCurrency(sec.currency); clearDuplicateWarning(); }}
             initialSecurity={
               transaction?.securityId
                 ? { id: transaction.securityId, symbol: transaction.securitySymbol!, name: transaction.securityName! }

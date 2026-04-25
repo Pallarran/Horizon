@@ -11,6 +11,7 @@ import {
   type SecurityProfileMap,
 } from "@/lib/positions/security-profile";
 import { computeAccountHistories } from "@/lib/dashboard/account-history";
+import { computeContributionTable } from "@/lib/contributions/compute";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +19,8 @@ export default async function PortfolioPage() {
   const { user } = await requireAuth();
   const db = scopedPrisma(user.id);
 
-  // Fetch all data needed by both Positions and Accounts tabs in parallel
-  const [positions, crcdPositions, accounts, fxRate, watchlistItems, crcdHoldings, accountHistories, allTxns] =
+  // Fetch all data needed by Accounts, Holdings, and Contributions tabs in parallel
+  const [positions, crcdPositions, accounts, fxRate, watchlistItems, crcdHoldings, accountHistories, allTxns, contributionRows, crcdHoldingsRaw] =
     await Promise.all([
       getPositions(db),
       getCrcdPositions(db),
@@ -34,6 +35,8 @@ export default async function PortfolioPage() {
       db.transaction.findMany({
         select: { accountId: true, amountCents: true },
       }),
+      computeContributionTable(db, user.birthYear),
+      db.crcdHolding.findMany({ where: {} }),
     ]);
 
   const usdCadRate = fxRate ? Number(fxRate.rate) : 1;
@@ -88,6 +91,8 @@ export default async function PortfolioPage() {
           accountsForAccounts={accountsForAccounts}
           accountHistories={accountHistories}
           cashBalances={cashBalances}
+          contributionRows={contributionRows}
+          hasCrcdHoldings={crcdHoldingsRaw.length > 0}
           locale={user.locale}
         />
       </main>

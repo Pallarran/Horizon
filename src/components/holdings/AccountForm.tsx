@@ -80,7 +80,7 @@ export function AccountForm({ account, onSuccess, onCancel }: Props) {
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>{t("currency")}</Label>
+          <Label>{t("defaultCurrency")}</Label>
           <Select name="currency" defaultValue={account?.currency ?? "CAD"}>
             <SelectTrigger>
               <SelectValue />
@@ -90,6 +90,7 @@ export function AccountForm({ account, onSuccess, onCancel }: Props) {
               <SelectItem value="USD">USD</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground">{t("defaultCurrencyHint")}</p>
         </div>
       </div>
 

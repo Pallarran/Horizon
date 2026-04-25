@@ -154,7 +154,6 @@ export async function saveCrcdHoldingAction(
   }
 
   revalidatePath("/portfolio");
-  revalidatePath("/contributions");
   return { success: true };
 }
 
@@ -174,7 +173,6 @@ export async function deleteCrcdHoldingAction(
   }
 
   revalidatePath("/portfolio");
-  revalidatePath("/contributions");
   return { success: true };
 }
 

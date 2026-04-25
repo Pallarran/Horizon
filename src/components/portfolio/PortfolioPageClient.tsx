@@ -6,10 +6,12 @@ import { useTranslations } from "next-intl";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { HoldingsPageClient } from "@/components/holdings/HoldingsPageClient";
 import { AccountsTab } from "@/components/holdings/AccountsTab";
+import { ContributionsPageClient } from "@/components/contributions/ContributionsPageClient";
 import type { SerializedPosition } from "@/lib/positions/serialize";
 import type { SecurityProfileMap } from "@/lib/positions/security-profile";
 import type { SerializedCrcdHolding } from "@/lib/actions/crcd-holdings";
 import type { PortfolioHistoryPoint } from "@/lib/dashboard/portfolio-history";
+import type { ContributionYearRow } from "@/lib/contributions/compute";
 
 interface HoldingsAccount {
   id: string;
@@ -37,6 +39,9 @@ interface PortfolioPageClientProps {
   accountsForAccounts: FullAccount[];
   accountHistories: Record<string, PortfolioHistoryPoint[]>;
   cashBalances: Record<string, number>;
+  // Contributions tab
+  contributionRows: ContributionYearRow[];
+  hasCrcdHoldings: boolean;
   // Shared
   locale: string;
 }
@@ -51,23 +56,28 @@ export function PortfolioPageClient({
   accountsForAccounts,
   accountHistories,
   cashBalances,
+  contributionRows,
+  hasCrcdHoldings,
   locale,
 }: PortfolioPageClientProps) {
   const t = useTranslations("holdings");
+  const tContrib = useTranslations("contributions");
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const activeTab = searchParams.get("tab") === "accounts" ? "accounts" : "positions";
+  const tabParam = searchParams.get("tab");
+  const activeTab = tabParam === "holdings" || tabParam === "contributions" ? tabParam : "accounts";
 
   const handleTabChange = useCallback(
     (value: string) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (value === "positions") {
+      if (value === "accounts") {
         params.delete("tab");
       } else {
         params.set("tab", value);
-        params.delete("account");
       }
+      // Preserve account filter only on holdings tab
+      if (value === "accounts") params.delete("account");
       const qs = params.toString();
       router.replace(`/portfolio${qs ? `?${qs}` : ""}`, { scroll: false });
     },
@@ -77,11 +87,22 @@ export function PortfolioPageClient({
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange}>
       <TabsList>
-        <TabsTrigger value="positions">{t("holdingsTab")}</TabsTrigger>
         <TabsTrigger value="accounts">{t("accountsTab")}</TabsTrigger>
+        <TabsTrigger value="holdings">{t("holdingsTab")}</TabsTrigger>
+        <TabsTrigger value="contributions">{tContrib("title")}</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="positions" className="mt-4">
+      <TabsContent value="accounts" className="mt-4">
+        <AccountsTab
+          accounts={accountsForAccounts}
+          positions={positions}
+          accountHistories={accountHistories}
+          cashBalances={cashBalances}
+          locale={locale}
+        />
+      </TabsContent>
+
+      <TabsContent value="holdings" className="mt-4">
         <HoldingsPageClient
           positions={positions}
           accounts={accountsForHoldings}
@@ -93,13 +114,11 @@ export function PortfolioPageClient({
         />
       </TabsContent>
 
-      <TabsContent value="accounts" className="mt-4">
-        <AccountsTab
-          accounts={accountsForAccounts}
-          positions={positions}
-          accountHistories={accountHistories}
-          cashBalances={cashBalances}
+      <TabsContent value="contributions" className="mt-4">
+        <ContributionsPageClient
+          initialRows={contributionRows}
           locale={locale}
+          hasCrcdHoldings={hasCrcdHoldings}
         />
       </TabsContent>
     </Tabs>

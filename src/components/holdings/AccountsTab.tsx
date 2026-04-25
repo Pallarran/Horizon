@@ -45,6 +45,7 @@ interface AccountStat extends Account {
   yieldPct: number | null;
   weight: number;
   positionCount: number;
+  currencyLabel: string;
 }
 
 interface Props {
@@ -104,7 +105,7 @@ function SortableAccountCard({
           </button>
           <p className="text-xs font-medium text-muted-foreground">
             {t(`accountType${acct.type}` as Parameters<typeof t>[0])} ·{" "}
-            {acct.currency}
+            {acct.currencyLabel}
           </p>
         </div>
         <DropdownMenu>
@@ -305,6 +306,11 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
       const yieldPct = marketValue > 0 ? income / marketValue : null;
       const weight = portfolioTotal > 0 ? marketValue / portfolioTotal : 0;
 
+      const currencies = new Set(ap.map((p) => p.currency));
+      const currencyLabel = currencies.size > 0
+        ? [...currencies].sort().join("/")
+        : account.currency;
+
       return {
         ...account,
         marketValue,
@@ -315,6 +321,7 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
         yieldPct,
         weight,
         positionCount: ap.length,
+        currencyLabel,
       };
     });
   }, [orderedAccounts, positions]);
@@ -430,7 +437,7 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
         title={tc("delete")}
         description={
           deleteTarget
-            ? t("deleteAccountDesc", { name: deleteTarget.name, currency: deleteTarget.currency })
+            ? t("deleteAccountDesc", { name: deleteTarget.name })
             : ""
         }
         confirmLabel={tc("delete")}
