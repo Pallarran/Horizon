@@ -25,6 +25,8 @@ interface TransactionRow {
   priceCents: bigint | null;
   amountCents: bigint;
   feeCents: bigint;
+  currency: string;              // "CAD" or "USD"
+  fxRateAtDate: number | null;   // USD→CAD rate on txn date (null for CAD)
 }
 
 interface SecurityInfo {
@@ -77,6 +79,7 @@ export function computeAcbStates(transactions: TransactionRow[]): Map<string, Ac
       accountId: txn.accountId,
       quantity: 0,
       totalCostCents: 0n,
+      totalCostCadCents: 0n,
       totalDividendsReceivedCents: 0n,
     };
 
@@ -91,6 +94,10 @@ export function computeAcbStates(transactions: TransactionRow[]): Map<string, Ac
         const cost = BigInt(Math.round(qty * Number(price))) + fee;
         state.quantity += qty;
         state.totalCostCents += cost;
+        // CAD cost basis: convert using historical FX rate (NaN guard for unbackfilled rows)
+        const fxRate = (txn.fxRateAtDate != null && !Number.isNaN(txn.fxRateAtDate))
+          ? txn.fxRateAtDate : 1;
+        state.totalCostCadCents += BigInt(Math.round(Number(cost) * fxRate));
         break;
       }
 
@@ -99,13 +106,19 @@ export function computeAcbStates(transactions: TransactionRow[]): Map<string, Ac
         if (state.quantity > 0) {
           const acbPerShare = Number(state.totalCostCents) / state.quantity;
           const costRemoved = BigInt(Math.round(acbPerShare * qty));
+          // CAD proportional removal
+          const acbPerShareCad = Number(state.totalCostCadCents) / state.quantity;
+          const costRemovedCad = BigInt(Math.round(acbPerShareCad * qty));
+
           state.quantity -= qty;
           state.totalCostCents -= costRemoved;
+          state.totalCostCadCents -= costRemovedCad;
 
           // Prevent floating-point drift from producing negative tiny values
           if (state.quantity <= 0) {
             state.quantity = 0;
             state.totalCostCents = 0n;
+            state.totalCostCadCents = 0n;
           }
         }
         break;
@@ -130,6 +143,12 @@ export function computeAcbStates(transactions: TransactionRow[]): Map<string, Ac
         const rocAmount = txn.amountCents > 0n ? txn.amountCents : -txn.amountCents;
         state.totalCostCents -= rocAmount;
         if (state.totalCostCents < 0n) state.totalCostCents = 0n;
+        // CAD ROC: convert using historical FX rate (NaN guard for unbackfilled rows)
+        const rocFxRate = (txn.fxRateAtDate != null && !Number.isNaN(txn.fxRateAtDate))
+          ? txn.fxRateAtDate : 1;
+        const rocCad = BigInt(Math.round(Number(rocAmount) * rocFxRate));
+        state.totalCostCadCents -= rocCad;
+        if (state.totalCostCadCents < 0n) state.totalCostCadCents = 0n;
         break;
       }
 
@@ -174,6 +193,11 @@ export function buildPositions(
 
     const avgCostCents = state.quantity > 0
       ? BigInt(Math.round(Number(state.totalCostCents) / state.quantity))
+      : 0n;
+
+    // CAD cost basis (already computed in ACB engine with historical FX rates)
+    const avgCostCadCents = state.quantity > 0
+      ? BigInt(Math.round(Number(state.totalCostCadCents) / state.quantity))
       : 0n;
 
     const priceInfo = prices.get(state.securityId);
@@ -238,6 +262,8 @@ export function buildPositions(
       quantity: state.quantity,
       totalCostCents: state.totalCostCents,
       avgCostCents,
+      totalCostCadCents: state.totalCostCadCents,
+      avgCostCadCents,
       currentPriceCents,
       marketValueCents,
       dayChangeCents,

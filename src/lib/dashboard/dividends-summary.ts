@@ -79,9 +79,8 @@ export async function computeDividendsSummary(
   let ytdCents = 0n;
   for (const txn of ytdTxns) {
     const isUsd = txn.currency === "USD";
-    const amountCad = isUsd
-      ? convertCurrency(txn.amountCents, usdCadRate)
-      : txn.amountCents;
+    const rate = isUsd && txn.fxRateAtDate != null ? Number(txn.fxRateAtDate) : usdCadRate;
+    const amountCad = isUsd ? convertCurrency(txn.amountCents, rate) : txn.amountCents;
     // DIVIDEND amountCents is positive (money arrives)
     ytdCents += amountCad > 0n ? amountCad : -amountCad;
   }
@@ -89,9 +88,8 @@ export async function computeDividendsSummary(
   let priorYearCents = 0n;
   for (const txn of priorYearTxns) {
     const isUsd = txn.currency === "USD";
-    const amountCad = isUsd
-      ? convertCurrency(txn.amountCents, usdCadRate)
-      : txn.amountCents;
+    const rate = isUsd && txn.fxRateAtDate != null ? Number(txn.fxRateAtDate) : usdCadRate;
+    const amountCad = isUsd ? convertCurrency(txn.amountCents, rate) : txn.amountCents;
     priorYearCents += amountCad > 0n ? amountCad : -amountCad;
   }
 
@@ -99,9 +97,8 @@ export async function computeDividendsSummary(
   let priorYearSamePeriodCents = 0n;
   for (const txn of priorYearSamePeriodTxns) {
     const isUsd = txn.currency === "USD";
-    const amountCad = isUsd
-      ? convertCurrency(txn.amountCents, usdCadRate)
-      : txn.amountCents;
+    const rate = isUsd && txn.fxRateAtDate != null ? Number(txn.fxRateAtDate) : usdCadRate;
+    const amountCad = isUsd ? convertCurrency(txn.amountCents, rate) : txn.amountCents;
     priorYearSamePeriodCents += amountCad > 0n ? amountCad : -amountCad;
   }
 

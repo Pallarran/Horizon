@@ -18,7 +18,7 @@ export async function getPositions(db: ScopedPrisma): Promise<ComputedPosition[]
 
   if (transactions.length === 0) return [];
 
-  // 2. Compute ACB states
+  // 2. Compute ACB states (with FX rate for CAD cost basis)
   const acbStates = computeAcbStates(
     transactions.map((t) => ({
       id: t.id,
@@ -30,6 +30,8 @@ export async function getPositions(db: ScopedPrisma): Promise<ComputedPosition[]
       priceCents: t.priceCents,
       amountCents: t.amountCents,
       feeCents: t.feeCents,
+      currency: t.currency,
+      fxRateAtDate: t.fxRateAtDate != null ? Number(t.fxRateAtDate) : null,
     })),
   );
 

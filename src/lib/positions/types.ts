@@ -23,6 +23,8 @@ export interface ComputedPosition {
   quantity: number;           // shares held (Decimal → number)
   totalCostCents: bigint;     // total ACB in transaction currency
   avgCostCents: bigint;       // per-share ACB in transaction currency
+  totalCostCadCents: bigint;  // total ACB in CAD (historical FX rates for USD)
+  avgCostCadCents: bigint;    // per-share ACB in CAD
 
   // Market data (requires latest price)
   currentPriceCents: bigint | null;
@@ -58,6 +60,7 @@ export interface AcbState {
   securityId: string;
   accountId: string;
   quantity: number;       // current share count
-  totalCostCents: bigint; // running ACB total
+  totalCostCents: bigint; // running ACB total in transaction currency
+  totalCostCadCents: bigint; // running ACB total in CAD (historical FX)
   totalDividendsReceivedCents: bigint; // sum of DIVIDEND transaction amounts
 }

@@ -153,12 +153,18 @@ export async function computePortfolioHistory(
   }
 
   // Add CRCD holdings value — these aren't tracked via transactions.
-  // CRCD shares have a stable price, so we use current price (or cost basis)
-  // for all snapshots. This is accurate since CRCD shares don't fluctuate.
-  const crcdValueCents = await computeCrcdValueCents(db);
-  if (crcdValueCents > 0) {
+  // Filter by purchaseYear so each snapshot only includes tranches that existed then.
+  const crcdByYear = await computeCrcdValueByYear(db);
+  if (crcdByYear.length > 0) {
     for (const point of result) {
-      point.valueCents += crcdValueCents;
+      const snapshotYear = new Date(point.date).getFullYear();
+      let crcdCents = 0;
+      for (const entry of crcdByYear) {
+        if (entry.purchaseYear <= snapshotYear) {
+          crcdCents += entry.valueCents;
+        }
+      }
+      point.valueCents += crcdCents;
     }
   }
 
@@ -169,10 +175,12 @@ export async function computePortfolioHistory(
   return result.slice(firstNonZero);
 }
 
-/** Compute total CRCD holdings value in CAD cents. */
-async function computeCrcdValueCents(db: ScopedPrisma): Promise<number> {
+/** Compute CRCD holdings value grouped by purchase year (for time-weighted sparkline). */
+async function computeCrcdValueByYear(
+  db: ScopedPrisma,
+): Promise<Array<{ purchaseYear: number; valueCents: number }>> {
   const holdings = await db.crcdHolding.findMany();
-  if (holdings.length === 0) return 0;
+  if (holdings.length === 0) return [];
 
   // Get current price from CRCD security
   const crcdSecurity = await prisma.security.findUnique({
@@ -192,15 +200,19 @@ async function computeCrcdValueCents(db: ScopedPrisma): Promise<number> {
     }
   }
 
-  let totalCents = 0;
+  // Group by purchaseYear
+  const byYear = new Map<number, number>();
   for (const h of holdings) {
     const qty = Number(h.quantity);
-    // Use current price if available, otherwise use cost basis
     const perShareCents = priceCents ?? Number(h.averagePriceCents);
-    totalCents += Math.round(qty * perShareCents);
+    const value = Math.round(qty * perShareCents);
+    byYear.set(h.purchaseYear, (byYear.get(h.purchaseYear) ?? 0) + value);
   }
 
-  return totalCents;
+  return Array.from(byYear.entries()).map(([purchaseYear, valueCents]) => ({
+    purchaseYear,
+    valueCents,
+  }));
 }
 
 // --- Helpers ---

@@ -96,29 +96,26 @@ export async function ensureSparklinePrices(
       const quotes = result?.quotes;
       if (!quotes || quotes.length === 0) continue;
 
-      for (const bar of quotes) {
-        if (!bar.close || bar.close <= 0 || !bar.date) continue;
-
-        const date = new Date(bar.date);
-        date.setHours(0, 0, 0, 0);
-        const priceCents = BigInt(Math.round(bar.close * 100));
-
-        await prisma.price.upsert({
-          where: {
-            securityId_date: { securityId: sec.securityId, date },
-          },
-          create: {
-            securityId: sec.securityId,
-            date,
-            priceCents,
-            source: "yahoo-historical",
-          },
-          update: { priceCents },
+      // Batch upserts in chunks for performance
+      const upserts = quotes
+        .filter((bar) => bar.close && bar.close > 0 && bar.date)
+        .map((bar) => {
+          const date = new Date(bar.date!);
+          date.setHours(0, 0, 0, 0);
+          const priceCents = BigInt(Math.round(bar.close! * 100));
+          return prisma.price.upsert({
+            where: { securityId_date: { securityId: sec.securityId, date } },
+            create: { securityId: sec.securityId, date, priceCents, source: "yahoo-historical" },
+            update: { priceCents },
+          });
         });
+
+      for (let i = 0; i < upserts.length; i += 50) {
+        await prisma.$transaction(upserts.slice(i, i + 50));
       }
 
       // Rate limit between securities
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 300));
     } catch {
       // Skip security on error — sparkline will show partial data
       continue;
@@ -150,50 +147,29 @@ async function ensureFxRates(fetchStart: Date): Promise<void> {
     const quotes = result?.quotes;
     if (!quotes || quotes.length === 0) return;
 
-    for (const bar of quotes) {
-      if (!bar.close || bar.close <= 0 || !bar.date) continue;
-
-      const date = new Date(bar.date);
-      date.setHours(0, 0, 0, 0);
-      const rate = bar.close;
-
-      // USD → CAD
-      await prisma.fxRate.upsert({
-        where: {
-          fromCurrency_toCurrency_date: {
-            fromCurrency: "USD",
-            toCurrency: "CAD",
-            date,
-          },
-        },
-        create: {
-          fromCurrency: "USD",
-          toCurrency: "CAD",
-          date,
-          rate,
-          source: "yahoo-historical",
-        },
-        update: { rate },
+    // Batch FX rate upserts for performance
+    const fxUpserts = quotes
+      .filter((bar) => bar.close && bar.close > 0 && bar.date)
+      .flatMap((bar) => {
+        const date = new Date(bar.date!);
+        date.setHours(0, 0, 0, 0);
+        const rate = bar.close!;
+        return [
+          prisma.fxRate.upsert({
+            where: { fromCurrency_toCurrency_date: { fromCurrency: "USD", toCurrency: "CAD", date } },
+            create: { fromCurrency: "USD", toCurrency: "CAD", date, rate, source: "yahoo-historical" },
+            update: { rate },
+          }),
+          prisma.fxRate.upsert({
+            where: { fromCurrency_toCurrency_date: { fromCurrency: "CAD", toCurrency: "USD", date } },
+            create: { fromCurrency: "CAD", toCurrency: "USD", date, rate: 1 / rate, source: "yahoo-historical" },
+            update: { rate: 1 / rate },
+          }),
+        ];
       });
 
-      // CAD → USD (inverse)
-      await prisma.fxRate.upsert({
-        where: {
-          fromCurrency_toCurrency_date: {
-            fromCurrency: "CAD",
-            toCurrency: "USD",
-            date,
-          },
-        },
-        create: {
-          fromCurrency: "CAD",
-          toCurrency: "USD",
-          date,
-          rate: 1 / rate,
-          source: "yahoo-historical",
-        },
-        update: { rate: 1 / rate },
-      });
+    for (let i = 0; i < fxUpserts.length; i += 50) {
+      await prisma.$transaction(fxUpserts.slice(i, i + 50));
     }
   } catch {
     // FX backfill failed — sparkline will use fallback rate

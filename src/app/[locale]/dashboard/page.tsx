@@ -45,8 +45,7 @@ export default async function DashboardPage() {
   ]);
   const positions = [...txnPositions, ...crcdPositions];
 
-  // Ensure 1 year of historical prices exist for sparkline (one-time backfill)
-  // Exclude CRCD — not publicly traded, no Yahoo data
+  // Fire-and-forget: backfill sparkline prices in background (don't block render)
   const uniqueSecurities = [
     ...new Map(
       txnPositions.map((p) => [
@@ -55,8 +54,9 @@ export default async function DashboardPage() {
       ]),
     ).values(),
   ];
-  await ensureSparklinePrices(uniqueSecurities);
+  ensureSparklinePrices(uniqueSecurities).catch(console.error);
 
+  // Batch 2: all independent data fetches in parallel
   const [netWorth, dividends, contributionRoom, incomeStreams, lastPriceDate, portfolioHistory] =
     await Promise.all([
       computeNetWorth(db, positions),
@@ -67,26 +67,19 @@ export default async function DashboardPage() {
       computePortfolioHistory(db),
     ]);
 
-  const [dividendHistory, dividendForecast] = await Promise.all([
-    computeDividendHistory(db, netWorth.usdCadRate),
-    computeDividendForecast(db, positions, netWorth.usdCadRate, locale),
-  ]);
+  // Batch 3: everything that depends on batch 2 — all in parallel
+  const [dividendHistory, dividendForecast, hero, { milestones: passedMilestones, annualizedGrowthRate: irrGrowthRate }] =
+    await Promise.all([
+      computeDividendHistory(db, netWorth.usdCadRate),
+      computeDividendForecast(db, positions, netWorth.usdCadRate, locale),
+      computeHero(db, user, dividends.annualizedCents, netWorth.netWorthCents, incomeStreams),
+      estimatePassedMilestones(db, netWorth.netWorthCents, portfolioHistory),
+    ]);
 
   const dayMovers = computeDayMovers(positions, 1);
   const topYielders = computeTopYielders(positions);
   const allocationByAccount = computeAllocation(positions, netWorth.usdCadRate);
   const allocationByAssetClass = computeAllocationByAssetClass(positions, netWorth.usdCadRate);
-
-  const hero = await computeHero(
-    db,
-    user,
-    dividends.annualizedCents,
-    netWorth.netWorthCents,
-    incomeStreams,
-  );
-
-  const { milestones: passedMilestones, annualizedGrowthRate: irrGrowthRate } =
-    await estimatePassedMilestones(db, netWorth.netWorthCents, portfolioHistory);
 
   const milestoneProgress = computeNetWorthMilestones(
     netWorth.netWorthCents,

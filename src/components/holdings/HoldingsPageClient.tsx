@@ -190,12 +190,14 @@ export function HoldingsPageClient({ positions, accounts, securityProfiles, loca
       entry.gainPercent = entry.totalCostCents > 0 ? entry.gainCents / entry.totalCostCents : null;
     }
 
-    // Combined totals in CAD
+    // Combined totals in CAD (cost uses historical FX rates via totalCostCadCents)
     const totalCost = filtered.reduce(
-      (s, p) => s + toCad(p.totalCostCents, p.currency), 0,
+      (s, p) => s + p.totalCostCadCents, 0,
     );
     const marketValue = filtered.reduce(
-      (s, p) => s + toCad(p.marketValueCents ?? p.totalCostCents, p.currency), 0,
+      (s, p) => s + (p.marketValueCents != null
+        ? toCad(p.marketValueCents, p.currency)
+        : p.totalCostCadCents), 0,
     );
     const gain = marketValue - totalCost;
     const gainPercent = totalCost > 0 ? gain / totalCost : null;

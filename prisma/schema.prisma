@@ -206,6 +206,7 @@ model Transaction {
   currency      String                               // transaction currency, not base
   feeCents      BigInt          @default(0)
   taxWithheldCents BigInt       @default(0)
+  fxRateAtDate  Decimal?        @db.Decimal(18, 8) // USD→CAD rate on txn date (null for CAD)
   note          String?
   importBatchId String?
   importBatch   ImportBatch?    @relation(fields: [importBatchId], references: [id])

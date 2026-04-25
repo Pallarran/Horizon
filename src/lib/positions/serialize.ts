@@ -19,6 +19,8 @@ export interface SerializedPosition {
   quantity: number;
   totalCostCents: number;
   avgCostCents: number;
+  totalCostCadCents: number;
+  avgCostCadCents: number;
   currentPriceCents: number | null;
   marketValueCents: number | null;
   dayChangeCents: number | null;
@@ -53,6 +55,8 @@ export function serializePosition(p: ComputedPosition): SerializedPosition {
     quantity: p.quantity,
     totalCostCents: Number(p.totalCostCents),
     avgCostCents: Number(p.avgCostCents),
+    totalCostCadCents: Number(p.totalCostCadCents),
+    avgCostCadCents: Number(p.avgCostCadCents),
     currentPriceCents: p.currentPriceCents !== null ? Number(p.currentPriceCents) : null,
     marketValueCents: p.marketValueCents !== null ? Number(p.marketValueCents) : null,
     dayChangeCents: p.dayChangeCents !== null ? Number(p.dayChangeCents) : null,

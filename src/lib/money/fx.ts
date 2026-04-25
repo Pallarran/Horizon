@@ -28,3 +28,32 @@ export async function getLatestFxRate(
   }
   return Number(rate.rate);
 }
+
+/**
+ * Get the FX rate closest to (on or before) the given date.
+ * Returns null if no FX data exists at all.
+ */
+export async function getFxRateForDate(
+  db: ScopedPrisma,
+  from: string,
+  to: string,
+  date: Date,
+): Promise<number | null> {
+  if (from === to) return 1;
+
+  // Try exact or closest prior date
+  const rate = await db.fxRate.findFirst({
+    where: { fromCurrency: from, toCurrency: to, date: { lte: date } },
+    orderBy: { date: "desc" },
+  });
+
+  if (rate) return Number(rate.rate);
+
+  // Fall back to earliest available rate (transaction predates FX data)
+  const earliest = await db.fxRate.findFirst({
+    where: { fromCurrency: from, toCurrency: to },
+    orderBy: { date: "asc" },
+  });
+
+  return earliest ? Number(earliest.rate) : null;
+}

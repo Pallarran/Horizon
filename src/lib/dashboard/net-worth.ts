@@ -45,17 +45,14 @@ export async function computeNetWorth(
     const isUsd = pos.currency === "USD";
     const rate = isUsd ? usdCadRate : 1;
 
-    // Market value — use current price when available, else fall back to cost
+    // Market value — use current price when available, else fall back to CAD cost
     const mvCad = pos.marketValueCents !== null
       ? (isUsd ? convertCurrency(pos.marketValueCents, rate) : pos.marketValueCents)
-      : (isUsd ? convertCurrency(pos.totalCostCents, rate) : pos.totalCostCents);
+      : pos.totalCostCadCents;
     netWorthCents += mvCad;
 
-    // Cost basis
-    const costCad = isUsd
-      ? convertCurrency(pos.totalCostCents, rate)
-      : pos.totalCostCents;
-    totalCostCents += costCad;
+    // Cost basis (already in CAD from historical FX rates in ACB engine)
+    totalCostCents += pos.totalCostCadCents;
 
     // Day change (pos.dayChangeCents already includes quantity)
     if (pos.dayChangeCents !== null) {

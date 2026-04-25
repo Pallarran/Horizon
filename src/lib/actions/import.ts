@@ -5,6 +5,8 @@ import { requireAuth } from "@/lib/auth/middleware";
 import { prisma } from "@/lib/db/prisma";
 import { parseDesjardinsXlsx, type ParsedRow, type ParseError } from "@/lib/import/parse-desjardins";
 import { dollarsToCents } from "@/lib/money/arithmetic";
+import { getFxRateForDate } from "@/lib/money/fx";
+import { scopedPrisma } from "@/lib/db/scoped";
 import type { TransactionType } from "@/generated/prisma/client";
 
 // ─── Types ───
@@ -393,6 +395,19 @@ export async function commitImportAction(
   }
 
   try {
+    // Pre-fetch FX rates for USD transactions
+    const db = scopedPrisma(user.id);
+    const fxRateCache = new Map<string, number | null>();
+    for (const row of validRows) {
+      if (row.currency === "USD") {
+        const dateKey = row.date.slice(0, 10);
+        if (!fxRateCache.has(dateKey)) {
+          const rate = await getFxRateForDate(db, "USD", "CAD", new Date(row.date));
+          fxRateCache.set(dateKey, rate);
+        }
+      }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       // Create import batch
       const batch = await tx.importBatch.create({
@@ -411,6 +426,10 @@ export async function commitImportAction(
 
       // Create all transactions
       for (const row of validRows) {
+        const fxRate = row.currency === "USD"
+          ? fxRateCache.get(row.date.slice(0, 10)) ?? null
+          : null;
+
         await tx.transaction.create({
           data: {
             accountId: input.accountId,
@@ -423,6 +442,7 @@ export async function commitImportAction(
             currency: row.currency,
             feeCents: dollarsToCents(row.fee),
             taxWithheldCents: dollarsToCents(row.taxWithheld),
+            fxRateAtDate: fxRate,
             note: row.note,
             importBatchId: batch.id,
           },

@@ -5,6 +5,7 @@ import { scopedPrisma, type ScopedPrisma } from "@/lib/db/scoped";
 import { createTransactionSchema } from "@/lib/validators/transaction";
 import { dollarsToCents } from "@/lib/money/arithmetic";
 import { prisma } from "@/lib/db/prisma";
+import { getFxRateForDate } from "@/lib/money/fx";
 
 export interface TransactionActionState {
   error?: string;
@@ -61,15 +62,23 @@ export async function createTransactionAction(
     }
   }
 
+  // Look up historical FX rate for USD transactions
+  const txnDate = new Date(date);
+  let fxRateAtDate: number | null = null;
+  if (rest.currency === "USD") {
+    fxRateAtDate = await getFxRateForDate(db, "USD", "CAD", txnDate);
+  }
+
   const txn = await db.transaction.create({
     data: {
       ...rest,
-      date: new Date(date),
+      date: txnDate,
       quantity: quantity,
       priceCents: priceDollars !== null ? dollarsToCents(priceDollars) : null,
       amountCents,
       feeCents: dollarsToCents(feeDollars),
       taxWithheldCents: dollarsToCents(taxWithheldDollars),
+      fxRateAtDate,
     },
   });
 
@@ -107,17 +116,25 @@ export async function updateTransactionAction(
 
   const { priceDollars, amountDollars, feeDollars, taxWithheldDollars, date, quantity, ...rest } = result.data;
 
+  // Look up historical FX rate for USD transactions
+  const txnDate = new Date(date);
+  let fxRateAtDate: number | null = null;
+  if (rest.currency === "USD") {
+    fxRateAtDate = await getFxRateForDate(db, "USD", "CAD", txnDate);
+  }
+
   try {
     await db.transaction.update({
       where: { id },
       data: {
         ...rest,
-        date: new Date(date),
+        date: txnDate,
         quantity: quantity,
         priceCents: priceDollars !== null ? dollarsToCents(priceDollars) : null,
         amountCents: dollarsToCents(amountDollars),
         feeCents: dollarsToCents(feeDollars),
         taxWithheldCents: dollarsToCents(taxWithheldDollars),
+        fxRateAtDate,
       },
     });
   } catch {

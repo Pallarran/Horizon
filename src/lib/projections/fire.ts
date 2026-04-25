@@ -75,6 +75,9 @@ export function projectFire(
   let portfolioAtRetirement = 0;
   let incomeAtRetirement = 0;
 
+  // Mid-year timing factor: contributions/dividends get half a year of growth
+  const midYearFactor = Math.sqrt(1 + params.assumedPriceGrowth);
+
   for (let age = params.currentAge; age <= endAge; age++) {
     const year = currentYear + (age - params.currentAge);
     const isPreRetirement = age < params.retirementAge;
@@ -124,11 +127,10 @@ export function projectFire(
     // Grow portfolio for next year
     // Price growth applies to existing portfolio
     portfolioValue = portfolioValue * (1 + params.assumedPriceGrowth);
-    // Add contributions
-    portfolioValue += contribution;
-    // Reinvest dividends if enabled
+    // Mid-year timing: contributions and reinvested dividends get half a year of growth
+    portfolioValue += contribution * midYearFactor;
     if (params.reinvestDividends && isPreRetirement) {
-      portfolioValue += dividendIncome;
+      portfolioValue += dividendIncome * midYearFactor;
     }
 
     // Grow dividends for next year
