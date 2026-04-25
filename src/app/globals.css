@@ -45,6 +45,21 @@
   --color-gain: var(--gain);
   --color-loss: var(--loss);
   --color-warning: var(--warning);
+
+  /* Tier badge colors */
+  --color-tier-iron: var(--tier-iron);
+  --color-tier-bronze: var(--tier-bronze);
+  --color-tier-silver: var(--tier-silver);
+  --color-tier-gold: var(--tier-gold);
+  --color-tier-platinum: var(--tier-platinum);
+  --color-tier-emerald: var(--tier-emerald);
+  --color-tier-diamond: var(--tier-diamond);
+  --color-tier-master: var(--tier-master);
+  --color-tier-grandmaster: var(--tier-grandmaster);
+  --color-tier-challenger: var(--tier-challenger);
+
+  /* Milestone glow animation */
+  --animate-milestone-glow: milestone-glow 2s ease-in-out infinite;
 }
 
 :root {
@@ -85,6 +100,18 @@
   --gain: oklch(0.627 0.194 149.214);
   --loss: oklch(0.577 0.245 27.325);
   --warning: oklch(0.769 0.188 70.08);
+
+  /* Tier badge colors (LoL-inspired) */
+  --tier-iron: oklch(0.50 0.02 250);
+  --tier-bronze: oklch(0.58 0.12 55);
+  --tier-silver: oklch(0.68 0.01 260);
+  --tier-gold: oklch(0.75 0.16 85);
+  --tier-platinum: oklch(0.62 0.08 195);
+  --tier-emerald: oklch(0.62 0.17 155);
+  --tier-diamond: oklch(0.70 0.14 230);
+  --tier-master: oklch(0.58 0.20 300);
+  --tier-grandmaster: oklch(0.55 0.22 15);
+  --tier-challenger: oklch(0.72 0.18 85);
 }
 
 .dark {
@@ -124,4 +151,31 @@
   --gain: oklch(0.696 0.17 162.48);
   --loss: oklch(0.645 0.246 16.439);
   --warning: oklch(0.828 0.189 84.429);
+
+  /* Tier badge colors (LoL-inspired) */
+  --tier-iron: oklch(0.58 0.02 250);
+  --tier-bronze: oklch(0.65 0.10 55);
+  --tier-silver: oklch(0.75 0.01 260);
+  --tier-gold: oklch(0.80 0.14 85);
+  --tier-platinum: oklch(0.72 0.08 195);
+  --tier-emerald: oklch(0.72 0.15 155);
+  --tier-diamond: oklch(0.78 0.12 230);
+  --tier-master: oklch(0.68 0.18 300);
+  --tier-grandmaster: oklch(0.65 0.20 15);
+  --tier-challenger: oklch(0.80 0.16 85);
+}
+
+/* Milestone progress bar glow animation */
+@keyframes milestone-glow {
+  0%, 100% { box-shadow: 0 0 4px 1px oklch(0.627 0.194 149.214 / 0.3); }
+  50% { box-shadow: 0 0 10px 3px oklch(0.627 0.194 149.214 / 0.5); }
+}
+
+.dark .animate-milestone-glow {
+  animation-name: milestone-glow-dark;
+}
+
+@keyframes milestone-glow-dark {
+  0%, 100% { box-shadow: 0 0 4px 1px oklch(0.696 0.17 162.48 / 0.3); }
+  50% { box-shadow: 0 0 10px 3px oklch(0.696 0.17 162.48 / 0.5); }
 }

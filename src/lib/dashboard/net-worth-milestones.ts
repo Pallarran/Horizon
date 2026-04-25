@@ -11,6 +11,50 @@ import type { PortfolioHistoryPoint } from "./portfolio-history";
 /** $100K in cents */
 const STEP = 10_000_000;
 
+// ---------------------------------------------------------------------------
+// Tier / league system
+// ---------------------------------------------------------------------------
+
+export type TierName =
+  | "iron"
+  | "bronze"
+  | "silver"
+  | "gold"
+  | "platinum"
+  | "emerald"
+  | "diamond"
+  | "master"
+  | "grandmaster"
+  | "challenger";
+
+export interface MilestoneTier {
+  name: TierName;
+  /** Lower bound in cents */
+  thresholdCents: number;
+}
+
+const TIERS: MilestoneTier[] = [
+  { name: "challenger",   thresholdCents: 500_000_000 },  // $5M
+  { name: "grandmaster",  thresholdCents: 300_000_000 },  // $3M
+  { name: "master",       thresholdCents: 200_000_000 },  // $2M
+  { name: "diamond",      thresholdCents: 150_000_000 },  // $1.5M
+  { name: "emerald",      thresholdCents: 100_000_000 },  // $1M
+  { name: "platinum",     thresholdCents:  75_000_000 },  // $750K
+  { name: "gold",         thresholdCents:  50_000_000 },  // $500K
+  { name: "silver",       thresholdCents:  25_000_000 },  // $250K
+  { name: "bronze",       thresholdCents:  10_000_000 },  // $100K
+  { name: "iron",         thresholdCents:           0 },  // $0
+];
+
+export function computeTier(netWorthCents: number): { current: MilestoneTier; next: MilestoneTier | null } {
+  for (let i = 0; i < TIERS.length; i++) {
+    if (netWorthCents >= TIERS[i].thresholdCents) {
+      return { current: TIERS[i], next: i > 0 ? TIERS[i - 1] : null };
+    }
+  }
+  return { current: TIERS[TIERS.length - 1], next: TIERS[TIERS.length - 2] };
+}
+
 export interface PassedMilestone {
   /** Milestone value in cents, e.g. 10_000_000 for $100K */
   thresholdCents: number;
@@ -33,6 +77,10 @@ export interface MilestoneProgressData {
   trailingGrowthRate: number | null;
   /** Milestones already passed, oldest first */
   passedMilestones: PassedMilestone[];
+  /** Current tier based on net worth */
+  tier: MilestoneTier;
+  /** Next tier to reach, or null if at max */
+  nextTier: MilestoneTier | null;
 }
 
 export function computeNetWorthMilestones(
@@ -53,6 +101,9 @@ export function computeNetWorthMilestones(
   // Use IRR-based rate (contribution-adjusted) if available, else fall back to naive trailing
   const trailingGrowthRate = irrGrowthRate ?? computeTrailingGrowth(portfolioHistory);
 
+  // Tier
+  const { current: tier, next: nextTier } = computeTier(currentNetWorthCents);
+
   // Estimated date to next milestone
   const estimatedDate = computeEstimatedDate(
     currentNetWorthCents,
@@ -68,6 +119,8 @@ export function computeNetWorthMilestones(
     estimatedDate,
     trailingGrowthRate,
     passedMilestones,
+    tier,
+    nextTier,
   };
 }
 

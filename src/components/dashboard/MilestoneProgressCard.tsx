@@ -52,7 +52,7 @@ export function MilestoneProgressCard({ locale, data }: MilestoneProgressCardPro
         {/* Progress bar */}
         <div className="relative h-2 overflow-hidden rounded-full bg-muted">
           <div
-            className={`h-full rounded-full transition-all ${barColor}`}
+            className={`h-full rounded-full transition-all ${barColor} ${pct >= 90 ? "animate-[milestone-glow_2s_ease-in-out_infinite]" : ""}`}
             style={{ width: `${pct}%` }}
           />
         </div>

@@ -108,13 +108,13 @@ export function DividendsSummaryCard({ locale, dividends, forecast, history }: D
 
           {/* Tabbed charts */}
           <Separator className="my-4" />
-          <Tabs defaultValue="forecast">
+          <Tabs defaultValue="history">
             <TabsList className="w-full">
-              <TabsTrigger value="forecast" className="flex-1 text-xs">
-                {t("dividendForecast")}
-              </TabsTrigger>
               <TabsTrigger value="history" className="flex-1 text-xs" disabled={!hasHistory}>
                 {t("dividendHistory")}
+              </TabsTrigger>
+              <TabsTrigger value="forecast" className="flex-1 text-xs">
+                {t("dividendForecast")}
               </TabsTrigger>
             </TabsList>
 
