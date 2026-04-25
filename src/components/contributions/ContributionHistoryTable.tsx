@@ -29,6 +29,9 @@ interface ContributionHistoryTableProps {
 
 type EditField = "reerLimit" | "crcdLimit" | "goal";
 
+/** Tinted background for alternating column groups */
+const TINT = "bg-muted/30";
+
 export function ContributionHistoryTable({
   rows,
   locale,
@@ -137,25 +140,56 @@ export function ContributionHistoryTable({
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
+            {/* Group header row */}
+            <TableRow className="border-b-0">
+              {/* Year + Age spacers */}
+              <TableHead className="sticky left-0 z-10 bg-card" rowSpan={2}>{t("year")}</TableHead>
+              <TableHead className="text-right" rowSpan={2}>{t("age")}</TableHead>
+              {/* RRSP group */}
+              <TableHead colSpan={3} className={`text-center border-b font-semibold ${TINT}`}>
+                {t("reerLabel")}
+              </TableHead>
+              {/* TFSA group */}
+              <TableHead colSpan={3} className="text-center border-b font-semibold">
+                {t("celiLabel")}
+              </TableHead>
+              {/* CRCD group */}
+              <TableHead colSpan={2} className={`text-center border-b font-semibold ${TINT}`}>
+                {t("crcdLabel")}
+              </TableHead>
+              {/* Non-reg */}
+              <TableHead className="text-center border-b font-semibold">
+                {t("nonRegLabel")}
+              </TableHead>
+              {/* Total */}
+              <TableHead className={`text-right font-semibold ${TINT}`} rowSpan={2}>
+                {t("totalInvested")}
+              </TableHead>
+              {/* Goal + % */}
+              <TableHead className="text-right" rowSpan={2}>{t("goal")}</TableHead>
+              <TableHead className="text-right" rowSpan={2}>{t("goalPct")}</TableHead>
+            </TableRow>
+            {/* Sub-header row */}
             <TableRow>
-              <TableHead className="sticky left-0 z-10 bg-card">{t("year")}</TableHead>
-              <TableHead className="text-right">{t("age")}</TableHead>
-              <TableHead className="text-right">{t("reerLimit")}</TableHead>
-              <TableHead className="text-right">{t("reerDeposited")}</TableHead>
-              <TableHead className="text-right">{t("reerRoom")}</TableHead>
-              <TableHead className="text-right">{t("celiLimit")}</TableHead>
-              <TableHead className="text-right">{t("celiDeposited")}</TableHead>
-              <TableHead className="text-right">{t("celiRoom")}</TableHead>
-              <TableHead className="text-right">{t("crcdLimit")}</TableHead>
-              <TableHead className="text-right">CRCD</TableHead>
-              <TableHead className="text-right">{t("marge")}</TableHead>
-              <TableHead className="text-right">{t("totalInvested")}</TableHead>
-              <TableHead className="text-right">{t("goal")}</TableHead>
-              <TableHead className="text-right">{t("goalPct")}</TableHead>
+              {/* RRSP sub-headers */}
+              <TableHead className={`text-right text-xs ${TINT}`}>{t("reerLimit")}</TableHead>
+              <TableHead className={`text-right text-xs ${TINT}`}>{t("reerDeposited")}</TableHead>
+              <TableHead className={`text-right text-xs ${TINT}`}>{t("reerRoom")}</TableHead>
+              {/* TFSA sub-headers */}
+              <TableHead className="text-right text-xs">{t("celiLimit")}</TableHead>
+              <TableHead className="text-right text-xs">{t("celiDeposited")}</TableHead>
+              <TableHead className="text-right text-xs">{t("celiRoom")}</TableHead>
+              {/* CRCD sub-headers */}
+              <TableHead className={`text-right text-xs ${TINT}`}>{t("crcdLimit")}</TableHead>
+              <TableHead className={`text-right text-xs ${TINT}`}>{t("crcdDeposited")}</TableHead>
+              {/* Non-reg sub-header */}
+              <TableHead className="text-right text-xs">{t("nonRegDeposited")}</TableHead>
+              {/* Total, Goal, % already have rowSpan=2 above */}
             </TableRow>
           </TableHeader>
           <TableBody>
             {displayRows.map((row) => {
+              const nonRegTotal = row.margeDepositCents + row.cashDepositCents + row.otherDepositCents;
               const goalPct =
                 row.savingsGoalCents > 0
                   ? ((row.totalDepositCents / row.savingsGoalCents) * 100).toFixed(0)
@@ -170,15 +204,17 @@ export function ContributionHistoryTable({
                     {row.year}
                   </TableCell>
                   <TableCell className="text-right">{row.age}</TableCell>
-                  <TableCell className="text-right">
+                  {/* RRSP */}
+                  <TableCell className={`text-right ${TINT}`}>
                     {renderEditableCell(row.year, "reerLimit", row.reerLimitCents)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className={`text-right ${TINT}`}>
                     {formatMoney(row.reerDepositCents, locale)}
                   </TableCell>
-                  <TableCell className="text-right font-medium">
+                  <TableCell className={`text-right font-medium ${TINT}`}>
                     {formatMoney(row.reerCumulativeRoomCents, locale)}
                   </TableCell>
+                  {/* TFSA */}
                   <TableCell className="text-right">
                     {formatMoney(row.celiLimitCents, locale)}
                   </TableCell>
@@ -193,21 +229,26 @@ export function ContributionHistoryTable({
                   <TableCell className="text-right font-medium">
                     {formatMoney(row.celiCumulativeRoomCents, locale)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  {/* CRCD */}
+                  <TableCell className={`text-right ${TINT}`}>
                     {renderEditableCell(row.year, "crcdLimit", row.crcdLimitCents)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className={`text-right ${TINT}`}>
                     {formatMoney(row.crcdDepositCents, locale)}
                   </TableCell>
+                  {/* Non-registered */}
                   <TableCell className="text-right">
-                    {formatMoney(row.margeDepositCents, locale)}
+                    {formatMoney(nonRegTotal, locale)}
                   </TableCell>
-                  <TableCell className="text-right font-semibold">
+                  {/* Total */}
+                  <TableCell className={`text-right font-semibold ${TINT}`}>
                     {formatMoney(row.totalDepositCents, locale)}
                   </TableCell>
+                  {/* Goal */}
                   <TableCell className="text-right">
                     {renderEditableCell(row.year, "goal", row.savingsGoalCents)}
                   </TableCell>
+                  {/* Goal % */}
                   <TableCell className="text-right">
                     {goalPct !== null ? (
                       <span className={`font-medium ${goalMet ? "text-gain" : "text-loss"}`}>

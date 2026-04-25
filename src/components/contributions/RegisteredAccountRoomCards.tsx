@@ -38,11 +38,9 @@ export function RegisteredAccountRoomCards({
   const t = useTranslations("contributions");
   const [reerDialogOpen, setReerDialogOpen] = useState(false);
 
-  const hasCrcd = currentRow.crcdLimitCents > 0 || currentRow.crcdDepositCents > 0;
-
   return (
     <>
-      <div className={`grid gap-4 sm:grid-cols-2 ${hasCrcd ? "lg:grid-cols-3" : ""}`}>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* REER Card */}
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between">
@@ -113,15 +111,16 @@ export function RegisteredAccountRoomCards({
           </div>
         </div>
 
-        {/* CRCD Card — only shown when user participates */}
-        {hasCrcd && (
-          <CrcdCard
-            currentRow={currentRow}
-            locale={locale}
-            onUpdate={onUpdate}
-            hasCrcdHoldings={hasCrcdHoldings}
-          />
-        )}
+        {/* CRCD Card — always visible */}
+        <CrcdCard
+          currentRow={currentRow}
+          locale={locale}
+          onUpdate={onUpdate}
+          hasCrcdHoldings={hasCrcdHoldings}
+        />
+
+        {/* Non-Registered Card */}
+        <NonRegisteredCard currentRow={currentRow} locale={locale} />
       </div>
 
       <ReerLimitDialog
@@ -186,8 +185,8 @@ function CrcdCard({
       </div>
 
       <div className="mt-3 space-y-2">
-        {/* Annual limit — editable */}
         {editing ? (
+          /* Inline edit form */
           <div className="flex items-center gap-1">
             <span className="text-xs text-muted-foreground">{t("annual")} $</span>
             <Input
@@ -210,7 +209,13 @@ function CrcdCard({
               <X className="h-3.5 w-3.5" />
             </Button>
           </div>
+        ) : currentRow.crcdLimitCents === 0 && currentRow.crcdDepositCents === 0 ? (
+          /* No CRCD activity — show prompt */
+          <p className="text-sm text-muted-foreground">
+            {t("setCrcdLimitPrompt")}
+          </p>
         ) : (
+          /* Active CRCD — show progress */
           <>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t("annual")}</span>
@@ -223,45 +228,45 @@ function CrcdCard({
               depositedCents={currentRow.crcdDepositCents}
               limitCents={currentRow.crcdLimitCents}
             />
+
+            {/* Lifetime */}
+            <div className="flex justify-between text-sm border-t pt-2">
+              <span className="text-muted-foreground">{t("lifetime")}</span>
+              <span>
+                {formatMoney(currentRow.crcdCumulativeInvestedCents, locale)} /{" "}
+                {formatMoney(currentRow.crcdLifetimeLimitCents, locale)}
+              </span>
+            </div>
+            <LifetimeProgress
+              investedCents={currentRow.crcdCumulativeInvestedCents}
+              limitCents={currentRow.crcdLifetimeLimitCents}
+            />
+
+            {/* Tax credit */}
+            {currentRow.crcdTaxCreditCents > 0 && (
+              <div className="flex justify-between text-sm border-t pt-2">
+                <span className="text-muted-foreground">{t("taxCredit")}</span>
+                <span className="font-semibold text-gain">
+                  {formatMoney(currentRow.crcdTaxCreditCents, locale)}
+                </span>
+              </div>
+            )}
+
+            {/* First-tranche entry point */}
+            {!hasCrcdHoldings && (
+              <div className="border-t pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setAddTrancheOpen(true)}
+                >
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  {t("crcdAddFirstTranche")}
+                </Button>
+              </div>
+            )}
           </>
-        )}
-
-        {/* Lifetime */}
-        <div className="flex justify-between text-sm border-t pt-2">
-          <span className="text-muted-foreground">{t("lifetime")}</span>
-          <span>
-            {formatMoney(currentRow.crcdCumulativeInvestedCents, locale)} /{" "}
-            {formatMoney(currentRow.crcdLifetimeLimitCents, locale)}
-          </span>
-        </div>
-        <LifetimeProgress
-          investedCents={currentRow.crcdCumulativeInvestedCents}
-          limitCents={currentRow.crcdLifetimeLimitCents}
-        />
-
-        {/* Tax credit */}
-        {currentRow.crcdTaxCreditCents > 0 && (
-          <div className="flex justify-between text-sm border-t pt-2">
-            <span className="text-muted-foreground">{t("taxCredit")}</span>
-            <span className="font-semibold text-gain">
-              {formatMoney(currentRow.crcdTaxCreditCents, locale)}
-            </span>
-          </div>
-        )}
-
-        {/* First-tranche entry point */}
-        {!hasCrcdHoldings && (
-          <div className="border-t pt-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => setAddTrancheOpen(true)}
-            >
-              <Plus className="mr-1 h-3.5 w-3.5" />
-              {t("crcdAddFirstTranche")}
-            </Button>
-          </div>
         )}
       </div>
 
@@ -375,6 +380,48 @@ function LifetimeProgress({
     <div className="flex items-center gap-2">
       <Progress value={pct} className="h-2 flex-1" />
       <span className="text-xs font-medium text-muted-foreground">{pct}%</span>
+    </div>
+  );
+}
+
+function NonRegisteredCard({
+  currentRow,
+  locale,
+}: {
+  currentRow: ContributionYearRow;
+  locale: string;
+}) {
+  const t = useTranslations("contributions");
+  const total = currentRow.margeDepositCents + currentRow.cashDepositCents + currentRow.otherDepositCents;
+
+  return (
+    <div className="rounded-xl border bg-card p-5 shadow-sm">
+      <p className="text-sm font-medium">{t("nonRegLabel")}</p>
+
+      <div className="mt-3 space-y-2">
+        {currentRow.margeDepositCents > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">{t("marginLabel")}</span>
+            <span>{formatMoney(currentRow.margeDepositCents, locale)}</span>
+          </div>
+        )}
+        {currentRow.cashDepositCents > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">{t("cash")}</span>
+            <span>{formatMoney(currentRow.cashDepositCents, locale)}</span>
+          </div>
+        )}
+        {currentRow.otherDepositCents > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">{t("other")}</span>
+            <span>{formatMoney(currentRow.otherDepositCents, locale)}</span>
+          </div>
+        )}
+        <div className="flex justify-between text-sm border-t pt-2">
+          <span className="text-muted-foreground">{t("totalNonReg")}</span>
+          <span className="font-semibold">{formatMoney(total, locale)}</span>
+        </div>
+      </div>
     </div>
   );
 }
