@@ -3,16 +3,7 @@
 import { useTranslations } from "next-intl";
 import { formatMoney, formatPercent } from "@/lib/money/format";
 import type { HeroData } from "@/lib/dashboard/hero";
-import type { MilestoneRow } from "@/lib/dashboard/milestones";
 import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 interface RetirementCardProps {
   locale: string;
@@ -29,24 +20,7 @@ export function RetirementCard({ locale, hero }: RetirementCardProps) {
   );
 }
 
-interface MilestonesCardProps {
-  locale: string;
-  milestones: MilestoneRow[];
-}
-
-export function MilestonesCard({ locale, milestones }: MilestonesCardProps) {
-  const t = useTranslations("dashboard");
-  const tr = useTranslations("retirement");
-
-  return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
-      <p className="mb-4 text-sm font-medium">{t("milestonesTab")}</p>
-      <MilestonesContent locale={locale} milestones={milestones} t={t} tr={tr} />
-    </div>
-  );
-}
-
-/* ─── Retirement tab ─── */
+/* ─── Retirement content ─── */
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
@@ -116,54 +90,6 @@ function RetirementContent({
         </div>
       </div>
     </>
-  );
-}
-
-/* ─── Milestones tab ─── */
-
-function MilestonesContent({
-  locale,
-  milestones,
-  t,
-  tr,
-}: {
-  locale: string;
-  milestones: MilestoneRow[];
-  t: TranslationFn;
-  tr: TranslationFn;
-}) {
-  if (milestones.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">{t("noMilestoneData")}</p>
-    );
-  }
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead></TableHead>
-          <TableHead className="text-right">{t("age")}</TableHead>
-          <TableHead className="text-right">{tr("projectedPortfolio")}</TableHead>
-          <TableHead className="text-right">{tr("projectedIncome")}</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {milestones.map((m) => (
-          <TableRow key={m.label}>
-            <TableCell className="font-medium">{m.label}</TableCell>
-            <TableCell className="text-right">{m.age}</TableCell>
-            <TableCell className="text-right">
-              {formatMoney(m.portfolioCents, locale)}
-            </TableCell>
-            <TableCell className="text-right">
-              {formatMoney(m.incomeCents, locale)}
-              <span className="text-xs text-muted-foreground">{t("perYear")}</span>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
   );
 }
 

@@ -4,7 +4,8 @@ import { useState, useMemo, useRef, useCallback, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { SlidersHorizontalIcon, PlusIcon, XIcon } from "lucide-react";
+import Link from "next/link";
+import { SlidersHorizontalIcon, PlusIcon, XIcon, UploadIcon } from "lucide-react";
 import type { SerializedTransaction } from "@/lib/actions/transactions";
 import { deleteTransactionAction } from "@/lib/actions/transactions";
 import { formatMoney, formatNumber } from "@/lib/money/format";
@@ -83,6 +84,7 @@ export function ActivitiesTab({
 }: Props) {
   const t = useTranslations("holdings");
   const tc = useTranslations("common");
+  const tNav = useTranslations("nav");
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
@@ -290,20 +292,30 @@ export function ActivitiesTab({
           </SheetContent>
         </Sheet>
 
-        {/* Add transaction */}
-        <Button
-          onClick={() => setTxnDialogOpen(true)}
-          size="icon-sm"
-          className="ml-auto shrink-0 sm:hidden"
-        >
-          <PlusIcon className="size-4" />
-        </Button>
-        <Button
-          onClick={() => setTxnDialogOpen(true)}
-          className="ml-auto hidden shrink-0 sm:inline-flex"
-        >
-          {t("addTransaction")}
-        </Button>
+        {/* Mobile: Import + Add transaction */}
+        <div className="ml-auto flex shrink-0 gap-2 sm:hidden">
+          <Button asChild variant="outline" size="icon-sm">
+            <Link href="/transactions/import">
+              <UploadIcon className="size-4" />
+            </Link>
+          </Button>
+          <Button onClick={() => setTxnDialogOpen(true)} size="icon-sm">
+            <PlusIcon className="size-4" />
+          </Button>
+        </div>
+
+        {/* Desktop: Import + Add transaction */}
+        <div className="ml-auto hidden shrink-0 gap-2 sm:flex">
+          <Button asChild variant="outline">
+            <Link href="/transactions/import">
+              <UploadIcon className="mr-1.5 size-4" />
+              {tNav("import")}
+            </Link>
+          </Button>
+          <Button onClick={() => setTxnDialogOpen(true)}>
+            {t("addTransaction")}
+          </Button>
+        </div>
       </div>
 
       {/* Active filter chips */}

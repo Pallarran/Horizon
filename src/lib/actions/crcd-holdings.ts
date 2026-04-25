@@ -153,7 +153,7 @@ export async function saveCrcdHoldingAction(
     return { error: id ? "Tranche not found" : "Failed to create tranche" };
   }
 
-  revalidatePath("/holdings");
+  revalidatePath("/portfolio");
   revalidatePath("/contributions");
   return { success: true };
 }
@@ -173,7 +173,7 @@ export async function deleteCrcdHoldingAction(
     return { error: "Tranche not found" };
   }
 
-  revalidatePath("/holdings");
+  revalidatePath("/portfolio");
   revalidatePath("/contributions");
   return { success: true };
 }
@@ -210,6 +210,6 @@ export async function updateCrcdPriceAction(
     }),
   ]);
 
-  revalidatePath("/holdings");
+  revalidatePath("/portfolio");
   return { success: true };
 }

@@ -3,26 +3,30 @@
 import { useTranslations } from "next-intl";
 import { formatMoney, formatPercent } from "@/lib/money/format";
 import type { NetWorthData } from "@/lib/dashboard/net-worth";
-import type { HeroData } from "@/lib/dashboard/hero";
+import {
+  formatMilestone,
+  type MilestoneProgressData,
+} from "@/lib/dashboard/net-worth-milestones";
 
 interface KpiStripProps {
   locale: string;
   netWorth: NetWorthData;
-  hero: HeroData;
+  milestoneProgress: MilestoneProgressData;
 }
 
-export function KpiStrip({ locale, netWorth, hero }: KpiStripProps) {
+export function KpiStrip({ locale, netWorth, milestoneProgress }: KpiStripProps) {
   const t = useTranslations("dashboard");
 
   const dayPositive = netWorth.dayChangeCents >= 0;
   const gainPositive = netWorth.unrealizedGainCents >= 0;
 
-  const coverageColor =
-    hero.coveragePercent >= 1.0
+  const milestonePct = Math.round(milestoneProgress.progressPercent * 100);
+  const milestoneColor =
+    milestonePct >= 90
       ? "text-gain"
-      : hero.coveragePercent >= 0.8
+      : milestonePct >= 50
         ? "text-warning"
-        : "text-loss";
+        : "text-muted-foreground";
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -70,22 +74,17 @@ export function KpiStrip({ locale, netWorth, hero }: KpiStripProps) {
         </p>
       </div>
 
-      {/* Freedom */}
+      {/* Next Milestone */}
       <div className="rounded-xl border bg-card p-4 shadow-sm">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t("freedom")}
+          {t("nextMilestone")}
         </p>
         <p className="mt-1 flex items-baseline gap-1.5">
           <span className="text-2xl font-bold tracking-tight">
-            {hero.yearsToFreedom !== null ? hero.yearsToFreedom : "—"}
-            {hero.yearsToFreedom !== null && (
-              <span className="ml-1 text-sm font-normal text-muted-foreground">
-                {t("yearsToFreedom").toLowerCase()}
-              </span>
-            )}
+            {formatMilestone(milestoneProgress.nextMilestoneCents)}
           </span>
-          <span className={`text-sm font-medium ${coverageColor}`}>
-            {formatPercent(hero.coveragePercent, locale, 0)}
+          <span className={`text-sm font-medium ${milestoneColor}`}>
+            {milestonePct}%
           </span>
         </p>
       </div>

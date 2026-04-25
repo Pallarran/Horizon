@@ -15,15 +15,11 @@ import { Button } from "@/components/ui/button";
 
 const NAV_LINKS = [
   { href: "/dashboard", key: "dashboard" },
-  { href: "/holdings", key: "holdings" },
-  { href: "/accounts", key: "accounts" },
-  { href: "/transactions", key: "transactions" },
+  { href: "/portfolio", key: "portfolio" },
   { href: "/contributions", key: "contributions" },
   { href: "/retirement", key: "pension" },
-  { href: "/income", key: "income" },
-  { href: "/projections", key: "projections" },
+  { href: "/transactions", key: "transactions" },
   { href: "/watchlist", key: "watchlist" },
-  { href: "/transactions/import", key: "import" },
 ] as const;
 
 export function Header({

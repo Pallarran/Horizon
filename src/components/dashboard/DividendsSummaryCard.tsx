@@ -25,6 +25,14 @@ export function DividendsSummaryCard({ locale, dividends, history }: DividendsSu
 
   const growthPositive = dividends.ytdGrowthPercent >= 0;
 
+  // YTD pacing: are actual dividends on track vs annualized expectation?
+  const monthsElapsed = new Date().getMonth() + 1;
+  const expectedYtdCents = Math.round(dividends.annualizedCents * (monthsElapsed / 12));
+  const pacingPct = expectedYtdCents > 0
+    ? Math.round((dividends.ytdCents / expectedYtdCents) * 100)
+    : 0;
+  const pacingOnTrack = pacingPct >= 100;
+
   const chartData = history?.map((p) => ({
     year: p.year,
     dollars: p.totalCents / 100,
@@ -49,11 +57,18 @@ export function DividendsSummaryCard({ locale, dividends, history }: DividendsSu
             {formatMoney(dividends.monthlyAvgCents, locale)}
           </span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("ytd")}</span>
-          <span className="font-medium">
-            {formatMoney(dividends.ytdCents, locale)}
-          </span>
+        <div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">{t("ytd")}</span>
+            <span className="font-medium">
+              {formatMoney(dividends.ytdCents, locale)}
+            </span>
+          </div>
+          {expectedYtdCents > 0 && (
+            <p className={`text-right text-xs ${pacingOnTrack ? "text-gain" : "text-muted-foreground"}`}>
+              {t("ytdPacing", { pct: pacingPct })}
+            </p>
+          )}
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">{t("priorYear")}</span>
