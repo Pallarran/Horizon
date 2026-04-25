@@ -16,13 +16,13 @@ export function LastUpdatedIndicator({ lastPriceDate, locale }: LastUpdatedIndic
     if (!lastPriceDate) return t("noPriceData");
     const date = new Date(lastPriceDate);
     const dateLocale = locale === "fr-CA" ? fr : enCA;
-    return t("pricesAsOf", { date: format(date, "PPP", { locale: dateLocale }) });
+    return t("pricesAsOf", { date: format(date, "PPPp", { locale: dateLocale }) });
   })();
 
   return (
-    <div className="space-y-0.5">
-      <p className="text-xs text-muted-foreground">{priceText}</p>
-      <p className="text-xs text-muted-foreground">{t("allAmountsInCad")}</p>
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      <span>{t("allAmountsInCad")}</span>
+      <span>{priceText}</span>
     </div>
   );
 }

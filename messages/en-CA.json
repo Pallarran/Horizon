@@ -580,7 +580,8 @@
     "statusInactive": "Inactive",
     "statusMustChange": "Must change password",
     "never": "Never",
-    "admin": "Admin"
+    "admin": "Admin",
+    "adminDescription": "Server maintenance and data management tools."
   },
   "income": {
     "title": "Income Streams",

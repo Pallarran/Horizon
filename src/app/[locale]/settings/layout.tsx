@@ -23,7 +23,10 @@ export default async function SettingsLayout({
           <nav className="w-48 shrink-0 space-y-1">
             <NavLink href="/settings/account">{t("account")}</NavLink>
             {user.isAdmin && (
-              <NavLink href="/settings/users">{t("users")}</NavLink>
+              <>
+                <NavLink href="/settings/users">{t("users")}</NavLink>
+                <NavLink href="/settings/admin">{t("admin")}</NavLink>
+              </>
             )}
           </nav>
 

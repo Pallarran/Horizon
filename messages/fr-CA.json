@@ -580,7 +580,8 @@
     "statusInactive": "Inactif",
     "statusMustChange": "Doit changer le mot de passe",
     "never": "Jamais",
-    "admin": "Admin"
+    "admin": "Admin",
+    "adminDescription": "Outils de maintenance et de gestion des données."
   },
   "income": {
     "title": "Sources de revenus",

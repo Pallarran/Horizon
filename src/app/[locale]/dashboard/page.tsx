@@ -28,8 +28,6 @@ import { TopYieldersCard } from "@/components/dashboard/TopYieldersCard";
 import { PortfolioSparklineCard } from "@/components/dashboard/PortfolioSparklineCard";
 import { LastUpdatedIndicator } from "@/components/dashboard/LastUpdatedIndicator";
 import { AutoPriceRefresh } from "@/components/dashboard/AutoPriceRefresh";
-import { FetchPricesButton } from "@/components/dashboard/FetchPricesButton";
-import { BackfillProfilesButton } from "@/components/dashboard/BackfillProfilesButton";
 
 export const dynamic = "force-dynamic";
 
@@ -138,19 +136,11 @@ export default async function DashboardPage() {
         </div>
 
         {/* Footer */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <LastUpdatedIndicator
-            lastPriceDate={lastPriceDateStr}
-            locale={locale}
-          />
-          <AutoPriceRefresh lastPriceDate={lastPriceDateStr} />
-          {user.isAdmin && (
-            <div className="flex gap-3">
-              <FetchPricesButton />
-              <BackfillProfilesButton />
-            </div>
-          )}
-        </div>
+        <LastUpdatedIndicator
+          lastPriceDate={lastPriceDateStr}
+          locale={locale}
+        />
+        <AutoPriceRefresh lastPriceDate={lastPriceDateStr} />
       </main>
     </>
   );
