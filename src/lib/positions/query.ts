@@ -49,12 +49,14 @@ export async function getPositions(db: ScopedPrisma): Promise<ComputedPosition[]
   const [securitiesRaw, accountsRaw, pricesRaw] = await Promise.all([
     db.security.findMany({ where: { id: { in: [...secIds] } } }),
     db.account.findMany({ where: { id: { in: [...acctIds] } } }),
-    // Get latest 2 prices per security for day-change calculation
+    // Get recent prices per security for day-change calculation
+    // Use a date window instead of a global take limit to ensure every security gets data
     db.price.findMany({
-      where: { securityId: { in: [...secIds] } },
+      where: {
+        securityId: { in: [...secIds] },
+        date: { gte: new Date(Date.now() - 10 * 86_400_000) },
+      },
       orderBy: { date: "desc" },
-      // We fetch enough to cover 2 dates per security
-      take: secIds.size * 2,
     }),
   ]);
 

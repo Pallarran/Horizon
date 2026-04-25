@@ -127,7 +127,6 @@ export function RegisteredAccountRoomCards({
         open={reerDialogOpen}
         onOpenChange={setReerDialogOpen}
         row={currentRow}
-        locale={locale}
         onUpdate={onUpdate}
       />
     </>
@@ -241,16 +240,6 @@ function CrcdCard({
               investedCents={currentRow.crcdCumulativeInvestedCents}
               limitCents={currentRow.crcdLifetimeLimitCents}
             />
-
-            {/* Tax credit */}
-            {currentRow.crcdTaxCreditCents > 0 && (
-              <div className="flex justify-between text-sm border-t pt-2">
-                <span className="text-muted-foreground">{t("taxCredit")}</span>
-                <span className="font-semibold text-gain">
-                  {formatMoney(currentRow.crcdTaxCreditCents, locale)}
-                </span>
-              </div>
-            )}
 
             {/* First-tranche entry point */}
             {!hasCrcdHoldings && (

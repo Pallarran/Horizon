@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { formatMoney } from "@/lib/money/format";
 import { saveReerLimitAction } from "@/lib/actions/contributions";
 import type { ContributionYearRow } from "@/lib/contributions/compute";
 import {
@@ -20,7 +19,6 @@ interface ReerLimitDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   row: ContributionYearRow;
-  locale: string;
   onUpdate: (rows: ContributionYearRow[]) => void;
 }
 
@@ -28,7 +26,6 @@ export function ReerLimitDialog({
   open,
   onOpenChange,
   row,
-  locale,
   onUpdate,
 }: ReerLimitDialogProps) {
   const t = useTranslations("contributions");
@@ -69,18 +66,12 @@ export function ReerLimitDialog({
               step="100"
               value={limitInput}
               onChange={(e) => setLimitInput(e.target.value)}
-              placeholder={(row.reerCraLimitCents / 100).toString()}
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSave();
               }}
             />
           </div>
-          <p className="text-xs text-muted-foreground">
-            {t("craMaxReference", {
-              amount: formatMoney(row.reerCraLimitCents, locale),
-            })}
-          </p>
         </div>
 
         <DialogFooter>

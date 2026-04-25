@@ -209,10 +209,10 @@ export function generateSnapshotDates(): Date[] {
   const today = new Date();
   const dates: Date[] = [];
 
-  for (let i = 12; i >= 1; i--) {
+  // 1st of each month for the past 12 months, plus 1st of current month
+  for (let i = 12; i >= 0; i--) {
     dates.push(new Date(today.getFullYear(), today.getMonth() - i, 1));
   }
-  dates.push(today);
 
   return dates;
 }

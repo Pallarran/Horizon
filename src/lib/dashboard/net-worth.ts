@@ -5,6 +5,7 @@
 import type { ScopedPrisma } from "@/lib/db/scoped";
 import type { ComputedPosition } from "@/lib/positions/types";
 import { convertCurrency } from "@/lib/money/arithmetic";
+import { getLatestFxRate } from "@/lib/money/fx";
 
 export interface NetWorthData {
   /** Total net worth in CAD cents */
@@ -98,22 +99,3 @@ export async function computeNetWorth(
   };
 }
 
-/**
- * Get the most recent FX rate for a currency pair.
- * Falls back to 1.0 if no rate is found (same currency).
- */
-async function getLatestFxRate(
-  db: ScopedPrisma,
-  from: string,
-  to: string,
-): Promise<number> {
-  if (from === to) return 1;
-
-  const rate = await db.fxRate.findFirst({
-    where: { fromCurrency: from, toCurrency: to },
-    orderBy: { date: "desc" },
-  });
-
-  if (!rate) return 1; // fallback — no FX data yet
-  return Number(rate.rate);
-}

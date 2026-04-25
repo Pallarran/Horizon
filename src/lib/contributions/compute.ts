@@ -13,20 +13,12 @@ import type { ScopedPrisma } from "@/lib/db/scoped";
 /** CRCD lifetime cumulative limit: $45,000 = 4,500,000 cents */
 const CRCD_LIFETIME_LIMIT_CENTS = 4_500_000;
 
-/** CRCD tax credit rate: 25% */
-const CRCD_TAX_CREDIT_RATE = 0.25;
-
-/** CRCD max annual tax credit: $1,250 = 125,000 cents */
-const CRCD_MAX_ANNUAL_CREDIT_CENTS = 125_000;
-
 export interface ContributionYearRow {
   year: number;
   age: number;
 
-  // CRA limits (seed data — reference only)
-  reerCraLimitCents: number;
+  // CRA limit (seed data — used for CELI room calculation)
   celiCraLimitCents: number;
-  crcdCraLimitCents: number;
 
   // Effective limits (user input for REER/CRCD, CRA for CELI)
   reerLimitCents: number;   // 0 = not yet entered by user
@@ -49,9 +41,6 @@ export interface ContributionYearRow {
   crcdRemainingCents: number;
   crcdCumulativeInvestedCents: number;
   crcdLifetimeLimitCents: number;
-
-  // CRCD tax credit (25% of annual deposit, max $1,250)
-  crcdTaxCreditCents: number;
 
   // Per-year savings goal (carries forward from prior year if not set)
   savingsGoalCents: number;
@@ -121,7 +110,7 @@ export async function computeContributionTable(
   ]);
   const { deposits: depositMap, withdrawals: withdrawalMap } = flows;
 
-  // Index CRA limits by year+type
+  // Index CRA limits by year+type (only CELI is used for room calculation)
   const craMap = new Map<string, bigint>();
   for (const limit of craLimits) {
     craMap.set(`${limit.year}-${limit.type}`, limit.limitCents);
@@ -142,10 +131,8 @@ export async function computeContributionTable(
     const age = year - birthYear;
     const userYear = userMap.get(year);
 
-    // CRA limits (reference only)
-    const reerCraLimit = Number(craMap.get(`${year}-REER`) ?? 0n);
+    // CELI CRA limit (drives room calculation)
     const celiCraLimit = Number(craMap.get(`${year}-CELI`) ?? 0n);
-    const crcdCraLimit = Number(craMap.get(`${year}-CRCD`) ?? 0n);
 
     // REER limit: user-entered only (0 = not yet entered)
     const reerLimit = userYear ? Number(userYear.reerLimitCents) : 0;
@@ -177,11 +164,6 @@ export async function computeContributionTable(
     // CRCD cumulative lifetime tracking
     crcdCumulativeInvested += crcdDeposit;
 
-    // CRCD tax credit: 25% of annual deposit, max $1,250
-    const crcdTaxCredit = crcdDeposit > 0
-      ? Math.min(Math.round(crcdDeposit * CRCD_TAX_CREDIT_RATE), CRCD_MAX_ANNUAL_CREDIT_CENTS)
-      : 0;
-
     // Savings goal: use user-set value, or carry forward from previous year
     const userGoal = userYear ? Number(userYear.savingsGoalCents) : 0;
     const savingsGoal = userGoal > 0 ? userGoal : previousGoal;
@@ -190,9 +172,7 @@ export async function computeContributionTable(
     rows.push({
       year,
       age,
-      reerCraLimitCents: reerCraLimit,
       celiCraLimitCents: celiCraLimit,
-      crcdCraLimitCents: crcdCraLimit,
       reerLimitCents: reerLimit,
       celiLimitCents: celiLimit,
       crcdLimitCents: crcdLimit,
@@ -209,7 +189,6 @@ export async function computeContributionTable(
       crcdRemainingCents: crcdLimit - crcdDeposit,
       crcdCumulativeInvestedCents: crcdCumulativeInvested,
       crcdLifetimeLimitCents: CRCD_LIFETIME_LIMIT_CENTS,
-      crcdTaxCreditCents: crcdTaxCredit,
       savingsGoalCents: savingsGoal,
       notes: userYear?.notes ?? null,
     });

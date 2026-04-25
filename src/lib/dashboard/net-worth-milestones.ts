@@ -1,10 +1,11 @@
 /**
  * Net worth milestone tracking — progress toward $100K increments.
  *
- * Pure computation: takes current net worth + portfolio history,
- * returns progress toward the next milestone, trailing growth rate,
- * estimated date, and a list of milestones already crossed.
+ * Uses an IRR-like estimation to reconstruct historical portfolio values
+ * from transaction capital flows, then walks the curve to find when
+ * each $100K milestone was first crossed.
  */
+import type { ScopedPrisma } from "@/lib/db/scoped";
 import type { PortfolioHistoryPoint } from "./portfolio-history";
 
 /** $100K in cents */
@@ -37,6 +38,9 @@ export interface MilestoneProgressData {
 export function computeNetWorthMilestones(
   currentNetWorthCents: number,
   portfolioHistory: PortfolioHistoryPoint[],
+  passedMilestones: PassedMilestone[],
+  /** Contribution-adjusted annualized growth rate from IRR, or null */
+  irrGrowthRate: number | null,
 ): MilestoneProgressData {
   // Floor and ceiling
   const floor = Math.max(0, Math.floor(currentNetWorthCents / STEP) * STEP);
@@ -46,11 +50,8 @@ export function computeNetWorthMilestones(
       ? 0
       : Math.min(1, Math.max(0, (currentNetWorthCents - floor) / STEP));
 
-  // Historical milestones from portfolio history
-  const passedMilestones = findPassedMilestones(portfolioHistory, currentNetWorthCents);
-
-  // Trailing growth rate
-  const trailingGrowthRate = computeTrailingGrowth(portfolioHistory);
+  // Use IRR-based rate (contribution-adjusted) if available, else fall back to naive trailing
+  const trailingGrowthRate = irrGrowthRate ?? computeTrailingGrowth(portfolioHistory);
 
   // Estimated date to next milestone
   const estimatedDate = computeEstimatedDate(
@@ -70,11 +71,228 @@ export function computeNetWorthMilestones(
   };
 }
 
+// ---------------------------------------------------------------------------
+// IRR-based milestone estimation
+// ---------------------------------------------------------------------------
+
+interface MonthlyFlow {
+  /** Month offset from the earliest transaction (0-based) */
+  monthOffset: number;
+  /** Year of this month */
+  year: number;
+  /** Month (0-based) of this month */
+  month: number;
+  /** Net capital flow in cents (positive = money into portfolio) */
+  flowCents: number;
+}
+
 /**
- * Walk portfolio history chronologically, tracking the highest
- * $100K milestone crossed and recording first-crossing dates.
+ * Estimate when each $100K milestone was first crossed by reconstructing
+ * a historical portfolio value curve from transaction capital flows.
+ *
+ * Uses a modified IRR (bisection) to find the implied monthly growth rate,
+ * then walks the estimated value curve month-by-month.
  */
-function findPassedMilestones(
+export interface MilestoneEstimation {
+  milestones: PassedMilestone[];
+  /** Annualized growth rate from IRR (contribution-adjusted), or null */
+  annualizedGrowthRate: number | null;
+}
+
+export async function estimatePassedMilestones(
+  db: ScopedPrisma,
+  currentNetWorthCents: number,
+  portfolioHistory: PortfolioHistoryPoint[],
+): Promise<MilestoneEstimation> {
+  if (currentNetWorthCents <= 0) return { milestones: [], annualizedGrowthRate: null };
+
+  const currentLevel = Math.floor(currentNetWorthCents / STEP);
+  if (currentLevel <= 0) return { milestones: [], annualizedGrowthRate: null };
+
+  // 1. Fetch all BUY/SELL transactions (external capital flows only)
+  const transactions = await db.transaction.findMany({
+    where: { type: { in: ["BUY", "SELL"] } },
+    orderBy: { date: "asc" },
+    select: { date: true, type: true, amountCents: true },
+  });
+
+  // Fallback: not enough transaction data — use portfolioHistory walk
+  if (transactions.length < 2) {
+    return {
+      milestones: fallbackFromHistory(portfolioHistory, currentNetWorthCents),
+      annualizedGrowthRate: null,
+    };
+  }
+
+  // 2. Convert transactions to monthly capital flows
+  const firstDate = transactions[0].date;
+  const firstYear = firstDate.getFullYear();
+  const firstMonth = firstDate.getMonth();
+
+  const flowMap = new Map<number, number>(); // monthOffset → total flow cents
+
+  for (const txn of transactions) {
+    const d = txn.date;
+    const offset =
+      (d.getFullYear() - firstYear) * 12 + (d.getMonth() - firstMonth);
+    // BUY: amountCents < 0 → negate → positive (money into portfolio)
+    // SELL: amountCents > 0 → negate → negative (money out of portfolio)
+    const flow = -Number(txn.amountCents);
+    flowMap.set(offset, (flowMap.get(offset) ?? 0) + flow);
+  }
+
+  // Build sorted array of monthly flows
+  const monthlyFlows: MonthlyFlow[] = [];
+  for (const [offset, flowCents] of flowMap) {
+    const year = firstYear + Math.floor((firstMonth + offset) / 12);
+    const month = (firstMonth + offset) % 12;
+    monthlyFlows.push({ monthOffset: offset, year, month, flowCents });
+  }
+  monthlyFlows.sort((a, b) => a.monthOffset - b.monthOffset);
+
+  // 3. Find current month offset
+  const now = new Date();
+  const totalMonths =
+    (now.getFullYear() - firstYear) * 12 + (now.getMonth() - firstMonth);
+
+  if (totalMonths <= 0) {
+    return {
+      milestones: fallbackFromHistory(portfolioHistory, currentNetWorthCents),
+      annualizedGrowthRate: null,
+    };
+  }
+
+  // 4. Bisect for monthly growth rate r
+  const monthlyRate = bisectGrowthRate(
+    monthlyFlows,
+    totalMonths,
+    currentNetWorthCents,
+  );
+
+  // 5. Reconstruct portfolio value curve month-by-month
+  const estimatedValues: Array<{ monthOffset: number; valueCents: number }> =
+    [];
+  let flowIdx = 0;
+
+  for (let m = 0; m <= totalMonths; m++) {
+    // Add any flows that occur at this month
+    while (
+      flowIdx < monthlyFlows.length &&
+      monthlyFlows[flowIdx].monthOffset <= m
+    ) {
+      flowIdx++;
+    }
+
+    // V(m) = Σ flow_i × (1+r)^(m - t_i) for all flows up to month m
+    let value = 0;
+    for (let i = 0; i < flowIdx; i++) {
+      const elapsed = m - monthlyFlows[i].monthOffset;
+      value +=
+        monthlyFlows[i].flowCents * Math.pow(1 + monthlyRate, elapsed);
+    }
+
+    estimatedValues.push({ monthOffset: m, valueCents: Math.max(0, value) });
+  }
+
+  // 6. Override with actual portfolioHistory for the last ~12 months
+  const historyMap = new Map<string, number>(); // "YYYY-MM" → valueCents
+  for (const p of portfolioHistory) {
+    const key = p.date.slice(0, 7); // "YYYY-MM"
+    historyMap.set(key, p.valueCents);
+  }
+
+  for (const est of estimatedValues) {
+    const year = firstYear + Math.floor((firstMonth + est.monthOffset) / 12);
+    const month = ((firstMonth + est.monthOffset) % 12) + 1;
+    const key = `${year}-${String(month).padStart(2, "0")}`;
+    const actual = historyMap.get(key);
+    if (actual !== undefined) {
+      est.valueCents = actual;
+    }
+  }
+
+  // 7. Walk curve to find milestone crossings
+  const passed: PassedMilestone[] = [];
+  let highestReached = 0;
+
+  for (const est of estimatedValues) {
+    const level = Math.floor(est.valueCents / STEP);
+    while (highestReached < level && highestReached < currentLevel) {
+      highestReached++;
+      const year =
+        firstYear + Math.floor((firstMonth + est.monthOffset) / 12);
+      const month = ((firstMonth + est.monthOffset) % 12) + 1;
+      passed.push({
+        thresholdCents: highestReached * STEP,
+        dateReached: `${year}-${String(month).padStart(2, "0")}-01`,
+      });
+    }
+  }
+
+  // Account for current net worth crossing milestones not in the curve
+  const todayStr = formatDateStr(now);
+  while (highestReached < currentLevel) {
+    highestReached++;
+    passed.push({
+      thresholdCents: highestReached * STEP,
+      dateReached: todayStr,
+    });
+  }
+
+  // Annualize the monthly IRR for use in milestone date estimation
+  const annualizedGrowthRate = Math.pow(1 + monthlyRate, 12) - 1;
+
+  return { milestones: passed, annualizedGrowthRate };
+}
+
+/**
+ * Bisect for the monthly growth rate r such that:
+ *   Σ flow_i × (1+r)^(T - t_i) ≈ currentNetWorthCents
+ */
+function bisectGrowthRate(
+  flows: MonthlyFlow[],
+  totalMonths: number,
+  targetValue: number,
+): number {
+  let lo = -0.03; // ~-30% annualized
+  let hi = 0.08; // ~+150% annualized
+
+  const evaluate = (r: number): number => {
+    let value = 0;
+    for (const f of flows) {
+      const elapsed = totalMonths - f.monthOffset;
+      value += f.flowCents * Math.pow(1 + r, elapsed);
+    }
+    return value;
+  };
+
+  // Check if solution is in range
+  const loVal = evaluate(lo);
+  const hiVal = evaluate(hi);
+
+  // If target is outside the range, clamp to the nearest boundary
+  if (loVal > targetValue && hiVal > targetValue) return lo;
+  if (loVal < targetValue && hiVal < targetValue) return hi;
+
+  // Standard bisection — 60 iterations gives precision to ~1e-18
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    const midVal = evaluate(mid);
+    if (midVal < targetValue) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+
+  return (lo + hi) / 2;
+}
+
+/**
+ * Fallback: walk portfolioHistory to find milestones (original behavior).
+ * Used when transaction data is insufficient for IRR estimation.
+ */
+function fallbackFromHistory(
   history: PortfolioHistoryPoint[],
   currentCents: number,
 ): PassedMilestone[] {
@@ -82,8 +300,8 @@ function findPassedMilestones(
   let highestReached = 0;
 
   for (const point of history) {
-    const milestoneLevel = Math.floor(point.valueCents / STEP);
-    while (highestReached < milestoneLevel) {
+    const level = Math.floor(point.valueCents / STEP);
+    while (highestReached < level) {
       highestReached++;
       passed.push({
         thresholdCents: highestReached * STEP,
@@ -92,10 +310,8 @@ function findPassedMilestones(
     }
   }
 
-  // Also account for current net worth being higher than last history point
   const currentLevel = Math.floor(currentCents / STEP);
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const todayStr = formatDateStr(new Date());
   while (highestReached < currentLevel) {
     highestReached++;
     passed.push({
@@ -106,6 +322,10 @@ function findPassedMilestones(
 
   return passed;
 }
+
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
 
 /**
  * Compute trailing annualized growth rate from portfolio history.
@@ -155,7 +375,11 @@ function computeEstimatedDate(
   const estimated = new Date();
   estimated.setMonth(estimated.getMonth() + Math.ceil(monthsNeeded));
 
-  return `${estimated.getFullYear()}-${String(estimated.getMonth() + 1).padStart(2, "0")}-${String(estimated.getDate()).padStart(2, "0")}`;
+  return formatDateStr(estimated);
+}
+
+function formatDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 /**

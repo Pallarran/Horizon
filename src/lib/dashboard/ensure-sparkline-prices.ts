@@ -34,21 +34,30 @@ interface SecurityInfo {
 }
 
 /**
- * Check which securities lack price data going back ~11 months and
+ * Check which securities lack price data going back far enough and
  * backfill from Yahoo Finance. Idempotent — safe to call on every render.
+ *
+ * Must cover the full range used by generateSnapshotDates() which creates
+ * first-of-month dates going back 12 months. We fetch from 13 months ago
+ * (1st of month) so portfolio-history always has price data at the first
+ * snapshot — preventing an artificial spike from month 1 to month 2.
  */
 export async function ensureSparklinePrices(
   securities: SecurityInfo[],
 ): Promise<void> {
   if (securities.length === 0) return;
 
-  const elevenMonthsAgo = new Date();
-  elevenMonthsAgo.setMonth(elevenMonthsAgo.getMonth() - 11);
-  elevenMonthsAgo.setHours(0, 0, 0, 0);
+  // Align with generateSnapshotDates(): snapshots start at month-12 (1st).
+  // Fetch from month-13 (1st) to ensure prices exist before the first snapshot.
+  const checkThreshold = new Date();
+  checkThreshold.setMonth(checkThreshold.getMonth() - 13);
+  checkThreshold.setDate(1);
+  checkThreshold.setHours(0, 0, 0, 0);
 
-  const oneYearAgo = new Date();
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-  oneYearAgo.setHours(0, 0, 0, 0);
+  const fetchStart = new Date();
+  fetchStart.setMonth(fetchStart.getMonth() - 13);
+  fetchStart.setDate(1);
+  fetchStart.setHours(0, 0, 0, 0);
 
   // 1. Check earliest price per security
   const securityIds = securities.map((s) => s.securityId);
@@ -65,8 +74,8 @@ export async function ensureSparklinePrices(
   // 2. Filter to securities that need backfill
   const needsBackfill = securities.filter((sec) => {
     const earliest = earliestMap.get(sec.securityId);
-    // No prices at all, or earliest is more recent than 11 months ago
-    return !earliest || earliest > elevenMonthsAgo;
+    // No prices at all, or earliest is more recent than our threshold
+    return !earliest || earliest > checkThreshold;
   });
 
   if (needsBackfill.length === 0) return;
@@ -80,7 +89,7 @@ export async function ensureSparklinePrices(
     try {
       const ySymbol = yahooSymbol(sec.symbol, sec.exchange);
       const result = await yf.chart(ySymbol, {
-        period1: oneYearAgo.toISOString(),
+        period1: fetchStart.toISOString(),
         interval: "1d" as const,
       });
 
@@ -118,27 +127,23 @@ export async function ensureSparklinePrices(
 
   // 4. Backfill USD→CAD FX rates if any USD securities exist
   if (hasUsd) {
-    await ensureFxRates(oneYearAgo);
+    await ensureFxRates(fetchStart);
   }
 }
 
-/** Backfill USD/CAD FX rates for the past year if missing. */
-async function ensureFxRates(oneYearAgo: Date): Promise<void> {
+/** Backfill USD/CAD FX rates if missing. */
+async function ensureFxRates(fetchStart: Date): Promise<void> {
   const earliestFx = await prisma.fxRate.findFirst({
     where: { fromCurrency: "USD", toCurrency: "CAD" },
     orderBy: { date: "asc" },
     select: { date: true },
   });
 
-  const elevenMonthsAgo = new Date();
-  elevenMonthsAgo.setMonth(elevenMonthsAgo.getMonth() - 11);
-  elevenMonthsAgo.setHours(0, 0, 0, 0);
-
-  if (earliestFx?.date && earliestFx.date <= elevenMonthsAgo) return;
+  if (earliestFx?.date && earliestFx.date <= fetchStart) return;
 
   try {
     const result = await yf.chart("USDCAD=X", {
-      period1: oneYearAgo.toISOString(),
+      period1: fetchStart.toISOString(),
       interval: "1d" as const,
     });
 

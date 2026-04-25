@@ -29,39 +29,6 @@ const celiLimits: Record<number, number> = {
   2026: 700000,
 };
 
-const reerLimits: Record<number, number> = {
-  2009: 2150000,
-  2010: 2200000,
-  2011: 2267000,
-  2012: 2297000,
-  2013: 2382000,
-  2014: 2450000,
-  2015: 2493000,
-  2016: 2541000,
-  2017: 2600000,
-  2018: 2623000,
-  2019: 2658000,
-  2020: 2723000,
-  2021: 2783000,
-  2022: 2932000,
-  2023: 3078000,
-  2024: 3156000,
-  2025: 3249000,
-  2026: 3381000,
-};
-
-const crcdLimits: Record<number, number> = {
-  2018: 500000,
-  2019: 500000,
-  2020: 500000,
-  2021: 500000,
-  2022: 500000,
-  2023: 500000,
-  2024: 500000,
-  2025: 500000,
-  2026: 500000,
-};
-
 async function main() {
   console.log("Seeding CRA limits...");
 
@@ -69,12 +36,6 @@ async function main() {
 
   for (const [year, cents] of Object.entries(celiLimits)) {
     entries.push({ year: Number(year), type: "CELI", limitCents: BigInt(cents) });
-  }
-  for (const [year, cents] of Object.entries(reerLimits)) {
-    entries.push({ year: Number(year), type: "REER", limitCents: BigInt(cents) });
-  }
-  for (const [year, cents] of Object.entries(crcdLimits)) {
-    entries.push({ year: Number(year), type: "CRCD", limitCents: BigInt(cents) });
   }
 
   for (const entry of entries) {

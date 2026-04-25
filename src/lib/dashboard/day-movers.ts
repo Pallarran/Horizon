@@ -43,9 +43,10 @@ export function computeDayMovers(
         changePercent: pos.dayChangePercent,
         changeCents: Number(pos.dayChangeCents),
       });
+    } else {
+      // Same stock in multiple accounts: % is identical, but dollar amount is quantity-weighted
+      existing.changeCents += Number(pos.dayChangeCents);
     }
-    // If the same security appears in multiple accounts, keep the same % (it's the same stock)
-    // but we don't need to aggregate cents since it's per-share
   }
 
   const all = [...bySymbol.values()].filter((m) => m.changePercent !== 0);

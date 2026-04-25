@@ -8,7 +8,7 @@ import { computeDividendHistory } from "@/lib/dashboard/dividend-history";
 import { computeDayMovers } from "@/lib/dashboard/day-movers";
 import { computeHero } from "@/lib/dashboard/hero";
 import { computeContributionRoom } from "@/lib/dashboard/contribution-room";
-import { computeNetWorthMilestones } from "@/lib/dashboard/net-worth-milestones";
+import { computeNetWorthMilestones, estimatePassedMilestones } from "@/lib/dashboard/net-worth-milestones";
 import { computeDividendForecast } from "@/lib/dashboard/dividend-forecast";
 import { computeTopYielders } from "@/lib/dashboard/top-yielders";
 import { computeAllocation, computeAllocationByAssetClass } from "@/lib/dashboard/allocation";
@@ -24,7 +24,6 @@ import { DayMoversCard } from "@/components/dashboard/DayMoversCard";
 import { ContributionRoomCard } from "@/components/dashboard/ContributionRoomCard";
 import { RetirementCard } from "@/components/dashboard/ProjectionTabs";
 import { MilestoneProgressCard } from "@/components/dashboard/MilestoneProgressCard";
-import { DividendForecastCard } from "@/components/dashboard/DividendForecastCard";
 import { TopYieldersCard } from "@/components/dashboard/TopYieldersCard";
 import { PortfolioSparklineCard } from "@/components/dashboard/PortfolioSparklineCard";
 import { LastUpdatedIndicator } from "@/components/dashboard/LastUpdatedIndicator";
@@ -70,7 +69,7 @@ export default async function DashboardPage() {
 
   const [dividendHistory, dividendForecast] = await Promise.all([
     computeDividendHistory(db, netWorth.usdCadRate),
-    computeDividendForecast(db, positions, netWorth.usdCadRate),
+    computeDividendForecast(db, positions, netWorth.usdCadRate, locale),
   ]);
 
   const dayMovers = computeDayMovers(positions, 1);
@@ -86,9 +85,14 @@ export default async function DashboardPage() {
     incomeStreams,
   );
 
+  const { milestones: passedMilestones, annualizedGrowthRate: irrGrowthRate } =
+    await estimatePassedMilestones(db, netWorth.netWorthCents, portfolioHistory);
+
   const milestoneProgress = computeNetWorthMilestones(
     netWorth.netWorthCents,
     portfolioHistory,
+    passedMilestones,
+    irrGrowthRate,
   );
 
   const lastPriceDateStr = lastPriceDate?.toISOString() ?? null;
@@ -124,10 +128,10 @@ export default async function DashboardPage() {
           {/* Col 2: Income & Contributions */}
           <div className="space-y-6">
             <ContributionRoomCard locale={locale} room={contributionRoom} />
-            <DividendForecastCard locale={locale} forecast={dividendForecast} />
             <DividendsSummaryCard
               locale={locale}
               dividends={dividends}
+              forecast={dividendForecast}
               history={dividendHistory}
             />
           </div>

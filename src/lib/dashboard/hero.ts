@@ -140,7 +140,7 @@ export async function computeHero(
   let yearsToFreedom: number | null = null;
   if (currentIncomeCents > 0 && currentIncomeCents < targetIncomeCents) {
     const ratio = targetIncomeCents / currentIncomeCents;
-    yearsToFreedom = Math.round(Math.log(ratio) / Math.log(1 + portfolioGrowth) * 10) / 10;
+    yearsToFreedom = Math.round(Math.log(ratio) / Math.log(1 + dividendGrowth) * 10) / 10;
   } else if (currentIncomeCents >= targetIncomeCents) {
     yearsToFreedom = 0;
   }

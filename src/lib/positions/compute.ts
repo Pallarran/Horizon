@@ -112,12 +112,9 @@ export function computeAcbStates(transactions: TransactionRow[]): Map<string, Ac
       }
 
       case "SPLIT": {
-        // quantity changes by the split factor, total cost unchanged
-        // amountCents encodes the new total quantity for this position
-        // OR: quantity field holds the new shares received
-        // Convention: quantity = additional shares received from split
+        // Convention: quantity = additional shares received from the split
+        // Total cost unchanged — ACB per share recalculated implicitly
         state.quantity += qty;
-        // totalCostCents unchanged — ACB per share recalculated implicitly
         break;
       }
 

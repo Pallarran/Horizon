@@ -38,6 +38,7 @@ export async function computeDividendForecast(
   db: ScopedPrisma,
   positions: ComputedPosition[],
   usdCadRate: number,
+  locale: string = "en-CA",
 ): Promise<DividendForecastData> {
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -53,16 +54,17 @@ export async function computeDividendForecast(
     select: { securityId: true, date: true },
   });
 
-  // Group by securityId → set of payment months (0-11)
-  const paymentMonthsBySecurityId = new Map<string, Set<number>>();
+  // Group by securityId → month occurrence counts (0-11 → count)
+  const paymentCountsBySecurityId = new Map<string, Map<number, number>>();
   for (const txn of dividendTxns) {
     if (!txn.securityId) continue;
-    let months = paymentMonthsBySecurityId.get(txn.securityId);
-    if (!months) {
-      months = new Set();
-      paymentMonthsBySecurityId.set(txn.securityId, months);
+    let counts = paymentCountsBySecurityId.get(txn.securityId);
+    if (!counts) {
+      counts = new Map();
+      paymentCountsBySecurityId.set(txn.securityId, counts);
     }
-    months.add(txn.date.getMonth());
+    const m = txn.date.getMonth();
+    counts.set(m, (counts.get(m) ?? 0) + 1);
   }
 
   // 2. Build a 12-month bucket (indexed 0-11 from current month forward)
@@ -80,9 +82,9 @@ export async function computeDividendForecast(
         : Number(pos.expectedIncomeCents);
 
     // Determine payment months for this security
-    const historicalMonths = paymentMonthsBySecurityId.get(pos.securityId);
-    const payMonths = historicalMonths && historicalMonths.size > 0
-      ? [...historicalMonths]
+    const historicalCounts = paymentCountsBySecurityId.get(pos.securityId);
+    const payMonths = historicalCounts && historicalCounts.size > 0
+      ? resolvePaymentMonths(historicalCounts, pos.dividendFrequency)
       : getDefaultPaymentMonths(pos.dividendFrequency);
 
     const perPayment = annualCad / payMonths.length;
@@ -94,14 +96,15 @@ export async function computeDividendForecast(
     }
   }
 
-  // 3. Build output with month labels
+  // 3. Build output with locale-aware month labels
+  const monthFmt = new Intl.DateTimeFormat(locale, { month: "short" });
   const months: ForecastMonth[] = buckets.map((totalCents, i) => {
     const m = (currentMonth + i) % 12;
     const y = currentYear + Math.floor((currentMonth + i) / 12);
     return {
       month: m,
       year: y,
-      label: SHORT_MONTH_NAMES[m],
+      label: monthFmt.format(new Date(y, m, 1)),
       totalCents: Math.round(totalCents),
       isCurrentMonth: i === 0,
     };
@@ -110,6 +113,38 @@ export async function computeDividendForecast(
   const annualTotalCents = months.reduce((sum, m) => sum + m.totalCents, 0);
 
   return { months, annualTotalCents };
+}
+
+/**
+ * Resolve observed payment months to expected count.
+ * When date drift causes more observed months than the frequency implies
+ * (e.g., 5 months for a quarterly payer), keep only the top N by occurrence count.
+ */
+function resolvePaymentMonths(
+  counts: Map<number, number>,
+  frequency: string | null,
+): number[] {
+  const expectedCount = getExpectedPaymentCount(frequency, counts.size);
+  if (counts.size <= expectedCount) {
+    return [...counts.keys()];
+  }
+  // Keep the N months with the highest occurrence count
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, expectedCount)
+    .map(([month]) => month);
+}
+
+function getExpectedPaymentCount(frequency: string | null, observedCount: number): number {
+  switch (frequency) {
+    case "monthly": return 12;
+    case "semi-annual": return 2;
+    case "annual": return 1;
+    case "quarterly": return 4;
+    default:
+      // No frequency info: infer from observed (don't correct)
+      return observedCount;
+  }
 }
 
 /** Default payment months when no transaction history exists. */
@@ -127,7 +162,3 @@ function getDefaultPaymentMonths(frequency: string | null): number[] {
   }
 }
 
-const SHORT_MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];

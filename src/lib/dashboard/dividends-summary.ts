@@ -5,6 +5,7 @@
 import type { ScopedPrisma } from "@/lib/db/scoped";
 import type { ComputedPosition } from "@/lib/positions/types";
 import { convertCurrency } from "@/lib/money/arithmetic";
+import { getLatestFxRate } from "@/lib/money/fx";
 
 export interface DividendsSummaryData {
   /** Annualized dividends based on current positions (CAD cents) */
@@ -120,16 +121,3 @@ export async function computeDividendsSummary(
   };
 }
 
-async function getLatestFxRate(
-  db: ScopedPrisma,
-  from: string,
-  to: string,
-): Promise<number> {
-  if (from === to) return 1;
-  const rate = await db.fxRate.findFirst({
-    where: { fromCurrency: from, toCurrency: to },
-    orderBy: { date: "desc" },
-  });
-  if (!rate) return 1;
-  return Number(rate.rate);
-}
