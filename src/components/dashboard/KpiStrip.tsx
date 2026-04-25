@@ -117,19 +117,16 @@ export function KpiStrip({ locale, netWorth, milestoneProgress }: KpiStripProps)
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {t("portfolioRank")}
         </p>
-        <div className="mt-1 flex items-center gap-2">
+        <p className="mt-1 flex items-center gap-2">
           <TierIcon className={`size-6 ${tierColor}`} />
           <span className={`text-2xl font-bold tracking-tight ${tierColor}`}>
             {t(TIER_I18N_KEY[tier.name])}
           </span>
-        </div>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {nextTier
-            ? t("nextRank", {
-                tier: t(TIER_I18N_KEY[nextTier.name]),
-                threshold: formatMilestone(nextTier.thresholdCents),
-              })
-            : t("maxRank")}
+          {nextTier && (
+            <span className="ml-auto text-xs text-muted-foreground">
+              → {t(TIER_I18N_KEY[nextTier.name])} ({formatMilestone(nextTier.thresholdCents)})
+            </span>
+          )}
         </p>
       </div>
     </div>
