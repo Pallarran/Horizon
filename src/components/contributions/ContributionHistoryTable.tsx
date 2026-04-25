@@ -30,7 +30,7 @@ interface ContributionHistoryTableProps {
 type EditField = "reerLimit" | "crcdLimit" | "goal";
 
 /** Tinted background for alternating column groups */
-const TINT = "bg-muted/30";
+const TINT = "bg-accent/40";
 
 export function ContributionHistoryTable({
   rows,
