@@ -76,12 +76,6 @@ function formatDate(isoDate: string, locale: string): string {
   });
 }
 
-function defaultDateFrom(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 90);
-  return d.toISOString().split("T")[0]!;
-}
-
 export function ActivitiesTab({
   transactions,
   accounts,
@@ -97,7 +91,7 @@ export function ActivitiesTab({
   const [filterAccount, setFilterAccount] = useState("all");
   const [filterType, setFilterType] = useState("all");
   const [filterSecurity, setFilterSecurity] = useState(() => searchParams.get("security") ?? "all");
-  const [filterDateFrom, setFilterDateFrom] = useState(() => defaultDateFrom());
+  const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [txnDialogOpen, setTxnDialogOpen] = useState(false);
@@ -164,7 +158,7 @@ export function ActivitiesTab({
     setFilterAccount("all");
     setFilterType("all");
     setFilterSecurity("all");
-    setFilterDateFrom(defaultDateFrom());
+    setFilterDateFrom("");
     setFilterDateTo("");
   }
 
