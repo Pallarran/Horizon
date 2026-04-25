@@ -172,18 +172,18 @@ export function ContributionHistoryTable({
             {/* Sub-header row */}
             <TableRow>
               {/* RRSP sub-headers */}
-              <TableHead className={`text-right text-xs ${TINT}`}>{t("reerLimit")}</TableHead>
-              <TableHead className={`text-right text-xs ${TINT}`}>{t("reerDeposited")}</TableHead>
-              <TableHead className={`text-right text-xs ${TINT}`}>{t("reerRoom")}</TableHead>
+              <TableHead className={`text-center text-xs ${TINT}`}>{t("reerLimit")}</TableHead>
+              <TableHead className={`text-center text-xs ${TINT}`}>{t("reerDeposited")}</TableHead>
+              <TableHead className={`text-center text-xs ${TINT}`}>{t("reerRoom")}</TableHead>
               {/* TFSA sub-headers */}
-              <TableHead className="text-right text-xs">{t("celiLimit")}</TableHead>
-              <TableHead className="text-right text-xs">{t("celiDeposited")}</TableHead>
-              <TableHead className="text-right text-xs">{t("celiRoom")}</TableHead>
+              <TableHead className="text-center text-xs">{t("celiLimit")}</TableHead>
+              <TableHead className="text-center text-xs">{t("celiDeposited")}</TableHead>
+              <TableHead className="text-center text-xs">{t("celiRoom")}</TableHead>
               {/* CRCD sub-headers */}
-              <TableHead className={`text-right text-xs ${TINT}`}>{t("crcdLimit")}</TableHead>
-              <TableHead className={`text-right text-xs ${TINT}`}>{t("crcdDeposited")}</TableHead>
+              <TableHead className={`text-center text-xs ${TINT}`}>{t("crcdLimit")}</TableHead>
+              <TableHead className={`text-center text-xs ${TINT}`}>{t("crcdDeposited")}</TableHead>
               {/* Non-reg sub-header */}
-              <TableHead className="text-right text-xs">{t("nonRegDeposited")}</TableHead>
+              <TableHead className="text-center text-xs">{t("nonRegDeposited")}</TableHead>
               {/* Total, Goal, % already have rowSpan=2 above */}
             </TableRow>
           </TableHeader>
