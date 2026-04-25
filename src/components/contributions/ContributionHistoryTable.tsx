@@ -162,12 +162,12 @@ export function ContributionHistoryTable({
                 {t("nonRegLabel")}
               </TableHead>
               {/* Total */}
-              <TableHead className={`text-right font-semibold ${TINT}`} rowSpan={2}>
+              <TableHead className={`text-center font-semibold ${TINT}`} rowSpan={2}>
                 {t("totalInvested")}
               </TableHead>
               {/* Goal + % */}
-              <TableHead className="text-right" rowSpan={2}>{t("goal")}</TableHead>
-              <TableHead className="text-right" rowSpan={2}>{t("goalPct")}</TableHead>
+              <TableHead className="text-center" rowSpan={2}>{t("goal")}</TableHead>
+              <TableHead className="text-center" rowSpan={2}>{t("goalPct")}</TableHead>
             </TableRow>
             {/* Sub-header row */}
             <TableRow>
