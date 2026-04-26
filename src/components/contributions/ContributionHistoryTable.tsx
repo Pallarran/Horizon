@@ -190,13 +190,14 @@ export function ContributionHistoryTable({
           <TableBody>
             {displayRows.map((row) => {
               const nonRegTotal = row.margeDepositCents + row.cashDepositCents + row.otherDepositCents;
+              const netTotal = row.totalDepositCents - row.celiWithdrawalCents;
               const goalPct =
                 row.savingsGoalCents > 0
-                  ? ((row.totalDepositCents / row.savingsGoalCents) * 100).toFixed(0)
+                  ? ((netTotal / row.savingsGoalCents) * 100).toFixed(0)
                   : null;
               const goalMet =
                 row.savingsGoalCents > 0 &&
-                row.totalDepositCents >= row.savingsGoalCents;
+                netTotal >= row.savingsGoalCents;
 
               return (
                 <TableRow key={row.year}>
@@ -219,12 +220,7 @@ export function ContributionHistoryTable({
                     {formatMoney(row.celiLimitCents, locale)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <span>{formatMoney(row.celiDepositCents, locale)}</span>
-                    {row.celiWithdrawalCents > 0 && (
-                      <span className="ml-1 text-xs text-muted-foreground">
-                        (−{formatMoney(row.celiWithdrawalCents, locale)})
-                      </span>
-                    )}
+                    {formatMoney(row.celiDepositCents - row.celiWithdrawalCents, locale)}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {formatMoney(row.celiCumulativeRoomCents, locale)}
@@ -242,7 +238,7 @@ export function ContributionHistoryTable({
                   </TableCell>
                   {/* Total */}
                   <TableCell className={`text-right font-semibold ${TINT}`}>
-                    {formatMoney(row.totalDepositCents, locale)}
+                    {formatMoney(row.totalDepositCents - row.celiWithdrawalCents, locale)}
                   </TableCell>
                   {/* Goal */}
                   <TableCell className="text-right">
