@@ -533,7 +533,7 @@ export function ActivitiesTab({
                     <span className="ml-1 text-[10px] text-muted-foreground">
                       {txn.currency}
                     </span>
-                    {txn.taxWithheldCents > 0 && (
+                    {(txn.taxWithheldCents > 0 || txn.feeCents > 0) && (
                       <p className="text-[10px] text-muted-foreground">
                         {t("grossAmount")}: {formatMoney(txn.amountCents + txn.taxWithheldCents + txn.feeCents, locale)}
                       </p>
