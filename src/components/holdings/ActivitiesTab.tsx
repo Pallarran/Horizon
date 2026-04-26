@@ -90,12 +90,12 @@ export function ActivitiesTab({
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterAccount, setFilterAccount] = useState("all");
-  const [filterType, setFilterType] = useState("all");
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("q") ?? "");
+  const [filterAccount, setFilterAccount] = useState(() => searchParams.get("account") ?? "all");
+  const [filterType, setFilterType] = useState(() => searchParams.get("type") ?? "all");
   const [filterSecurity, setFilterSecurity] = useState(() => searchParams.get("security") ?? "all");
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState(() => searchParams.get("from") ?? "");
+  const [filterDateTo, setFilterDateTo] = useState(() => searchParams.get("to") ?? "");
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [txnDialogOpen, setTxnDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<SerializedTransaction | null>(null);
@@ -159,6 +159,50 @@ export function ActivitiesTab({
     filterDateTo !== "",
   ].filter(Boolean).length;
 
+  // Sync filter changes to URL search params so they survive router.refresh()
+  const updateURL = useCallback((updates: Record<string, string>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      if (!value || value === "all") params.delete(key);
+      else params.set(key, value);
+    }
+    const qs = params.toString();
+    router.replace(`${window.location.pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [router, searchParams]);
+
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => updateURL({ q: value }), 300);
+  }, [updateURL]);
+
+  const handleFilterAccount = useCallback((value: string) => {
+    setFilterAccount(value);
+    updateURL({ account: value });
+  }, [updateURL]);
+
+  const handleFilterType = useCallback((value: string) => {
+    setFilterType(value);
+    updateURL({ type: value });
+  }, [updateURL]);
+
+  const handleFilterSecurity = useCallback((value: string) => {
+    setFilterSecurity(value);
+    updateURL({ security: value });
+  }, [updateURL]);
+
+  const handleFilterDateFrom = useCallback((value: string) => {
+    setFilterDateFrom(value);
+    updateURL({ from: value });
+  }, [updateURL]);
+
+  const handleFilterDateTo = useCallback((value: string) => {
+    setFilterDateTo(value);
+    updateURL({ to: value });
+  }, [updateURL]);
+
   function resetFilters() {
     setSearchQuery("");
     setFilterAccount("all");
@@ -166,6 +210,7 @@ export function ActivitiesTab({
     setFilterSecurity("all");
     setFilterDateFrom("");
     setFilterDateTo("");
+    router.replace(window.location.pathname, { scroll: false });
   }
 
   const handleDeleteWithUndo = useCallback((id: string) => {
@@ -257,7 +302,7 @@ export function ActivitiesTab({
           type="search"
           placeholder={t("searchTransactions")}
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
           className="min-w-0 flex-1 sm:max-w-[260px]"
         />
 
@@ -277,15 +322,15 @@ export function ActivitiesTab({
               accounts={accounts}
               uniqueSecurities={uniqueSecurities}
               filterAccount={filterAccount}
-              setFilterAccount={setFilterAccount}
+              setFilterAccount={handleFilterAccount}
               filterType={filterType}
-              setFilterType={setFilterType}
+              setFilterType={handleFilterType}
               filterSecurity={filterSecurity}
-              setFilterSecurity={setFilterSecurity}
+              setFilterSecurity={handleFilterSecurity}
               filterDateFrom={filterDateFrom}
-              setFilterDateFrom={setFilterDateFrom}
+              setFilterDateFrom={handleFilterDateFrom}
               filterDateTo={filterDateTo}
-              setFilterDateTo={setFilterDateTo}
+              setFilterDateTo={handleFilterDateTo}
               isFiltered={isFiltered}
               resetFilters={resetFilters}
             />
@@ -315,15 +360,15 @@ export function ActivitiesTab({
                 accounts={accounts}
                 uniqueSecurities={uniqueSecurities}
                 filterAccount={filterAccount}
-                setFilterAccount={setFilterAccount}
+                setFilterAccount={handleFilterAccount}
                 filterType={filterType}
-                setFilterType={setFilterType}
+                setFilterType={handleFilterType}
                 filterSecurity={filterSecurity}
-                setFilterSecurity={setFilterSecurity}
+                setFilterSecurity={handleFilterSecurity}
                 filterDateFrom={filterDateFrom}
-                setFilterDateFrom={setFilterDateFrom}
+                setFilterDateFrom={handleFilterDateFrom}
                 filterDateTo={filterDateTo}
-                setFilterDateTo={setFilterDateTo}
+                setFilterDateTo={handleFilterDateTo}
                 isFiltered={isFiltered}
                 resetFilters={resetFilters}
               />
@@ -363,7 +408,7 @@ export function ActivitiesTab({
           {filterAccount !== "all" && (
             <Badge variant="secondary" className="gap-1 pr-1">
               {accounts.find((a) => a.id === filterAccount)?.name}
-              <button type="button" onClick={() => setFilterAccount("all")} className="ml-0.5 rounded-sm hover:text-foreground">
+              <button type="button" onClick={() => handleFilterAccount("all")} className="ml-0.5 rounded-sm hover:text-foreground">
                 <XIcon className="size-3" />
               </button>
             </Badge>
@@ -371,7 +416,7 @@ export function ActivitiesTab({
           {filterType !== "all" && (
             <Badge variant="secondary" className="gap-1 pr-1">
               {t(`txnType${filterType}` as Parameters<typeof t>[0])}
-              <button type="button" onClick={() => setFilterType("all")} className="ml-0.5 rounded-sm hover:text-foreground">
+              <button type="button" onClick={() => handleFilterType("all")} className="ml-0.5 rounded-sm hover:text-foreground">
                 <XIcon className="size-3" />
               </button>
             </Badge>
@@ -379,7 +424,7 @@ export function ActivitiesTab({
           {filterSecurity !== "all" && (
             <Badge variant="secondary" className="gap-1 pr-1">
               {filterSecurity}
-              <button type="button" onClick={() => setFilterSecurity("all")} className="ml-0.5 rounded-sm hover:text-foreground">
+              <button type="button" onClick={() => handleFilterSecurity("all")} className="ml-0.5 rounded-sm hover:text-foreground">
                 <XIcon className="size-3" />
               </button>
             </Badge>
@@ -387,7 +432,7 @@ export function ActivitiesTab({
           {filterDateFrom && (
             <Badge variant="secondary" className="gap-1 pr-1">
               {t("from")}: {filterDateFrom}
-              <button type="button" onClick={() => setFilterDateFrom("")} className="ml-0.5 rounded-sm hover:text-foreground">
+              <button type="button" onClick={() => handleFilterDateFrom("")} className="ml-0.5 rounded-sm hover:text-foreground">
                 <XIcon className="size-3" />
               </button>
             </Badge>
@@ -395,7 +440,7 @@ export function ActivitiesTab({
           {filterDateTo && (
             <Badge variant="secondary" className="gap-1 pr-1">
               {t("to")}: {filterDateTo}
-              <button type="button" onClick={() => setFilterDateTo("")} className="ml-0.5 rounded-sm hover:text-foreground">
+              <button type="button" onClick={() => handleFilterDateTo("")} className="ml-0.5 rounded-sm hover:text-foreground">
                 <XIcon className="size-3" />
               </button>
             </Badge>
