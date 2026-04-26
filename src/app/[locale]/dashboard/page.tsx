@@ -53,19 +53,19 @@ export default async function DashboardPage() {
     ).values(),
   ];
 
-  // Batch 2: backfill prices in parallel with other independent data fetches
-  const [, netWorth, dividends, contributionRoom, incomeStreams, lastPriceDate] =
+  // Fire-and-forget: backfill sparkline prices in background (don't block render)
+  ensureSparklinePrices(uniqueSecurities).catch(console.error);
+
+  // Batch 2: all independent data fetches in parallel
+  const [netWorth, dividends, contributionRoom, incomeStreams, lastPriceDate, portfolioHistory] =
     await Promise.all([
-      ensureSparklinePrices(uniqueSecurities),
       computeNetWorth(db, positions),
       computeDividendsSummary(db, positions),
       computeContributionRoom(db, user.birthYear),
       getIncomeStreams(db, user.targetRetirementAge, user.birthYear),
       getLastPriceDate(db),
+      computePortfolioHistory(db),
     ]);
-
-  // Compute portfolio history AFTER prices are guaranteed to exist
-  const portfolioHistory = await computePortfolioHistory(db);
 
   // Batch 3: everything that depends on batch 2 — all in parallel
   const [dividendHistory, dividendForecast, hero, { milestones: passedMilestones, annualizedGrowthRate: irrGrowthRate }] =

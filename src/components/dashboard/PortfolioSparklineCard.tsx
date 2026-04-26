@@ -94,7 +94,10 @@ export function PortfolioSparklineCard({
                 </linearGradient>
               </defs>
               <XAxis
-                dataKey="label"
+                dataKey="date"
+                tickFormatter={(date: string) =>
+                  new Date(date + "T00:00:00").toLocaleDateString(locale, { month: "short" })
+                }
                 tick={{ fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
