@@ -11,6 +11,7 @@ import {
 import { SecurityCombobox } from "./SecurityCombobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -173,7 +174,7 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
         {/* Date */}
         <div className="space-y-2">
           <Label>{t("date")}</Label>
-          <Input type="date" name="date" defaultValue={transaction?.date ?? today} required />
+          <DateInput name="date" defaultValue={transaction?.date ?? today} required />
         </div>
 
         {/* Currency */}
