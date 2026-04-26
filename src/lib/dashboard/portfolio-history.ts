@@ -157,7 +157,7 @@ export async function computePortfolioHistory(
   const crcdByYear = await computeCrcdValueByYear(db);
   if (crcdByYear.length > 0) {
     for (const point of result) {
-      const snapshotYear = new Date(point.date).getFullYear();
+      const snapshotYear = new Date(point.date).getUTCFullYear();
       let crcdCents = 0;
       for (const entry of crcdByYear) {
         if (entry.purchaseYear <= snapshotYear) {

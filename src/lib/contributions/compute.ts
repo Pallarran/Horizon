@@ -76,7 +76,7 @@ async function aggregateFlowsByTypeAndYear(
 
   for (const txn of txns) {
     const acctType = accountTypeMap.get(txn.accountId) ?? "OTHER";
-    const year = new Date(txn.date).getFullYear();
+    const year = new Date(txn.date).getUTCFullYear();
     const key = `${year}-${acctType}`;
     const map = txn.type === "DEPOSIT" ? deposits : withdrawals;
     map.set(key, (map.get(key) ?? 0) + Math.abs(Number(txn.amountCents)));

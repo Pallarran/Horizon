@@ -25,7 +25,7 @@ export async function computeDividendHistory(
   const byYear = new Map<number, bigint>();
 
   for (const txn of txns) {
-    const year = txn.date.getFullYear();
+    const year = txn.date.getUTCFullYear();
     const isUsd = txn.currency === "USD";
     const rate = isUsd && txn.fxRateAtDate != null ? Number(txn.fxRateAtDate) : usdCadRate;
     const amountCad = isUsd ? convertCurrency(txn.amountCents, rate) : txn.amountCents;
