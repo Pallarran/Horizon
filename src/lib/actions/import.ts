@@ -202,6 +202,27 @@ export async function parseImportFileAction(
         }
       }
     }
+
+    // Second fallback: check importNames (aliases) for any still-missing symbols
+    // Handles format mismatches like parser "BEP-UN" vs DB "BEP.UN"
+    const stillMissing = symbols.filter((s) => !securityMap.has(s));
+    if (stillMissing.length > 0) {
+      const byAlias = await prisma.security.findMany({
+        where: { importNames: { hasSome: stillMissing } },
+      });
+      for (const sec of byAlias) {
+        for (const alias of sec.importNames) {
+          if (stillMissing.includes(alias) && !securityMap.has(alias)) {
+            securityMap.set(alias, {
+              id: sec.id,
+              symbol: sec.symbol,
+              exchange: sec.exchange,
+              name: sec.name,
+            });
+          }
+        }
+      }
+    }
   }
 
   // Store import descriptions as aliases on resolved securities (for future matching)
@@ -249,7 +270,7 @@ export async function parseImportFileAction(
 
   // Promote symbolless rows that need a security (DIVIDEND, etc.)
   // to "needs resolution" by using their description as a temporary key.
-  const SECURITY_TYPES = new Set(["BUY", "SELL", "DIVIDEND", "DRIP", "SPLIT", "MERGER", "RETURN_OF_CAPITAL", "FRACTION_CASH", "ADJUSTMENT"]);
+  const SECURITY_TYPES = new Set(["BUY", "SELL", "DIVIDEND", "DRIP", "SPLIT", "MERGER", "RETURN_OF_CAPITAL", "FRACTION_CASH"]);
   const descGroupCounts = new Map<string, number>();
   for (const row of parseResult.rows) {
     if (!row.strippedSymbol && SECURITY_TYPES.has(row.type) && row.description) {

@@ -152,10 +152,15 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
       setUnknownSecurities((prev) =>
         prev.filter((u) => u.strippedSymbol !== symbol),
       );
-      // If this was a description-based resolution (no raw symbol),
-      // store the description as an import alias for future matching
+      // Store aliases for future auto-matching:
+      // 1. Description alias (for symbolless rows matched by name)
       if (unknown && !unknown.rawSymbol && unknown.description) {
         addImportAliasAction(resolution.securityId, unknown.description).catch(() => {});
+      }
+      // 2. Stripped symbol alias when it differs from the resolved symbol
+      //    (e.g. parser produces "BEP-UN" but DB has "BEP.UN")
+      if (unknown && unknown.strippedSymbol && unknown.strippedSymbol !== resolution.symbol) {
+        addImportAliasAction(resolution.securityId, unknown.strippedSymbol).catch(() => {});
       }
     },
     [unknownSecurities],
