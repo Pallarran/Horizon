@@ -9,6 +9,7 @@
  * Savings goals carry forward from the previous year if not explicitly set.
  */
 import type { ScopedPrisma } from "@/lib/db/scoped";
+import { rrspTaxYear } from "@/lib/utils/date";
 
 /** CRCD lifetime cumulative limit: $45,000 = 4,500,000 cents */
 const CRCD_LIFETIME_LIMIT_CENTS = 4_500_000;
@@ -64,7 +65,7 @@ async function aggregateFlowsByTypeAndYear(
         type: { in: ["DEPOSIT", "WITHDRAWAL"] },
         date: {
           gte: new Date(`${startYear}-01-01`),
-          lte: new Date(`${endYear}-12-31`),
+          lte: new Date(`${endYear + 1}-03-01`), // +3 months for RRSP 60-day window
         },
       },
     }),
@@ -76,7 +77,11 @@ async function aggregateFlowsByTypeAndYear(
 
   for (const txn of txns) {
     const acctType = accountTypeMap.get(txn.accountId) ?? "OTHER";
-    const year = new Date(txn.date).getUTCFullYear();
+    const txnDate = new Date(txn.date);
+    // RRSP 60-day rule: Jan 1–Mar 1 deposits count toward previous year
+    const year = (acctType === "REER" && txn.type === "DEPOSIT")
+      ? rrspTaxYear(txnDate)
+      : txnDate.getUTCFullYear();
     const key = `${year}-${acctType}`;
     const map = txn.type === "DEPOSIT" ? deposits : withdrawals;
     map.set(key, (map.get(key) ?? 0) + Math.abs(Number(txn.amountCents)));

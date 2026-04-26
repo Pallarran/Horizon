@@ -34,3 +34,15 @@ export function currentYear(): number {
 export function ageFromBirthYear(birthYear: number): number {
   return currentYear() - birthYear;
 }
+
+/**
+ * Get the RRSP tax year for a given date.
+ * CRA rule: contributions Jan 1 – Mar 1 count toward the previous year's room.
+ */
+export function rrspTaxYear(date: Date): number {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth();
+  const d = date.getUTCDate();
+  if (m < 2 || (m === 2 && d === 1)) return y - 1;
+  return y;
+}
