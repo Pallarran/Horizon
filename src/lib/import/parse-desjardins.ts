@@ -74,6 +74,8 @@ const TYPE_MAP: Record<string, TypeMapping> = {
   "ANNULATION": "ADJUSTMENT",
   "CXLTR DIV": "ADJUSTMENT",
   "CONVERSION DE DEVISE": "TRANSFER",
+  "TRANSFERT SORTANT": "TRANSFER",
+  "TRANSFERT REÇU": "TRANSFER",
   // Sign-dependent — resolved after amount/qty parsing
   "ÉCHANGE": "SIGN_QTY",
   "OFFRE": "SIGN_QTY",
