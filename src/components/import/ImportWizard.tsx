@@ -245,6 +245,17 @@ export function ImportWizard({ accounts }: ImportWizardProps) {
         skipped={skippedCount}
         errors={errorCount}
         batchId={importResult.batchId}
+        onImportAnother={() => {
+          setStep("upload");
+          setRows([]);
+          setUnknownSecurities([]);
+          setFileChecksum("");
+          setExistingBatchDate(null);
+          setResolutions(new Map());
+          setImportResult(null);
+          setFileName(null);
+          setError(null);
+        }}
       />
     );
   }

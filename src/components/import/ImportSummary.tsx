@@ -11,12 +11,14 @@ interface ImportSummaryProps {
   skipped: number;
   errors: number;
   batchId: string;
+  onImportAnother: () => void;
 }
 
 export function ImportSummary({
   created,
   skipped,
   errors,
+  onImportAnother,
 }: ImportSummaryProps) {
   const t = useTranslations("import");
 
@@ -53,8 +55,8 @@ export function ImportSummary({
           <Button asChild>
             <Link href="/transactions">{t("viewTransactions")}</Link>
           </Button>
-          <Button variant="outline" asChild>
-            <Link href="/transactions/import">{t("importAnother")}</Link>
+          <Button variant="outline" onClick={onImportAnother}>
+            {t("importAnother")}
           </Button>
         </div>
       </CardContent>

@@ -171,7 +171,7 @@ export function ImportPreviewTable({
                   </span>
                 </TableCell>
                 <TableCell className="font-mono text-xs">
-                  {row.resolvedSecuritySymbol ?? row.strippedSymbol ?? "—"}
+                  {row.resolvedSecuritySymbol ?? (row.rawSymbol ? row.strippedSymbol : null) ?? "—"}
                 </TableCell>
                 <TableCell className="max-w-[200px] text-xs text-muted-foreground">
                   {row.status === "error" && row.errorMessage
