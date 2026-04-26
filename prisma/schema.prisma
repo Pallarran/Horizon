@@ -243,6 +243,7 @@ model Price {
   date       DateTime @db.Date
   priceCents BigInt                           // in the security's native currency
   source     String   @default("yahoo")
+  updatedAt  DateTime @default(now()) @updatedAt
 
   @@unique([securityId, date])
   @@index([date])

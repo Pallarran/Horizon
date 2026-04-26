@@ -9,14 +9,14 @@ const STALE_MS = 4 * 60 * 60 * 1000; // 4 hours
 export async function POST() {
   await requireApiAuth();
 
-  // Check staleness: latest price date vs now
+  // Check staleness: latest price update timestamp vs now
   const latest = await prisma.price.findFirst({
-    orderBy: { date: "desc" },
-    select: { date: true },
+    orderBy: { updatedAt: "desc" },
+    select: { updatedAt: true },
   });
 
   if (latest) {
-    const age = Date.now() - new Date(latest.date).getTime();
+    const age = Date.now() - latest.updatedAt.getTime();
     if (age < STALE_MS) {
       return NextResponse.json({ skipped: true });
     }

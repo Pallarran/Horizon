@@ -93,7 +93,7 @@ export default async function DashboardPage() {
       <Header displayName={user.displayName} isAdmin={user.isAdmin} />
       <main className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
         {/* KPI Strip */}
-        <div className="mb-6">
+        <div className="mb-4">
           <KpiStrip
             locale={locale}
             netWorth={netWorth}
@@ -102,9 +102,9 @@ export default async function DashboardPage() {
         </div>
 
         {/* Main content — 3 themed columns */}
-        <div className="mb-6 grid gap-6 lg:grid-cols-3">
+        <div className="mb-4 grid gap-4 lg:grid-cols-3">
           {/* Col 1: Portfolio Portrait */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             <PortfolioSparklineCard locale={locale} history={portfolioHistory} />
             <DayMoversCard locale={locale} movers={dayMovers} />
             <AllocationTabs
@@ -117,7 +117,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Col 2: Income & Contributions */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             <ContributionRoomCard locale={locale} room={contributionRoom} />
             <DividendsSummaryCard
               locale={locale}
@@ -128,7 +128,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Col 3: Freedom & Growth */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             <RetirementCard locale={locale} hero={hero} />
             <MilestoneProgressCard locale={locale} data={milestoneProgress} />
             <TopYieldersCard locale={locale} yielders={topYielders} />

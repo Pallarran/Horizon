@@ -22,6 +22,7 @@ export default async function SettingsLayout({
         <div className="flex gap-8">
           <nav className="w-48 shrink-0 space-y-1">
             <NavLink href="/settings/account">{t("account")}</NavLink>
+            <NavLink href="/settings/securities">{t("securities")}</NavLink>
             {user.isAdmin && (
               <>
                 <NavLink href="/settings/users">{t("users")}</NavLink>

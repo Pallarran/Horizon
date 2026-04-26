@@ -5,6 +5,7 @@ import type { AssetClass } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireAuth } from "@/lib/auth/middleware";
 import { createSecuritySchema } from "@/lib/validators/account";
+import { updateSecuritySchema, type UpdateSecurityInput } from "@/lib/validators/security";
 import { dollarsToCents } from "@/lib/money/arithmetic";
 
 export interface SecurityActionState {
@@ -149,6 +150,82 @@ export async function addImportAliasAction(
   });
 }
 
+/**
+ * Update an existing security's user-editable fields.
+ */
+export async function updateSecurityAction(
+  data: UpdateSecurityInput,
+): Promise<SecurityActionState> {
+  await requireAuth();
+
+  const result = updateSecuritySchema.safeParse(data);
+  if (!result.success) {
+    return { error: result.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const { id, annualDividendDollars, importNames, manualPrice, ...rest } = result.data;
+
+  // Check symbol+exchange uniqueness if changed
+  const current = await prisma.security.findUnique({ where: { id } });
+  if (!current) return { error: "Security not found" };
+
+  if (rest.symbol !== current.symbol || rest.exchange !== current.exchange) {
+    const dup = await prisma.security.findUnique({
+      where: { symbol_exchange: { symbol: rest.symbol, exchange: rest.exchange } },
+    });
+    if (dup && dup.id !== id) {
+      return { error: `${rest.symbol} on ${rest.exchange} already exists` };
+    }
+  }
+
+  await prisma.security.update({
+    where: { id },
+    data: {
+      ...rest,
+      annualDividendCents: annualDividendDollars != null
+        ? dollarsToCents(annualDividendDollars)
+        : null,
+      manualPrice: manualPrice,
+      importNames: { set: importNames },
+    },
+  });
+
+  return { success: true };
+}
+
+/**
+ * Delete a security — only if no transactions reference it.
+ */
+export async function deleteSecurityAction(
+  securityId: string,
+): Promise<SecurityActionState> {
+  await requireAuth();
+
+  const counts = await prisma.security.findUnique({
+    where: { id: securityId },
+    include: {
+      _count: { select: { transactions: true, prices: true, watchlistItems: true } },
+    },
+  });
+
+  if (!counts) return { error: "Security not found" };
+
+  if (counts._count.transactions > 0) {
+    return {
+      error: `Cannot delete: referenced by ${counts._count.transactions} transaction(s)`,
+    };
+  }
+
+  // Delete related prices and watchlist items first, then the security
+  await prisma.$transaction([
+    prisma.price.deleteMany({ where: { securityId } }),
+    prisma.watchlistItem.deleteMany({ where: { securityId } }),
+    prisma.security.delete({ where: { id: securityId } }),
+  ]);
+
+  return { success: true };
+}
+
 // --------------- Yahoo Finance helpers ---------------
 
 /** Map our internal exchange codes to Yahoo Finance suffix */
@@ -229,6 +306,62 @@ async function fetchAndStoreYahooProfile(
       if (Number.isFinite(financial.numberOfAnalystOpinions)) data.numberOfAnalystOpinions = financial.numberOfAnalystOpinions;
     }
 
+    // Fetch dividend history to infer frequency, growth years, aristocrat/king
+    try {
+      const now = new Date();
+      const historyStart = new Date(now);
+      historyStart.setFullYear(now.getFullYear() - 55);
+
+      const divHistory = await yf.historical(yahooSym, {
+        period1: historyStart,
+        period2: now,
+        events: "dividends",
+      });
+
+      if (Array.isArray(divHistory) && divHistory.length > 0) {
+        // Group dividend payments by year
+        const byYear = new Map<number, number>();
+        for (const d of divHistory) {
+          const year = new Date(d.date).getFullYear();
+          byYear.set(year, (byYear.get(year) ?? 0) + (Number(d.dividends) || 0));
+        }
+
+        // Infer frequency from the most recent full year
+        const lastFullYear = now.getFullYear() - 1;
+        const countLastYear = divHistory.filter(
+          (d) => new Date(d.date).getFullYear() === lastFullYear,
+        ).length;
+
+        if (countLastYear >= 11) data.dividendFrequency = "monthly";
+        else if (countLastYear >= 3) data.dividendFrequency = "quarterly";
+        else if (countLastYear === 2) data.dividendFrequency = "semi-annual";
+        else if (countLastYear === 1) data.dividendFrequency = "annual";
+
+        if (countLastYear >= 11) data.isPaysMonthly = true;
+
+        // Count consecutive years of dividend growth (descending from last full year)
+        const years = [...byYear.entries()]
+          .filter(([y]) => y <= lastFullYear)
+          .sort(([a], [b]) => b - a);
+
+        let growthYears = 0;
+        for (let i = 0; i < years.length - 1; i++) {
+          const [, currentTotal] = years[i]!;
+          const [, prevTotal] = years[i + 1]!;
+          if (currentTotal > prevTotal && prevTotal > 0) {
+            growthYears++;
+          } else {
+            break;
+          }
+        }
+        data.dividendGrowthYears = growthYears;
+        data.isDividendAristocrat = growthYears >= 25;
+        data.isDividendKing = growthYears >= 50;
+      }
+    } catch {
+      // Dividend history fetch is non-critical
+    }
+
     await prisma.security.update({
       where: { id: securityId },
       data,
@@ -236,6 +369,29 @@ async function fetchAndStoreYahooProfile(
   } catch {
     // Silently ignore — profile data is non-critical
   }
+}
+
+/**
+ * Re-fetch Yahoo profile + dividend history for a single security.
+ * Triggered manually from the security edit form.
+ */
+export async function refreshYahooProfileAction(
+  securityId: string,
+): Promise<SecurityActionState> {
+  await requireAuth();
+
+  const sec = await prisma.security.findUnique({
+    where: { id: securityId },
+    select: { symbol: true, exchange: true, dataSource: true },
+  });
+
+  if (!sec) return { error: "Security not found" };
+  if (sec.dataSource !== "YAHOO") return { error: "Only Yahoo-sourced securities can be refreshed" };
+
+  const yahooSym = toYahooSymbol(sec.symbol, sec.exchange);
+  await fetchAndStoreYahooProfile(securityId, yahooSym);
+
+  return { success: true };
 }
 
 // --------------- Yahoo Finance search + auto-create ---------------

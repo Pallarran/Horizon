@@ -114,6 +114,61 @@ export async function backfillYahooProfiles(securityIds?: string[], force = fals
           if (Number.isFinite(financial.numberOfAnalystOpinions)) data.numberOfAnalystOpinions = financial.numberOfAnalystOpinions;
         }
 
+        // Fetch dividend history to infer frequency, growth years, aristocrat/king
+        try {
+          const now = new Date();
+          const historyStart = new Date(now);
+          historyStart.setFullYear(now.getFullYear() - 55);
+
+          const divHistory = await yf.historical(ySymbol, {
+            period1: historyStart,
+            period2: now,
+            events: "dividends",
+          });
+
+          if (Array.isArray(divHistory) && divHistory.length > 0) {
+            const byYear = new Map<number, number>();
+            for (const d of divHistory) {
+              const year = new Date(d.date).getFullYear();
+              byYear.set(year, (byYear.get(year) ?? 0) + (Number(d.dividends) || 0));
+            }
+
+            const lastFullYear = now.getFullYear() - 1;
+            const countLastYear = divHistory.filter(
+              (d) => new Date(d.date).getFullYear() === lastFullYear,
+            ).length;
+
+            if (countLastYear >= 11) data.dividendFrequency = "monthly";
+            else if (countLastYear >= 3) data.dividendFrequency = "quarterly";
+            else if (countLastYear === 2) data.dividendFrequency = "semi-annual";
+            else if (countLastYear === 1) data.dividendFrequency = "annual";
+
+            if (countLastYear >= 11) data.isPaysMonthly = true;
+
+            const years = [...byYear.entries()]
+              .filter(([y]) => y <= lastFullYear)
+              .sort(([a], [b]) => b - a);
+
+            let growthYears = 0;
+            for (let i = 0; i < years.length - 1; i++) {
+              const [, currentTotal] = years[i]!;
+              const [, prevTotal] = years[i + 1]!;
+              if (currentTotal > prevTotal && prevTotal > 0) {
+                growthYears++;
+              } else {
+                break;
+              }
+            }
+            data.dividendGrowthYears = growthYears;
+            data.isDividendAristocrat = growthYears >= 25;
+            data.isDividendKing = growthYears >= 50;
+
+            log.info({ symbol: sec.symbol, countLastYear, growthYears }, "Dividend history analyzed");
+          }
+        } catch (divErr) {
+          log.warn({ symbol: sec.symbol, err: divErr }, "Dividend history fetch failed (non-critical)");
+        }
+
         // Check if we got any meaningful data beyond the timestamp
         if (Object.keys(data).length <= 1) {
           log.info({ symbol: sec.symbol }, "No profile data available, skipping");

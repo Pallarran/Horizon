@@ -49,11 +49,14 @@ const COL = {
 
 /**
  * Map Desjardins French transaction types to our enum.
- * null = skip silently (complex types best entered manually).
- * Import focuses on: BUY, SELL, DIVIDEND, DEPOSIT, INTEREST, TAX_WITHHELD, FEE.
+ *
+ * Sign-dependent markers:
+ *   SIGN_QTY — resolved by quantity sign: qty < 0 → SELL, qty >= 0 → BUY
+ *   SIGN_AMT — resolved by amount sign:  amount >= 0 → DIVIDEND, amount < 0 → BUY
  */
-const TYPE_MAP: Record<string, TransactionType | null> = {
-  // Imported
+type TypeMapping = TransactionType | "SIGN_QTY" | "SIGN_AMT";
+
+const TYPE_MAP: Record<string, TypeMapping> = {
   "ACHAT": "BUY",
   "VENTE": "SELL",
   "DIVIDENDE": "DIVIDEND",
@@ -69,12 +72,13 @@ const TYPE_MAP: Record<string, TransactionType | null> = {
   "REMBOURSEMENT SUR CAPITAL": "RETURN_OF_CAPITAL",
   "FRACTION": "FRACTION_CASH",
   "ANNULATION": "ADJUSTMENT",
+  "CXLTR DIV": "ADJUSTMENT",
   "CONVERSION DE DEVISE": "TRANSFER",
-  // Skipped — complex types, enter manually
-  "ÉCHANGE": null,
-  "OFFRE": null,
-  "FRACTIONNEMENT D'ACTIONS": null,
-  "DIVIDENDE EN ACTIONS": null,
+  // Sign-dependent — resolved after amount/qty parsing
+  "ÉCHANGE": "SIGN_QTY",
+  "OFFRE": "SIGN_QTY",
+  "FRACTIONNEMENT D'ACTIONS": "SPLIT",
+  "DIVIDENDE EN ACTIONS": "SIGN_AMT",
 };
 
 /** Map Desjardins currency codes to ISO */
@@ -207,7 +211,7 @@ export function parseDesjardinsXlsx(buffer: ArrayBuffer): ParseResult {
       continue;
     }
 
-    // Parse transaction type
+    // Parse transaction type marker
     const rawType = String(row[COL.type] ?? "").trim().toUpperCase();
     if (!(rawType in TYPE_MAP)) {
       errors.push({
@@ -216,10 +220,26 @@ export function parseDesjardinsXlsx(buffer: ArrayBuffer): ParseResult {
       });
       continue;
     }
-    const type = TYPE_MAP[rawType];
-    if (type === null) {
-      // Silently skip (e.g. ÉCHANGE = ticker name change)
+    const mappedType = TYPE_MAP[rawType]!;
+
+    // Parse amount (moved up — needed for sign-dependent type resolution)
+    const amount = parseNumber(row[COL.amount]);
+    if (amount == null) {
+      errors.push({ rowIndex: i, message: "Invalid or missing amount" });
       continue;
+    }
+
+    // Parse quantity early (needed for SIGN_QTY resolution)
+    const rawQuantity = parseNumber(row[COL.quantity]);
+
+    // Resolve sign-dependent types
+    let type: TransactionType;
+    if (mappedType === "SIGN_AMT") {
+      type = amount >= 0 ? "DIVIDEND" : "BUY";
+    } else if (mappedType === "SIGN_QTY") {
+      type = (rawQuantity ?? 0) < 0 ? "SELL" : "BUY";
+    } else {
+      type = mappedType;
     }
 
     // Parse symbol
@@ -227,16 +247,8 @@ export function parseDesjardinsXlsx(buffer: ArrayBuffer): ParseResult {
     const displaySymbol = rawSymbol === "-" ? null : rawSymbol;
     const { strippedSymbol, exchange } = parseSymbol(rawSymbol, row[COL.market] as string);
 
-    // Parse amount (required)
-    const amount = parseNumber(row[COL.amount]);
-    if (amount == null) {
-      errors.push({ rowIndex: i, message: "Invalid or missing amount" });
-      continue;
-    }
-
     // Parse other fields
     const hasQty = (TXN_TYPES_WITH_QTY as readonly string[]).includes(type);
-    const rawQuantity = parseNumber(row[COL.quantity]);
     const rawPrice = parseNumber(row[COL.price]);
     const fee = parseNumber(row[COL.fee]) ?? 0;
     const currency = mapCurrency(row[COL.accountCurrency] as string);

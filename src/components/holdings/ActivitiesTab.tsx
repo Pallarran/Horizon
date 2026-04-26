@@ -5,9 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import Link from "next/link";
-import { SlidersHorizontalIcon, PlusIcon, XIcon, UploadIcon } from "lucide-react";
+import { SlidersHorizontalIcon, PlusIcon, XIcon, UploadIcon, Trash2Icon } from "lucide-react";
 import type { SerializedTransaction } from "@/lib/actions/transactions";
-import { deleteTransactionAction } from "@/lib/actions/transactions";
+import { deleteTransactionAction, deleteTransactionsAction } from "@/lib/actions/transactions";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatMoney, formatNumber } from "@/lib/money/format";
 import { TransactionForm } from "./TransactionForm";
 import { Badge } from "@/components/ui/badge";
@@ -100,6 +101,9 @@ export function ActivitiesTab({
   const [editingTransaction, setEditingTransaction] = useState<SerializedTransaction | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SerializedTransaction | null>(null);
   const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, startBulkDelete] = useTransition();
 
   // Track undo state per pending delete so we can cancel
   const undoRef = useRef<Map<string, boolean>>(new Map());
@@ -208,6 +212,41 @@ export function ActivitiesTab({
     setEditingTransaction(null);
     toast.success(t("transactionUpdated"));
     startTransition(() => router.refresh());
+  }
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((txn) => selected.has(txn.id));
+  const someFilteredSelected = filtered.some((txn) => selected.has(txn.id));
+
+  function toggleSelectAll() {
+    if (allFilteredSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map((txn) => txn.id)));
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleBulkDelete() {
+    startBulkDelete(async () => {
+      const ids = [...selected];
+      const result = await deleteTransactionsAction(ids);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(t("deleteSelected") + ` (${result.deletedCount})`);
+        setSelected(new Set());
+        router.refresh();
+      }
+      setBulkDeleteOpen(false);
+    });
   }
 
   return (
@@ -382,6 +421,12 @@ export function ActivitiesTab({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10 px-2">
+                  <Checkbox
+                    checked={allFilteredSelected ? true : someFilteredSelected ? "indeterminate" : false}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>{t("date")}</TableHead>
                 <TableHead>{t("type")}</TableHead>
                 <TableHead>{t("account")}</TableHead>
@@ -396,7 +441,13 @@ export function ActivitiesTab({
             </TableHeader>
             <TableBody>
               {filtered.map((txn) => (
-                <TableRow key={txn.id}>
+                <TableRow key={txn.id} data-selected={selected.has(txn.id) || undefined}>
+                  <TableCell className="px-2">
+                    <Checkbox
+                      checked={selected.has(txn.id)}
+                      onCheckedChange={() => toggleSelect(txn.id)}
+                    />
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {formatDate(txn.date, locale)}
                   </TableCell>
@@ -486,6 +537,36 @@ export function ActivitiesTab({
           </Table>
         </div>
       )}
+
+      {/* Bulk selection bar */}
+      {selected.size > 0 && (
+        <div className="sticky bottom-4 z-10 mx-auto flex w-fit items-center gap-3 rounded-lg border bg-background px-4 py-2 shadow-lg">
+          <span className="text-sm font-medium">{t("nSelected", { count: selected.size })}</span>
+          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+            {t("deselectAll")}
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setBulkDeleteOpen(true)}
+            disabled={bulkDeleting}
+          >
+            <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
+            {t("deleteSelected")}
+          </Button>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation */}
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={t("deleteSelected")}
+        description={t("deleteSelectedConfirm", { count: selected.size })}
+        confirmLabel={tc("delete")}
+        cancelLabel={tc("cancel")}
+        onConfirm={handleBulkDelete}
+      />
 
       {/* Delete Confirmation */}
       <ConfirmDialog

@@ -162,6 +162,25 @@ export async function deleteTransactionAction(
   return { success: true };
 }
 
+export async function deleteTransactionsAction(
+  ids: string[],
+): Promise<{ success?: boolean; error?: string; deletedCount?: number }> {
+  if (ids.length === 0) return { error: "No transactions selected" };
+
+  const { user } = await requireAuth();
+
+  // Use unscoped prisma with user-scoping in the WHERE clause
+  // (scopedPrisma doesn't expose deleteMany for transactions)
+  const result = await prisma.transaction.deleteMany({
+    where: {
+      id: { in: ids },
+      account: { userId: user.id },
+    },
+  });
+
+  return { success: true, deletedCount: result.count };
+}
+
 // --------------- Transaction query for Activities tab ---------------
 
 export interface SerializedTransaction {
