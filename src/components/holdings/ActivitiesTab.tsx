@@ -38,13 +38,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import {
   Table,
   TableBody,
@@ -91,9 +85,18 @@ export function ActivitiesTab({
   const [, startTransition] = useTransition();
 
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get("q") ?? "");
-  const [filterAccount, setFilterAccount] = useState(() => searchParams.get("account") ?? "all");
-  const [filterType, setFilterType] = useState(() => searchParams.get("type") ?? "all");
-  const [filterSecurity, setFilterSecurity] = useState(() => searchParams.get("security") ?? "all");
+  const [filterAccounts, setFilterAccounts] = useState<string[]>(() => {
+    const p = searchParams.get("account");
+    return p ? p.split(",") : [];
+  });
+  const [filterTypes, setFilterTypes] = useState<string[]>(() => {
+    const p = searchParams.get("type");
+    return p ? p.split(",") : [];
+  });
+  const [filterSecurities, setFilterSecurities] = useState<string[]>(() => {
+    const p = searchParams.get("security");
+    return p ? p.split(",") : [];
+  });
   const [filterDateFrom, setFilterDateFrom] = useState(() => searchParams.get("from") ?? "");
   const [filterDateTo, setFilterDateTo] = useState(() => searchParams.get("to") ?? "");
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
@@ -130,31 +133,31 @@ export function ActivitiesTab({
           txn.note?.toLowerCase().includes(q),
       );
     }
-    if (filterAccount !== "all")
-      result = result.filter((txn) => txn.accountId === filterAccount);
-    if (filterType !== "all")
-      result = result.filter((txn) => txn.type === filterType);
-    if (filterSecurity !== "all")
-      result = result.filter((txn) => txn.securitySymbol === filterSecurity);
+    if (filterAccounts.length > 0)
+      result = result.filter((txn) => filterAccounts.includes(txn.accountId));
+    if (filterTypes.length > 0)
+      result = result.filter((txn) => filterTypes.includes(txn.type));
+    if (filterSecurities.length > 0)
+      result = result.filter((txn) => filterSecurities.includes(txn.securitySymbol ?? ""));
     if (filterDateFrom)
       result = result.filter((txn) => txn.date >= filterDateFrom);
     if (filterDateTo)
       result = result.filter((txn) => txn.date <= filterDateTo);
     return result;
-  }, [transactions, searchQuery, filterAccount, filterType, filterSecurity, filterDateFrom, filterDateTo, pendingDeletes]);
+  }, [transactions, searchQuery, filterAccounts, filterTypes, filterSecurities, filterDateFrom, filterDateTo, pendingDeletes]);
 
   const isFiltered =
     searchQuery !== "" ||
-    filterAccount !== "all" ||
-    filterType !== "all" ||
-    filterSecurity !== "all" ||
+    filterAccounts.length > 0 ||
+    filterTypes.length > 0 ||
+    filterSecurities.length > 0 ||
     filterDateFrom !== "" ||
     filterDateTo !== "";
 
   const activeFilterCount = [
-    filterAccount !== "all",
-    filterType !== "all",
-    filterSecurity !== "all",
+    filterAccounts.length > 0,
+    filterTypes.length > 0,
+    filterSecurities.length > 0,
     filterDateFrom !== "",
     filterDateTo !== "",
   ].filter(Boolean).length;
@@ -178,19 +181,19 @@ export function ActivitiesTab({
     searchTimerRef.current = setTimeout(() => updateURL({ q: value }), 300);
   }, [updateURL]);
 
-  const handleFilterAccount = useCallback((value: string) => {
-    setFilterAccount(value);
-    updateURL({ account: value });
+  const handleFilterAccounts = useCallback((values: string[]) => {
+    setFilterAccounts(values);
+    updateURL({ account: values.join(",") });
   }, [updateURL]);
 
-  const handleFilterType = useCallback((value: string) => {
-    setFilterType(value);
-    updateURL({ type: value });
+  const handleFilterTypes = useCallback((values: string[]) => {
+    setFilterTypes(values);
+    updateURL({ type: values.join(",") });
   }, [updateURL]);
 
-  const handleFilterSecurity = useCallback((value: string) => {
-    setFilterSecurity(value);
-    updateURL({ security: value });
+  const handleFilterSecurities = useCallback((values: string[]) => {
+    setFilterSecurities(values);
+    updateURL({ security: values.join(",") });
   }, [updateURL]);
 
   const handleFilterDateFrom = useCallback((value: string) => {
@@ -205,9 +208,9 @@ export function ActivitiesTab({
 
   function resetFilters() {
     setSearchQuery("");
-    setFilterAccount("all");
-    setFilterType("all");
-    setFilterSecurity("all");
+    setFilterAccounts([]);
+    setFilterTypes([]);
+    setFilterSecurities([]);
     setFilterDateFrom("");
     setFilterDateTo("");
     router.replace(window.location.pathname, { scroll: false });
@@ -321,12 +324,12 @@ export function ActivitiesTab({
               t={t}
               accounts={accounts}
               uniqueSecurities={uniqueSecurities}
-              filterAccount={filterAccount}
-              setFilterAccount={handleFilterAccount}
-              filterType={filterType}
-              setFilterType={handleFilterType}
-              filterSecurity={filterSecurity}
-              setFilterSecurity={handleFilterSecurity}
+              filterAccounts={filterAccounts}
+              setFilterAccounts={handleFilterAccounts}
+              filterTypes={filterTypes}
+              setFilterTypes={handleFilterTypes}
+              filterSecurities={filterSecurities}
+              setFilterSecurities={handleFilterSecurities}
               filterDateFrom={filterDateFrom}
               setFilterDateFrom={handleFilterDateFrom}
               filterDateTo={filterDateTo}
@@ -359,12 +362,12 @@ export function ActivitiesTab({
                 t={t}
                 accounts={accounts}
                 uniqueSecurities={uniqueSecurities}
-                filterAccount={filterAccount}
-                setFilterAccount={handleFilterAccount}
-                filterType={filterType}
-                setFilterType={handleFilterType}
-                filterSecurity={filterSecurity}
-                setFilterSecurity={handleFilterSecurity}
+                filterAccounts={filterAccounts}
+                setFilterAccounts={handleFilterAccounts}
+                filterTypes={filterTypes}
+                setFilterTypes={handleFilterTypes}
+                filterSecurities={filterSecurities}
+                setFilterSecurities={handleFilterSecurities}
                 filterDateFrom={filterDateFrom}
                 setFilterDateFrom={handleFilterDateFrom}
                 filterDateTo={filterDateTo}
@@ -405,30 +408,30 @@ export function ActivitiesTab({
       {/* Active filter chips */}
       {isFiltered && (
         <div className="flex flex-wrap items-center gap-2">
-          {filterAccount !== "all" && (
-            <Badge variant="secondary" className="gap-1 pr-1">
-              {accounts.find((a) => a.id === filterAccount)?.name}
-              <button type="button" onClick={() => handleFilterAccount("all")} className="ml-0.5 rounded-sm hover:text-foreground">
+          {filterAccounts.map((id) => (
+            <Badge key={`acc-${id}`} variant="secondary" className="gap-1 pr-1">
+              {accounts.find((a) => a.id === id)?.name ?? id}
+              <button type="button" onClick={() => handleFilterAccounts(filterAccounts.filter((v) => v !== id))} className="ml-0.5 rounded-sm hover:text-foreground">
                 <XIcon className="size-3" />
               </button>
             </Badge>
-          )}
-          {filterType !== "all" && (
-            <Badge variant="secondary" className="gap-1 pr-1">
-              {t(`txnType${filterType}` as Parameters<typeof t>[0])}
-              <button type="button" onClick={() => handleFilterType("all")} className="ml-0.5 rounded-sm hover:text-foreground">
+          ))}
+          {filterTypes.map((type) => (
+            <Badge key={`type-${type}`} variant="secondary" className="gap-1 pr-1">
+              {t(`txnType${type}` as Parameters<typeof t>[0])}
+              <button type="button" onClick={() => handleFilterTypes(filterTypes.filter((v) => v !== type))} className="ml-0.5 rounded-sm hover:text-foreground">
                 <XIcon className="size-3" />
               </button>
             </Badge>
-          )}
-          {filterSecurity !== "all" && (
-            <Badge variant="secondary" className="gap-1 pr-1">
-              {filterSecurity}
-              <button type="button" onClick={() => handleFilterSecurity("all")} className="ml-0.5 rounded-sm hover:text-foreground">
+          ))}
+          {filterSecurities.map((symbol) => (
+            <Badge key={`sec-${symbol}`} variant="secondary" className="gap-1 pr-1">
+              {symbol}
+              <button type="button" onClick={() => handleFilterSecurities(filterSecurities.filter((v) => v !== symbol))} className="ml-0.5 rounded-sm hover:text-foreground">
                 <XIcon className="size-3" />
               </button>
             </Badge>
-          )}
+          ))}
           {filterDateFrom && (
             <Badge variant="secondary" className="gap-1 pr-1">
               {t("from")}: {filterDateFrom}
@@ -684,12 +687,12 @@ interface FilterFormProps {
   t: ReturnType<typeof useTranslations<"holdings">>;
   accounts: Account[];
   uniqueSecurities: [string, string][];
-  filterAccount: string;
-  setFilterAccount: (v: string) => void;
-  filterType: string;
-  setFilterType: (v: string) => void;
-  filterSecurity: string;
-  setFilterSecurity: (v: string) => void;
+  filterAccounts: string[];
+  setFilterAccounts: (v: string[]) => void;
+  filterTypes: string[];
+  setFilterTypes: (v: string[]) => void;
+  filterSecurities: string[];
+  setFilterSecurities: (v: string[]) => void;
   filterDateFrom: string;
   setFilterDateFrom: (v: string) => void;
   filterDateTo: string;
@@ -702,12 +705,12 @@ function FilterForm({
   t,
   accounts,
   uniqueSecurities,
-  filterAccount,
-  setFilterAccount,
-  filterType,
-  setFilterType,
-  filterSecurity,
-  setFilterSecurity,
+  filterAccounts,
+  setFilterAccounts,
+  filterTypes,
+  setFilterTypes,
+  filterSecurities,
+  setFilterSecurities,
   filterDateFrom,
   setFilterDateFrom,
   filterDateTo,
@@ -715,55 +718,46 @@ function FilterForm({
   isFiltered,
   resetFilters,
 }: FilterFormProps) {
+  const accountOptions = accounts.map((a) => ({ value: a.id, label: a.name }));
+  const typeOptions = TXN_TYPES.map((type) => ({
+    value: type,
+    label: t(`txnType${type}` as Parameters<typeof t>[0]),
+  }));
+  const securityOptions = uniqueSecurities.map(([symbol, name]) => ({
+    value: symbol,
+    label: `${symbol} — ${name}`,
+  }));
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>{t("account")}</Label>
-        <Select value={filterAccount} onValueChange={setFilterAccount}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder={t("allAccounts")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allAccounts")}</SelectItem>
-            {accounts.map((a) => (
-              <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          options={accountOptions}
+          selected={filterAccounts}
+          onSelectionChange={setFilterAccounts}
+          placeholder={t("allAccounts")}
+        />
       </div>
 
       <div className="space-y-2">
         <Label>{t("type")}</Label>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder={t("allTypes")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allTypes")}</SelectItem>
-            {TXN_TYPES.map((type) => (
-              <SelectItem key={type} value={type}>
-                {t(`txnType${type}` as Parameters<typeof t>[0])}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          options={typeOptions}
+          selected={filterTypes}
+          onSelectionChange={setFilterTypes}
+          placeholder={t("allTypes")}
+        />
       </div>
 
       <div className="space-y-2">
         <Label>{t("symbol")}</Label>
-        <Select value={filterSecurity} onValueChange={setFilterSecurity}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder={t("allSecurities")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allSecurities")}</SelectItem>
-            {uniqueSecurities.map(([symbol, name]) => (
-              <SelectItem key={symbol} value={symbol}>
-                {symbol} — {name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          options={securityOptions}
+          selected={filterSecurities}
+          onSelectionChange={setFilterSecurities}
+          placeholder={t("allSecurities")}
+        />
       </div>
 
       <div className="space-y-2">
