@@ -121,6 +121,14 @@ export function ActivitiesTab({
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [transactions]);
 
+  const transactionYears = useMemo(() => {
+    const years = new Set<number>();
+    for (const txn of transactions) {
+      years.add(parseInt(txn.date.substring(0, 4)));
+    }
+    return [...years].sort((a, b) => b - a);
+  }, [transactions]);
+
   const filtered = useMemo(() => {
     let result = transactions.filter((txn) => !pendingDeletes.has(txn.id));
     if (searchQuery) {
@@ -324,6 +332,7 @@ export function ActivitiesTab({
               t={t}
               accounts={accounts}
               uniqueSecurities={uniqueSecurities}
+              years={transactionYears}
               filterAccounts={filterAccounts}
               setFilterAccounts={handleFilterAccounts}
               filterTypes={filterTypes}
@@ -362,6 +371,7 @@ export function ActivitiesTab({
                 t={t}
                 accounts={accounts}
                 uniqueSecurities={uniqueSecurities}
+                years={transactionYears}
                 filterAccounts={filterAccounts}
                 setFilterAccounts={handleFilterAccounts}
                 filterTypes={filterTypes}
@@ -693,6 +703,7 @@ interface FilterFormProps {
   setFilterTypes: (v: string[]) => void;
   filterSecurities: string[];
   setFilterSecurities: (v: string[]) => void;
+  years: number[];
   filterDateFrom: string;
   setFilterDateFrom: (v: string) => void;
   filterDateTo: string;
@@ -711,6 +722,7 @@ function FilterForm({
   setFilterTypes,
   filterSecurities,
   setFilterSecurities,
+  years,
   filterDateFrom,
   setFilterDateFrom,
   filterDateTo,
@@ -762,6 +774,33 @@ function FilterForm({
 
       <div className="space-y-2">
         <Label>{t("dateRange")}</Label>
+        {years.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {years.map((year) => {
+              const isActive =
+                filterDateFrom === `${year}-01-01` &&
+                filterDateTo === `${year}-12-31`;
+              return (
+                <Button
+                  key={year}
+                  variant={isActive ? "default" : "outline"}
+                  size="xs"
+                  onClick={() => {
+                    if (isActive) {
+                      setFilterDateFrom("");
+                      setFilterDateTo("");
+                    } else {
+                      setFilterDateFrom(`${year}-01-01`);
+                      setFilterDateTo(`${year}-12-31`);
+                    }
+                  }}
+                >
+                  {year}
+                </Button>
+              );
+            })}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <Input
             type="date"
