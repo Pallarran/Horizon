@@ -18,8 +18,8 @@ export async function computeDividendHistory(
   usdCadRate: number,
 ): Promise<DividendHistoryPoint[]> {
   const txns = await db.transaction.findMany({
-    where: { type: "DIVIDEND" },
-    select: { date: true, amountCents: true, currency: true, fxRateAtDate: true },
+    where: { type: { in: ["DIVIDEND", "ADJUSTMENT"] } },
+    select: { type: true, date: true, amountCents: true, currency: true, fxRateAtDate: true },
   });
 
   const byYear = new Map<number, bigint>();
@@ -29,8 +29,8 @@ export async function computeDividendHistory(
     const isUsd = txn.currency === "USD";
     const rate = isUsd && txn.fxRateAtDate != null ? Number(txn.fxRateAtDate) : usdCadRate;
     const amountCad = isUsd ? convertCurrency(txn.amountCents, rate) : txn.amountCents;
-    const abs = amountCad > 0n ? amountCad : -amountCad;
-    byYear.set(year, (byYear.get(year) ?? 0n) + abs);
+    const net = txn.type === "ADJUSTMENT" ? amountCad : (amountCad > 0n ? amountCad : -amountCad);
+    byYear.set(year, (byYear.get(year) ?? 0n) + net);
   }
 
   return Array.from(byYear.entries())

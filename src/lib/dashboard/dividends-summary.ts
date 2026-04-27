@@ -55,21 +55,21 @@ export async function computeDividendsSummary(
   const [ytdTxns, priorYearTxns, priorYearSamePeriodTxns] = await Promise.all([
     db.transaction.findMany({
       where: {
-        type: "DIVIDEND",
+        type: { in: ["DIVIDEND", "ADJUSTMENT"] },
         date: { gte: ytdStart },
       },
       include: { security: true },
     }),
     db.transaction.findMany({
       where: {
-        type: "DIVIDEND",
+        type: { in: ["DIVIDEND", "ADJUSTMENT"] },
         date: { gte: priorYearStart, lte: priorYearEnd },
       },
       include: { security: true },
     }),
     db.transaction.findMany({
       where: {
-        type: "DIVIDEND",
+        type: { in: ["DIVIDEND", "ADJUSTMENT"] },
         date: { gte: priorYearStart, lte: priorYearSamePeriodEnd },
       },
       include: { security: true },
@@ -81,8 +81,8 @@ export async function computeDividendsSummary(
     const isUsd = txn.currency === "USD";
     const rate = isUsd && txn.fxRateAtDate != null ? Number(txn.fxRateAtDate) : usdCadRate;
     const amountCad = isUsd ? convertCurrency(txn.amountCents, rate) : txn.amountCents;
-    // DIVIDEND amountCents is positive (money arrives)
-    ytdCents += amountCad > 0n ? amountCad : -amountCad;
+    // DIVIDEND: always positive; ADJUSTMENT: signed (negative = reversal)
+    ytdCents += txn.type === "ADJUSTMENT" ? amountCad : (amountCad > 0n ? amountCad : -amountCad);
   }
 
   let priorYearCents = 0n;
@@ -90,7 +90,7 @@ export async function computeDividendsSummary(
     const isUsd = txn.currency === "USD";
     const rate = isUsd && txn.fxRateAtDate != null ? Number(txn.fxRateAtDate) : usdCadRate;
     const amountCad = isUsd ? convertCurrency(txn.amountCents, rate) : txn.amountCents;
-    priorYearCents += amountCad > 0n ? amountCad : -amountCad;
+    priorYearCents += txn.type === "ADJUSTMENT" ? amountCad : (amountCad > 0n ? amountCad : -amountCad);
   }
 
   // 3. Prior year same period total (for YoY comparison)
@@ -99,7 +99,7 @@ export async function computeDividendsSummary(
     const isUsd = txn.currency === "USD";
     const rate = isUsd && txn.fxRateAtDate != null ? Number(txn.fxRateAtDate) : usdCadRate;
     const amountCad = isUsd ? convertCurrency(txn.amountCents, rate) : txn.amountCents;
-    priorYearSamePeriodCents += amountCad > 0n ? amountCad : -amountCad;
+    priorYearSamePeriodCents += txn.type === "ADJUSTMENT" ? amountCad : (amountCad > 0n ? amountCad : -amountCad);
   }
 
   // 4. YoY growth — compare YTD to same period last year
