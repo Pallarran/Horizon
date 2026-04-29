@@ -229,7 +229,7 @@ export function TransactionForm({ accounts, transaction, onSuccess, onCancel, de
             <Input
               type="number"
               name="priceDollars"
-              step="0.01"
+              step="any"
               min="0"
               value={priceDollars}
               onChange={(e) => { setPriceDollars(e.target.value); clearDuplicateWarning(); }}
