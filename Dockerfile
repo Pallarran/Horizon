@@ -16,7 +16,7 @@ COPY . .
 # Provide a dummy — generate only reads the schema, never connects.
 ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 # Increase Node heap and disable telemetry for Docker builds
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 ENV NEXT_TELEMETRY_DISABLED=1
 # Limit build workers to avoid OOM on low-memory hosts
 ENV NEXT_BUILD_WORKERS=2
