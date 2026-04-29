@@ -2,16 +2,17 @@
  * Account history — computes monthly value snapshots per account for the past 12 months.
  *
  * Same temporal replay pattern as computePortfolioHistory, but partitioned by accountId.
- * Values are in each account's native currency (no FX conversion), matching how
- * account cards display market values.
+ * All values converted to CAD using historical FX rates.
  */
 import type { ScopedPrisma } from "@/lib/db/scoped";
 import type { PortfolioHistoryPoint } from "./portfolio-history";
 import {
   generateSnapshotDates,
   findClosestOnOrBefore,
+  findClosestFxRate,
   formatDate,
 } from "./portfolio-history";
+import { convertCurrency } from "@/lib/money/arithmetic";
 
 export async function computeAccountHistories(
   db: ScopedPrisma,
@@ -43,20 +44,38 @@ export async function computeAccountHistories(
     ),
   ];
 
-  // 2. Batch-fetch prices (with 7-day buffer before earliest snapshot for weekends)
+  // 2. Fetch security currencies
+  const securities = await db.security.findMany({
+    where: { id: { in: securityIds } },
+    select: { id: true, currency: true },
+  });
+  const currencyMap = new Map(securities.map((s) => [s.id, s.currency]));
+
+  // 3. Batch-fetch prices and FX rates (with 7-day buffer before earliest snapshot for weekends)
   const earliest = new Date(snapshotDates[0]);
   earliest.setDate(earliest.getDate() - 7);
 
-  const allPrices = await db.price.findMany({
-    where: {
-      securityId: { in: securityIds },
-      date: { gte: earliest },
-    },
-    orderBy: { date: "asc" },
-    select: { securityId: true, date: true, priceCents: true },
-  });
+  const [allPrices, allFxRates] = await Promise.all([
+    db.price.findMany({
+      where: {
+        securityId: { in: securityIds },
+        date: { gte: earliest },
+      },
+      orderBy: { date: "asc" },
+      select: { securityId: true, date: true, priceCents: true },
+    }),
+    db.fxRate.findMany({
+      where: {
+        fromCurrency: "USD",
+        toCurrency: "CAD",
+        date: { gte: earliest },
+      },
+      orderBy: { date: "asc" },
+      select: { date: true, rate: true },
+    }),
+  ]);
 
-  // 3. Build price lookup
+  // 4. Build lookup structures
   const pricesBySecurity = new Map<
     string,
     Array<{ time: number; priceCents: bigint }>
@@ -67,7 +86,12 @@ export async function computeAccountHistories(
     pricesBySecurity.set(p.securityId, arr);
   }
 
-  // 4. Walk transactions, track positions per account
+  const fxRateEntries = allFxRates.map((r) => ({
+    time: r.date.getTime(),
+    rate: Number(r.rate),
+  }));
+
+  // 5. Walk transactions, track positions per account
   // accountId → securityId → quantity
   const positions = new Map<string, Map<string, number>>();
   let txnIdx = 0;
@@ -106,9 +130,9 @@ export async function computeAccountHistories(
       txnIdx++;
     }
 
-    // 5. Value each account at this snapshot
+    // 6. Value each account at this snapshot (converted to CAD)
     for (const [acctId, acctPositions] of positions) {
-      let totalCents = 0n;
+      let totalCadCents = 0n;
 
       for (const [secId, qty] of acctPositions) {
         if (qty <= 0) continue;
@@ -119,18 +143,26 @@ export async function computeAccountHistories(
         const priceCents = findClosestOnOrBefore(prices, snapshotTime);
         if (priceCents === null) continue;
 
-        totalCents += BigInt(Math.round(qty * Number(priceCents)));
+        const valueCents = BigInt(Math.round(qty * Number(priceCents)));
+        const currency = currencyMap.get(secId) ?? "CAD";
+
+        if (currency === "USD") {
+          const fxRate = findClosestFxRate(fxRateEntries, snapshotTime);
+          totalCadCents += convertCurrency(valueCents, fxRate);
+        } else {
+          totalCadCents += valueCents;
+        }
       }
 
       if (!result[acctId]) result[acctId] = [];
       result[acctId].push({
         date: formatDate(snapshotDate),
-        valueCents: Number(totalCents),
+        valueCents: Number(totalCadCents),
       });
     }
   }
 
-  // 6. Trim leading zeros per account
+  // 7. Trim leading zeros per account
   for (const acctId of Object.keys(result)) {
     const history = result[acctId];
     const firstNonZero = history.findIndex((p) => p.valueCents > 0);

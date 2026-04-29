@@ -77,7 +77,7 @@ export default async function DashboardPage() {
     ]);
 
   const dayMovers = computeDayMovers(positions, 1);
-  const topYielders = computeTopYielders(positions);
+  const topYielders = computeTopYielders(positions, netWorth.usdCadRate);
   const allocationByAccount = computeAllocation(positions, netWorth.usdCadRate);
   const allocationByAssetClass = computeAllocationByAssetClass(positions, netWorth.usdCadRate);
 

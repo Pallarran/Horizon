@@ -37,10 +37,17 @@ interface Account {
 }
 
 interface AccountStat extends Account {
+  /** Market value converted to CAD */
   marketValue: number;
+  /** Native CAD positions total (null if none) */
+  marketValueCad: number | null;
+  /** Native USD positions total (null if none) */
+  marketValueUsd: number | null;
+  /** Cost basis in CAD (historical FX) */
   totalCost: number;
   gain: number;
   gainPercent: number | null;
+  /** Expected income in CAD */
   income: number;
   yieldPct: number | null;
   weight: number;
@@ -53,6 +60,7 @@ interface Props {
   positions: SerializedPosition[];
   accountHistories: Record<string, PortfolioHistoryPoint[]>;
   cashBalances: Record<string, number>;
+  usdCadRate: number;
   locale: string;
 }
 
@@ -154,10 +162,19 @@ function SortableAccountCard({
       {/* Account name */}
       <p className="mt-1 text-sm font-medium">{acct.name}</p>
 
-      {/* Hero value */}
+      {/* Hero value (CAD) */}
       <p className="mt-4 text-center text-2xl font-bold tabular-nums">
         {formatMoney(acct.marketValue, locale)}
       </p>
+
+      {/* Per-currency breakdown (shown when account has USD positions) */}
+      {acct.marketValueUsd !== null && (
+        <p className="mt-0.5 text-center text-xs text-muted-foreground tabular-nums">
+          {acct.marketValueCad !== null
+            ? `CAD ${formatMoney(acct.marketValueCad, locale)} · USD ${formatMoney(acct.marketValueUsd, locale, "USD")}`
+            : `USD ${formatMoney(acct.marketValueUsd, locale, "USD")}`}
+        </p>
+      )}
 
       {/* Gain line */}
       <p
@@ -268,7 +285,7 @@ function SortableAccountCard({
 /*  Main component                                                    */
 /* ------------------------------------------------------------------ */
 
-export function AccountsTab({ accounts, positions, accountHistories, cashBalances, locale }: Props) {
+export function AccountsTab({ accounts, positions, accountHistories, cashBalances, usdCadRate, locale }: Props) {
   const t = useTranslations("holdings");
   const tc = useTranslations("common");
   const router = useRouter();
@@ -284,23 +301,42 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
     setOrderedAccounts(accounts);
   }, [accounts]);
 
+  const toCad = (cents: number, currency: string) =>
+    currency === "USD" ? Math.round(cents * usdCadRate) : cents;
+
   const accountStats = useMemo(() => {
     const portfolioTotal = positions.reduce(
-      (s, p) => s + (p.marketValueCents ?? p.totalCostCents),
+      (s, p) => s + toCad(p.marketValueCents ?? p.totalCostCadCents, p.currency),
       0,
     );
 
     return orderedAccounts.map((account) => {
       const ap = positions.filter((p) => p.accountId === account.id);
+
+      // CAD-converted total
       const marketValue = ap.reduce(
-        (s, p) => s + (p.marketValueCents ?? p.totalCostCents),
+        (s, p) => s + toCad(p.marketValueCents ?? p.totalCostCadCents, p.currency),
         0,
       );
-      const totalCost = ap.reduce((s, p) => s + p.totalCostCents, 0);
+
+      // Per-currency native amounts
+      const cadPositions = ap.filter((p) => p.currency === "CAD");
+      const usdPositions = ap.filter((p) => p.currency === "USD");
+      const marketValueCad = cadPositions.length > 0
+        ? cadPositions.reduce((s, p) => s + (p.marketValueCents ?? p.totalCostCents), 0)
+        : null;
+      const marketValueUsd = usdPositions.length > 0
+        ? usdPositions.reduce((s, p) => s + (p.marketValueCents ?? p.totalCostCents), 0)
+        : null;
+
+      // Cost basis in CAD (already converted via historical FX)
+      const totalCost = ap.reduce((s, p) => s + p.totalCostCadCents, 0);
       const gain = marketValue - totalCost;
       const gainPercent = totalCost > 0 ? gain / totalCost : null;
+
+      // Income converted to CAD
       const income = ap.reduce(
-        (s, p) => s + (p.expectedIncomeCents ?? 0),
+        (s, p) => s + toCad(p.expectedIncomeCents ?? 0, p.currency),
         0,
       );
       const yieldPct = marketValue > 0 ? income / marketValue : null;
@@ -314,6 +350,8 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
       return {
         ...account,
         marketValue,
+        marketValueCad,
+        marketValueUsd,
         totalCost,
         gain,
         gainPercent,
@@ -324,7 +362,7 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
         currencyLabel,
       };
     });
-  }, [orderedAccounts, positions]);
+  }, [orderedAccounts, positions, usdCadRate]);
 
   async function handleDelete(accountId: string) {
     setDeleteError(null);

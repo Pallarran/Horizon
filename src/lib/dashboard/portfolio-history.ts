@@ -226,6 +226,11 @@ export function generateSnapshotDates(): Date[] {
     dates.push(new Date(today.getFullYear(), today.getMonth() - i, 1));
   }
 
+  // Add today as the final point so the graph reflects current value
+  if (today.getDate() !== 1) {
+    dates.push(today);
+  }
+
   return dates;
 }
 
@@ -259,7 +264,7 @@ export function findClosestOnOrBefore(
 }
 
 /** Binary search for the most recent FX rate on or before target time. */
-function findClosestFxRate(
+export function findClosestFxRate(
   sorted: Array<{ time: number; rate: number }>,
   targetTime: number,
 ): number {

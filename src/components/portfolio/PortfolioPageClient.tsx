@@ -98,6 +98,7 @@ export function PortfolioPageClient({
           positions={positions}
           accountHistories={accountHistories}
           cashBalances={cashBalances}
+          usdCadRate={usdCadRate}
           locale={locale}
         />
       </TabsContent>

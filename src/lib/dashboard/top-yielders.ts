@@ -1,9 +1,10 @@
 /**
  * Top yielders — ranks positions by yield on cost (YOC).
  * Groups by security symbol (aggregates across accounts).
- * Pure computation, no DB access.
+ * All income amounts converted to CAD.
  */
 import type { ComputedPosition } from "@/lib/positions/types";
+import { convertCurrency } from "@/lib/money/arithmetic";
 
 export interface TopYielder {
   symbol: string;
@@ -12,9 +13,8 @@ export interface TopYielder {
   yieldOnCostPercent: number;
   /** Current yield based on market price */
   yieldPercent: number;
-  /** Total annual expected income in original currency (cents) */
+  /** Total annual expected income in CAD cents */
   annualIncomeCents: number;
-  currency: string;
 }
 
 export interface TopYieldersData {
@@ -28,6 +28,7 @@ export interface TopYieldersData {
  */
 export function computeTopYielders(
   positions: ComputedPosition[],
+  usdCadRate: number,
   limit: number = 5,
 ): TopYieldersData {
   // Group by symbol — aggregate across accounts
@@ -70,17 +71,21 @@ export function computeTopYielders(
   }
 
   const yielders: TopYielder[] = [...bySymbol.values()]
-    .map((s) => ({
-      symbol: s.symbol,
-      name: s.name,
-      yieldOnCostPercent:
-        Number(s.totalCostCents) > 0
-          ? Number(s.totalIncomeCents) / Number(s.totalCostCents)
-          : 0,
-      yieldPercent: s.yieldPercent,
-      annualIncomeCents: Number(s.totalIncomeCents),
-      currency: s.currency,
-    }))
+    .map((s) => {
+      const incomeCad = s.currency === "USD"
+        ? Number(convertCurrency(s.totalIncomeCents, usdCadRate))
+        : Number(s.totalIncomeCents);
+      return {
+        symbol: s.symbol,
+        name: s.name,
+        yieldOnCostPercent:
+          Number(s.totalCostCents) > 0
+            ? Number(s.totalIncomeCents) / Number(s.totalCostCents)
+            : 0,
+        yieldPercent: s.yieldPercent,
+        annualIncomeCents: incomeCad,
+      };
+    })
     .filter((y) => y.yieldOnCostPercent > 0)
     .sort((a, b) => b.yieldOnCostPercent - a.yieldOnCostPercent)
     .slice(0, limit);
