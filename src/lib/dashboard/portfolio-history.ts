@@ -221,15 +221,13 @@ export function generateSnapshotDates(): Date[] {
   const today = new Date();
   const dates: Date[] = [];
 
-  // 1st of each month for the past 12 months, plus 1st of current month
-  for (let i = 12; i >= 0; i--) {
-    dates.push(new Date(today.getFullYear(), today.getMonth() - i, 1));
+  // Last day of each of the past 12 months
+  for (let i = 12; i >= 1; i--) {
+    // Day 0 of the next month = last day of current month
+    dates.push(new Date(today.getFullYear(), today.getMonth() - i + 1, 0));
   }
-
-  // Add today as the final point so the graph reflects current value
-  if (today.getDate() !== 1) {
-    dates.push(today);
-  }
+  // Current month: use today
+  dates.push(today);
 
   return dates;
 }
