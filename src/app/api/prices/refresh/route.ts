@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { fetchPrices } from "../../../../../jobs/price-fetch";
 import { fetchFxRates } from "../../../../../jobs/fx-fetch";
 
-const STALE_MS = 4 * 60 * 60 * 1000; // 4 hours
+const STALE_MS = 1 * 60 * 60 * 1000; // 1 hour
 
 export async function POST() {
   await requireApiAuth();

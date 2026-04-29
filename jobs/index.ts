@@ -1,10 +1,9 @@
 /**
- * Jobs entry point — schedules nightly cron tasks.
+ * Jobs entry point — schedules cron tasks.
  *
  * Schedule (America/Toronto):
- *   23:00 Mon-Fri  — Price fetch (EOD)
- *   23:05 Daily    — FX rate fetch
- *   02:00 Daily    — Database backup
+ *   10:00, 12:00, 14:00, 16:00, 23:00 Mon-Fri — Price + FX fetch
+ *   02:00 Daily — Database backup
  *
  * Run: npx tsx jobs/index.ts
  */
@@ -19,27 +18,18 @@ const log = pino({ name: "jobs" });
 
 const TZ = "America/Toronto";
 
-// Price fetch: 23:00 Mon-Fri
-cron.schedule("0 23 * * 1-5", async () => {
-  log.info("Starting nightly price fetch");
-  try {
-    const result = await fetchPrices();
-    log.info(result, "Price fetch finished");
-  } catch (err) {
-    log.error({ err }, "Price fetch failed");
-  }
-}, { timezone: TZ });
-
-// FX rate fetch: 23:05 daily
-cron.schedule("5 23 * * *", async () => {
-  log.info("Starting nightly FX fetch");
-  try {
-    const result = await fetchFxRates();
-    log.info(result, "FX fetch finished");
-  } catch (err) {
-    log.error({ err }, "FX fetch failed");
-  }
-}, { timezone: TZ });
+// Price + FX fetch: every 2h during market hours + EOD, Mon-Fri
+for (const time of ["0 10", "0 12", "0 14", "0 16", "0 23"]) {
+  cron.schedule(`${time} * * 1-5`, async () => {
+    log.info("Starting price + FX fetch");
+    try {
+      const [prices, fx] = await Promise.all([fetchPrices(), fetchFxRates()]);
+      log.info({ prices, fx }, "Price + FX fetch finished");
+    } catch (err) {
+      log.error({ err }, "Price + FX fetch failed");
+    }
+  }, { timezone: TZ });
+}
 
 // Backup: 02:00 daily
 cron.schedule("0 2 * * *", async () => {
@@ -54,7 +44,6 @@ cron.schedule("0 2 * * *", async () => {
 
 log.info("Job scheduler started. Waiting for scheduled tasks...");
 log.info({
-  prices: "23:00 Mon-Fri ET",
-  fx: "23:05 daily ET",
+  pricesAndFx: "10:00, 12:00, 14:00, 16:00, 23:00 Mon-Fri ET",
   backup: "02:00 daily ET",
 }, "Schedule");

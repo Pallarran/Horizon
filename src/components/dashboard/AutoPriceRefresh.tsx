@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
-const STALE_MS = 4 * 60 * 60 * 1000; // 4 hours
-const SESSION_KEY = "horizon_price_fetch_triggered";
+const STALE_MS = 1 * 60 * 60 * 1000; // 1 hour
 
 interface AutoPriceRefreshProps {
   lastPriceDate: string | null;
@@ -20,13 +19,6 @@ export function AutoPriceRefresh({ lastPriceDate }: AutoPriceRefreshProps) {
   useEffect(() => {
     if (triggered.current) return;
 
-    // Check if already triggered this session
-    try {
-      if (sessionStorage.getItem(SESSION_KEY)) return;
-    } catch {
-      // sessionStorage unavailable (SSR, iframe, etc.)
-    }
-
     // Check staleness
     if (lastPriceDate) {
       const age = Date.now() - new Date(lastPriceDate).getTime();
@@ -34,12 +26,6 @@ export function AutoPriceRefresh({ lastPriceDate }: AutoPriceRefreshProps) {
     }
 
     triggered.current = true;
-
-    try {
-      sessionStorage.setItem(SESSION_KEY, "1");
-    } catch {
-      // ignore
-    }
 
     const toastId = toast.loading(t("pricesRefreshing"));
 
