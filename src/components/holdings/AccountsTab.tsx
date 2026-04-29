@@ -93,7 +93,7 @@ function SortableAccountCard({
   return (
     <div
       ref={ref}
-      onClick={() => router.push(`/${locale}/portfolio?account=${acct.id}`)}
+      onClick={() => router.push(`/${locale}/portfolio?tab=holdings&account=${acct.id}`)}
       className={`cursor-pointer rounded-xl border p-5 shadow-sm transition-colors hover:border-primary/30 ${
         acct.positionCount === 0
           ? "border-dashed bg-card/50"
