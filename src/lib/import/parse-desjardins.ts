@@ -52,9 +52,8 @@ const COL = {
  *
  * Sign-dependent markers:
  *   SIGN_QTY — resolved by quantity sign: qty < 0 → SELL, qty >= 0 → BUY
- *   SIGN_AMT — resolved by amount sign:  amount >= 0 → DIVIDEND, amount < 0 → BUY
  */
-type TypeMapping = TransactionType | "SIGN_QTY" | "SIGN_AMT";
+type TypeMapping = TransactionType | "SIGN_QTY";
 
 const TYPE_MAP: Record<string, TypeMapping> = {
   "ACHAT": "BUY",
@@ -80,7 +79,7 @@ const TYPE_MAP: Record<string, TypeMapping> = {
   "ÉCHANGE": "SIGN_QTY",
   "OFFRE": "SIGN_QTY",
   "FRACTIONNEMENT D'ACTIONS": "SPLIT",
-  "DIVIDENDE EN ACTIONS": "SIGN_AMT",
+  "DIVIDENDE EN ACTIONS": "DRIP",
 };
 
 /** Map Desjardins currency codes to ISO */
@@ -236,9 +235,7 @@ export function parseDesjardinsXlsx(buffer: ArrayBuffer): ParseResult {
 
     // Resolve sign-dependent types
     let type: TransactionType;
-    if (mappedType === "SIGN_AMT") {
-      type = amount >= 0 ? "DIVIDEND" : "BUY";
-    } else if (mappedType === "SIGN_QTY") {
+    if (mappedType === "SIGN_QTY") {
       type = (rawQuantity ?? 0) < 0 ? "SELL" : "BUY";
     } else {
       type = mappedType;
