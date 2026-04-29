@@ -289,6 +289,7 @@
     "txnTypeRETURN_OF_CAPITAL": "Remboursement de capital",
     "txnTypeFRACTION_CASH": "Fraction (espèces)",
     "txnTypeTRANSFER": "Transfert",
+    "txnTypePHANTOM_DISTRIBUTION": "Distribution fantôme",
     "transactionAdded": "Transaction ajoutée",
     "transactionUpdated": "Transaction mise à jour",
     "accountCreated": "Compte créé",

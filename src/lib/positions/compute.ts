@@ -152,6 +152,16 @@ export function computeAcbStates(transactions: TransactionRow[]): Map<string, Ac
         break;
       }
 
+      case "PHANTOM_DISTRIBUTION": {
+        // Phantom distribution increases ACB without changing quantity (inverse of ROC)
+        const pdAmount = txn.amountCents > 0n ? txn.amountCents : -txn.amountCents;
+        state.totalCostCents += pdAmount;
+        const pdFxRate = (txn.fxRateAtDate != null && !Number.isNaN(txn.fxRateAtDate))
+          ? txn.fxRateAtDate : 1;
+        state.totalCostCadCents += BigInt(Math.round(Number(pdAmount) * pdFxRate));
+        break;
+      }
+
       case "ADJUSTMENT": {
         // ANNULATION reversals: negative = reversing income (dividend)
         if (txn.amountCents < 0n) {

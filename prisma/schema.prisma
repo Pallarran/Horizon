@@ -233,6 +233,7 @@ enum TransactionType {
   RETURN_OF_CAPITAL
   FRACTION_CASH
   TRANSFER
+  PHANTOM_DISTRIBUTION
 }
 
 // Price — daily close prices for a security

@@ -51,9 +51,10 @@ const COL = {
  * Map Desjardins French transaction types to our enum.
  *
  * Sign-dependent markers:
- *   SIGN_QTY — resolved by quantity sign: qty < 0 → SELL, qty >= 0 → BUY
+ *   SIGN_QTY        — resolved by quantity sign: qty < 0 → SELL, qty >= 0 → BUY
+ *   DRIP_OR_PHANTOM — resolved by quantity: qty > 0 → DRIP, qty = 0 → PHANTOM_DISTRIBUTION
  */
-type TypeMapping = TransactionType | "SIGN_QTY";
+type TypeMapping = TransactionType | "SIGN_QTY" | "DRIP_OR_PHANTOM";
 
 const TYPE_MAP: Record<string, TypeMapping> = {
   "ACHAT": "BUY",
@@ -79,7 +80,7 @@ const TYPE_MAP: Record<string, TypeMapping> = {
   "ÉCHANGE": "SIGN_QTY",
   "OFFRE": "SIGN_QTY",
   "FRACTIONNEMENT D'ACTIONS": "SPLIT",
-  "DIVIDENDE EN ACTIONS": "DRIP",
+  "DIVIDENDE EN ACTIONS": "DRIP_OR_PHANTOM",
 };
 
 /** Map Desjardins currency codes to ISO */
@@ -237,6 +238,8 @@ export function parseDesjardinsXlsx(buffer: ArrayBuffer): ParseResult {
     let type: TransactionType;
     if (mappedType === "SIGN_QTY") {
       type = (rawQuantity ?? 0) < 0 ? "SELL" : "BUY";
+    } else if (mappedType === "DRIP_OR_PHANTOM") {
+      type = (rawQuantity ?? 0) > 0 ? "DRIP" : "PHANTOM_DISTRIBUTION";
     } else {
       type = mappedType;
     }
