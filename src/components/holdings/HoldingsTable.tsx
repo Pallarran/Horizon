@@ -181,13 +181,13 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
           {formatNumber(h.quantity, locale, 0)}
         </TableCell>
         <TableCell className="hidden text-right font-mono lg:table-cell">
-          {formatMoney(h.avgCostCents, locale)}
+          {formatMoney(h.avgCostCents, locale, h.currency)}
         </TableCell>
         <TableCell className="hidden text-right font-mono md:table-cell">
-          {h.currentPriceCents !== null ? formatMoney(h.currentPriceCents, locale) : "—"}
+          {h.currentPriceCents !== null ? formatMoney(h.currentPriceCents, locale, h.currency) : "—"}
         </TableCell>
         <TableCell className="text-right font-mono font-medium">
-          {h.marketValueCents !== null ? formatMoney(h.marketValueCents, locale) : formatMoney(h.totalCostCents, locale)}
+          {h.marketValueCents !== null ? formatMoney(h.marketValueCents, locale, h.currency) : formatMoney(h.totalCostCents, locale, h.currency)}
         </TableCell>
         <TableCell className="hidden text-right font-mono text-sm lg:table-cell">
           {(() => {
@@ -215,7 +215,7 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
             <>
               <span className={`font-mono text-sm ${h.unrealizedGainCents >= 0 ? "text-gain" : "text-loss"}`}>
                 {h.unrealizedGainCents >= 0 ? "+" : ""}
-                {formatMoney(h.unrealizedGainCents, locale)}
+                {formatMoney(h.unrealizedGainCents, locale, h.currency)}
               </span>
               {h.unrealizedGainPercent !== null && (
                 <p className="text-[10px] text-muted-foreground">
@@ -229,7 +229,7 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
           )}
         </TableCell>
         <TableCell className="hidden text-right font-mono md:table-cell">
-          {h.expectedIncomeCents !== null ? formatMoney(h.expectedIncomeCents, locale) : "—"}
+          {h.expectedIncomeCents !== null ? formatMoney(h.expectedIncomeCents, locale, h.currency) : "—"}
         </TableCell>
         <TableCell className="hidden text-right font-mono text-sm lg:table-cell">
           {h.yieldPercent !== null ? (

@@ -128,8 +128,8 @@ export function PositionDetailSheet({
           <div className="text-left sm:text-right sm:shrink-0 sm:pt-6">
             <p className="text-2xl font-bold tabular-nums">
               {h.marketValueCents !== null
-                ? formatMoney(h.marketValueCents, locale)
-                : formatMoney(h.totalCostCents, locale)}
+                ? formatMoney(h.marketValueCents, locale, h.currency)
+                : formatMoney(h.totalCostCents, locale, h.currency)}
             </p>
             {h.dayChangeCents !== null && h.dayChangePercent !== null && (
               <p
@@ -138,7 +138,7 @@ export function PositionDetailSheet({
                 }`}
               >
                 {h.dayChangeCents >= 0 ? "+" : ""}
-                {formatMoney(h.dayChangeCents, locale)}{" "}
+                {formatMoney(h.dayChangeCents, locale, h.currency)}{" "}
                 ({h.dayChangePercent >= 0 ? "+" : ""}
                 {formatPercent(h.dayChangePercent, locale)}) {t("today")}
               </p>
@@ -160,24 +160,24 @@ export function PositionDetailSheet({
               />
               <DetailRow
                 label={t("avgCost")}
-                value={formatMoney(h.avgCostCents, locale)}
+                value={formatMoney(h.avgCostCents, locale, h.currency)}
               />
               <DetailRow
                 label={t("totalCost")}
-                value={formatMoney(h.totalCostCents, locale)}
+                value={formatMoney(h.totalCostCents, locale, h.currency)}
               />
               <DetailRow
                 label={t("currentPrice")}
                 value={
                   h.currentPriceCents !== null
-                    ? formatMoney(h.currentPriceCents, locale)
+                    ? formatMoney(h.currentPriceCents, locale, h.currency)
                     : "—"
                 }
               />
               {h.unrealizedGainCents !== null && (
                 <DetailRow
                   label={t("unrealizedGain")}
-                  value={`${h.unrealizedGainCents >= 0 ? "+" : ""}${formatMoney(h.unrealizedGainCents, locale)}`}
+                  value={`${h.unrealizedGainCents >= 0 ? "+" : ""}${formatMoney(h.unrealizedGainCents, locale, h.currency)}`}
                   sub={
                     h.unrealizedGainPercent !== null
                       ? `${h.unrealizedGainPercent >= 0 ? "+" : ""}${formatPercent(h.unrealizedGainPercent, locale)}`
@@ -203,19 +203,19 @@ export function PositionDetailSheet({
                 {h.annualDividendPerShareCents !== null && (
                   <DetailRow
                     label={t("annualDividendPerShare")}
-                    value={formatMoney(h.annualDividendPerShareCents, locale)}
+                    value={formatMoney(h.annualDividendPerShareCents, locale, h.currency)}
                   />
                 )}
                 {h.expectedIncomeCents !== null && (
                   <DetailRow
                     label={t("expectedIncome")}
-                    value={formatMoney(h.expectedIncomeCents, locale)}
+                    value={formatMoney(h.expectedIncomeCents, locale, h.currency)}
                   />
                 )}
                 {h.totalDividendsReceivedCents > 0 && (
                   <DetailRow
                     label={t("totalDividendsReceived")}
-                    value={formatMoney(h.totalDividendsReceivedCents, locale)}
+                    value={formatMoney(h.totalDividendsReceivedCents, locale, h.currency)}
                   />
                 )}
                 {h.yieldPercent !== null && (

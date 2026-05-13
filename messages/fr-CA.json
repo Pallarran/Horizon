@@ -204,6 +204,7 @@
     "addTransaction": "Ajouter une transaction",
     "noPositions": "Aucune position",
     "positions": "positions",
+    "posAbbrev": "pos.",
     "totalValue": "Valeur totale",
     "createAccount": "Créer un compte",
     "editAccount": "Modifier le compte",
