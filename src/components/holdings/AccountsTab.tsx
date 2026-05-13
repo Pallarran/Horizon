@@ -39,10 +39,17 @@ interface Account {
 interface AccountStat extends Account {
   /** Market value of positions converted to CAD */
   marketValue: number;
+  /** Native CAD positions total (null if none) */
+  marketValueCad: number | null;
+  /** Native USD positions total (null if none) */
+  marketValueUsd: number | null;
   /** Cost basis in CAD (historical FX) */
   totalCost: number;
   gain: number;
   gainPercent: number | null;
+  /** Expected income in CAD */
+  income: number;
+  yieldPct: number | null;
   weight: number;
   positionCount: number;
   currencyLabel: string;
@@ -212,27 +219,75 @@ function SortableAccountCard({
         );
       })()}
 
-      {/* Breakdown line: positions · cash */}
-      <div className="mt-4 flex items-baseline justify-between text-xs text-muted-foreground tabular-nums">
-        <span>{t("positions")} {formatMoney(acct.marketValue, locale)}</span>
+      {/* Positions & Cash breakdown */}
+      <div className="mt-4 space-y-2">
+        <div>
+          <div className="flex items-baseline justify-between text-xs">
+            <span className="font-medium uppercase tracking-wider text-muted-foreground">
+              {t("positions")}
+            </span>
+            <span className="font-semibold tabular-nums">
+              {formatMoney(acct.marketValue, locale)}
+            </span>
+          </div>
+          {acct.marketValueUsd !== null && (
+            <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
+              {acct.marketValueCad !== null && <>{formatMoney(acct.marketValueCad, locale)} · </>}
+              {formatMoney(acct.marketValueUsd, locale, "USD")}
+            </p>
+          )}
+        </div>
+
         {(acct.cashCad !== 0 || acct.cashUsd !== 0) && (
-          <span className={acct.cashTotalCad < 0 ? "text-loss" : ""}>
-            {t("cash")} {formatMoney(acct.cashTotalCad, locale)}
-          </span>
+          <div>
+            <div className="flex items-baseline justify-between text-xs">
+              <span className="font-medium uppercase tracking-wider text-muted-foreground">
+                {t("cash")}
+              </span>
+              <span className={`font-semibold tabular-nums ${acct.cashTotalCad < 0 ? "text-loss" : ""}`}>
+                {formatMoney(acct.cashTotalCad, locale)}
+              </span>
+            </div>
+            {acct.cashCad !== 0 && acct.cashUsd !== 0 && (
+              <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
+                {formatMoney(acct.cashCad, locale)} · {formatMoney(acct.cashUsd, locale, "USD")}
+              </p>
+            )}
+            {acct.cashCad === 0 && acct.cashUsd !== 0 && (
+              <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
+                {formatMoney(acct.cashUsd, locale, "USD")}
+              </p>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Weight bar */}
-      <div className="mt-2 flex items-center gap-2">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary/60"
-            style={{ width: `${Math.min(acct.weight * 100, 100)}%` }}
-          />
+      {/* Mini stats */}
+      <div className="mt-3 grid grid-cols-3 text-center">
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {t("weight")}
+          </p>
+          <p className="mt-0.5 text-sm font-semibold tabular-nums">
+            {formatPercent(acct.weight, locale, 1)}
+          </p>
         </div>
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {formatPercent(acct.weight, locale, 1)}
-        </span>
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {t("income")}
+          </p>
+          <p className="mt-0.5 text-sm font-semibold tabular-nums">
+            {formatMoney(acct.income, locale)}
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {t("yield")}
+          </p>
+          <p className="mt-0.5 text-sm font-semibold tabular-nums">
+            {acct.yieldPct !== null ? formatPercent(acct.yieldPct, locale) : "—"}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -274,10 +329,27 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
       // CAD-converted total
       const marketValue = ap.reduce((s, p) => s + valueCad(p), 0);
 
+      // Per-currency native amounts
+      const cadPositions = ap.filter((p) => p.currency === "CAD");
+      const usdPositions = ap.filter((p) => p.currency === "USD");
+      const marketValueCad = cadPositions.length > 0
+        ? cadPositions.reduce((s, p) => s + (p.marketValueCents ?? p.totalCostCents), 0)
+        : null;
+      const marketValueUsd = usdPositions.length > 0
+        ? usdPositions.reduce((s, p) => s + (p.marketValueCents ?? p.totalCostCents), 0)
+        : null;
+
       // Cost basis in CAD (already converted via historical FX)
       const totalCost = ap.reduce((s, p) => s + p.totalCostCadCents, 0);
       const gain = marketValue - totalCost;
       const gainPercent = totalCost > 0 ? gain / totalCost : null;
+
+      // Income converted to CAD
+      const income = ap.reduce(
+        (s, p) => s + toCad(p.expectedIncomeCents ?? 0, p.currency),
+        0,
+      );
+      const yieldPct = marketValue > 0 ? income / marketValue : null;
       const weight = portfolioTotal > 0 ? marketValue / portfolioTotal : 0;
 
       const currencies = new Set(ap.map((p) => p.currency));
@@ -295,9 +367,13 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
       return {
         ...account,
         marketValue,
+        marketValueCad,
+        marketValueUsd,
         totalCost,
         gain,
         gainPercent,
+        income,
+        yieldPct,
         weight,
         positionCount: ap.length,
         currencyLabel,
