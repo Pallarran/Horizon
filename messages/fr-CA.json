@@ -158,7 +158,7 @@
     "pricesAsOf": "Prix au {date}",
     "noPriceData": "Aucune donnée de prix",
     "noPositions": "Aucune position",
-    "allAmountsInCad": "Tous les montants sont en dollars canadiens (CAD). Les positions en USD sont converties au dernier taux de change.",
+    "allAmountsInCad": "Tous les montants sont en dollars canadiens (CAD). Les positions en USD sont converties à 1 USD = {rate} CAD.",
     "dividendHistory": "Historique des dividendes",
     "retirementProjection": "Projection de retraite",
     "projectedPortfolio": "Portefeuille projeté",

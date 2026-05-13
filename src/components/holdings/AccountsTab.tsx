@@ -59,7 +59,7 @@ interface Props {
   accounts: Account[];
   positions: SerializedPosition[];
   accountHistories: Record<string, PortfolioHistoryPoint[]>;
-  cashBalances: Record<string, number>;
+  cashBalances: Record<string, { cad: number; usd: number }>;
   usdCadRate: number;
   locale: string;
 }
@@ -81,7 +81,7 @@ function SortableAccountCard({
   index: number;
   locale: string;
   accountHistories: Record<string, PortfolioHistoryPoint[]>;
-  cashBalances: Record<string, number>;
+  cashBalances: Record<string, { cad: number; usd: number }>;
   onEdit: (account: Account) => void;
   onDelete: (account: Account) => void;
 }) {
@@ -254,10 +254,31 @@ function SortableAccountCard({
             {t("cash")}
           </p>
           {(() => {
-            const cash = cashBalances[acct.id] ?? 0;
+            const bal = cashBalances[acct.id] ?? { cad: 0, usd: 0 };
+            const hasUsd = bal.usd !== 0;
+            const hasCad = bal.cad !== 0;
+            if (hasUsd && hasCad) {
+              return (
+                <>
+                  <p className={`mt-0.5 text-sm font-semibold tabular-nums ${bal.cad < 0 ? "text-loss" : ""}`}>
+                    {formatMoney(bal.cad, locale)}
+                  </p>
+                  <p className={`text-xs tabular-nums text-muted-foreground ${bal.usd < 0 ? "text-loss" : ""}`}>
+                    USD {formatMoney(bal.usd, locale, "USD")}
+                  </p>
+                </>
+              );
+            }
+            if (hasUsd) {
+              return (
+                <p className={`mt-0.5 text-sm font-semibold tabular-nums ${bal.usd < 0 ? "text-loss" : ""}`}>
+                  USD {formatMoney(bal.usd, locale, "USD")}
+                </p>
+              );
+            }
             return (
-              <p className={`mt-0.5 text-sm font-semibold tabular-nums ${cash < 0 ? "text-loss" : ""}`}>
-                {formatMoney(cash, locale)}
+              <p className={`mt-0.5 text-sm font-semibold tabular-nums ${bal.cad < 0 ? "text-loss" : ""}`}>
+                {formatMoney(bal.cad, locale)}
               </p>
             );
           })()}
@@ -305,19 +326,17 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
     currency === "USD" ? Math.round(cents * usdCadRate) : cents;
 
   const accountStats = useMemo(() => {
-    const portfolioTotal = positions.reduce(
-      (s, p) => s + toCad(p.marketValueCents ?? p.totalCostCadCents, p.currency),
-      0,
-    );
+    // Convert position value to CAD; if no market price, use cost basis already in CAD
+    const valueCad = (p: SerializedPosition) =>
+      p.marketValueCents != null ? toCad(p.marketValueCents, p.currency) : p.totalCostCadCents;
+
+    const portfolioTotal = positions.reduce((s, p) => s + valueCad(p), 0);
 
     return orderedAccounts.map((account) => {
       const ap = positions.filter((p) => p.accountId === account.id);
 
       // CAD-converted total
-      const marketValue = ap.reduce(
-        (s, p) => s + toCad(p.marketValueCents ?? p.totalCostCadCents, p.currency),
-        0,
-      );
+      const marketValue = ap.reduce((s, p) => s + valueCad(p), 0);
 
       // Per-currency native amounts
       const cadPositions = ap.filter((p) => p.currency === "CAD");

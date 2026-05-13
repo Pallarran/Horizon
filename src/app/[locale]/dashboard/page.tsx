@@ -140,6 +140,7 @@ export default async function DashboardPage() {
         {/* Footer */}
         <LastUpdatedIndicator
           lastPriceDate={lastPriceDateStr}
+          usdCadRate={netWorth.usdCadRate}
           locale={locale}
         />
         <AutoPriceRefresh lastPriceDate={lastPriceDateStr} />

@@ -38,7 +38,7 @@ interface PortfolioPageClientProps {
   // Accounts tab
   accountsForAccounts: FullAccount[];
   accountHistories: Record<string, PortfolioHistoryPoint[]>;
-  cashBalances: Record<string, number>;
+  cashBalances: Record<string, { cad: number; usd: number }>;
   // Contributions tab
   contributionRows: ContributionYearRow[];
   hasCrcdHoldings: boolean;

@@ -6,10 +6,11 @@ import { fr, enCA } from "date-fns/locale";
 
 interface LastUpdatedIndicatorProps {
   lastPriceDate: string | null;
+  usdCadRate: number;
   locale: string;
 }
 
-export function LastUpdatedIndicator({ lastPriceDate, locale }: LastUpdatedIndicatorProps) {
+export function LastUpdatedIndicator({ lastPriceDate, usdCadRate, locale }: LastUpdatedIndicatorProps) {
   const t = useTranslations("dashboard");
 
   const priceText = (() => {
@@ -21,7 +22,7 @@ export function LastUpdatedIndicator({ lastPriceDate, locale }: LastUpdatedIndic
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
-      <span>{t("allAmountsInCad")}</span>
+      <span>{t("allAmountsInCad", { rate: usdCadRate.toFixed(4) })}</span>
       <span>{priceText}</span>
     </div>
   );

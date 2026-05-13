@@ -33,7 +33,7 @@ export default async function PortfolioPage() {
       getCrcdHoldingsAction(),
       computeAccountHistories(db),
       db.transaction.findMany({
-        select: { accountId: true, amountCents: true },
+        select: { accountId: true, amountCents: true, currency: true },
       }),
       computeContributionTable(db, user.birthYear),
       db.crcdHolding.findMany({ where: {} }),
@@ -53,14 +53,20 @@ export default async function PortfolioPage() {
     securityProfiles[s.id] = serializeSecurityProfile(s);
   }
 
-  // Compute cash balances for Accounts tab
-  const cashBalances: Record<string, number> = {};
+  // Compute cash balances per currency for Accounts tab
+  const cashBalances: Record<string, { cad: number; usd: number }> = {};
   for (const txn of allTxns) {
-    cashBalances[txn.accountId] = (cashBalances[txn.accountId] ?? 0) + Number(txn.amountCents);
+    const entry = (cashBalances[txn.accountId] ??= { cad: 0, usd: 0 });
+    if (txn.currency === "USD") {
+      entry.usd += Number(txn.amountCents);
+    } else {
+      entry.cad += Number(txn.amountCents);
+    }
   }
-  // CRCD purchases aren't transactions — subtract holding cost from cash
+  // CRCD purchases aren't transactions — subtract holding cost from CAD cash
   for (const pos of crcdPositions) {
-    cashBalances[pos.accountId] = (cashBalances[pos.accountId] ?? 0) - pos.totalCostCents;
+    const entry = (cashBalances[pos.accountId] ??= { cad: 0, usd: 0 });
+    entry.cad -= pos.totalCostCents;
   }
 
   // Serialize accounts: subset for Holdings tab, full for Accounts tab
