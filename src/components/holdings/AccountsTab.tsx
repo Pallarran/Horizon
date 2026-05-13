@@ -37,7 +37,7 @@ interface Account {
 }
 
 interface AccountStat extends Account {
-  /** Market value converted to CAD */
+  /** Market value of positions converted to CAD */
   marketValue: number;
   /** Native CAD positions total (null if none) */
   marketValueCad: number | null;
@@ -53,6 +53,14 @@ interface AccountStat extends Account {
   weight: number;
   positionCount: number;
   currencyLabel: string;
+  /** Native CAD cash balance (cents) */
+  cashCad: number;
+  /** Native USD cash balance (cents) */
+  cashUsd: number;
+  /** Total cash converted to CAD (cents) */
+  cashTotalCad: number;
+  /** Hero total = positions market value + cash, in CAD */
+  totalValue: number;
 }
 
 interface Props {
@@ -73,7 +81,6 @@ function SortableAccountCard({
   index,
   locale,
   accountHistories,
-  cashBalances,
   onEdit,
   onDelete,
 }: {
@@ -81,7 +88,6 @@ function SortableAccountCard({
   index: number;
   locale: string;
   accountHistories: Record<string, PortfolioHistoryPoint[]>;
-  cashBalances: Record<string, { cad: number; usd: number }>;
   onEdit: (account: Account) => void;
   onDelete: (account: Account) => void;
 }) {
@@ -162,21 +168,12 @@ function SortableAccountCard({
       {/* Account name */}
       <p className="mt-1 text-sm font-medium">{acct.name}</p>
 
-      {/* Hero value (CAD) */}
+      {/* Hero value: total account value (positions + cash) in CAD */}
       <p className="mt-4 text-center text-2xl font-bold tabular-nums">
-        {formatMoney(acct.marketValue, locale)}
+        {formatMoney(acct.totalValue, locale)}
       </p>
 
-      {/* Per-currency breakdown (shown when account has USD positions) */}
-      {acct.marketValueUsd !== null && (
-        <p className="mt-0.5 text-center text-xs text-muted-foreground tabular-nums">
-          {acct.marketValueCad !== null
-            ? `CAD ${formatMoney(acct.marketValueCad, locale)} · USD ${formatMoney(acct.marketValueUsd, locale, "USD")}`
-            : `USD ${formatMoney(acct.marketValueUsd, locale, "USD")}`}
-        </p>
-      )}
-
-      {/* Gain line */}
+      {/* Gain line (positions only) */}
       <p
         className={`mt-1 text-center text-sm tabular-nums ${
           acct.gain >= 0 ? "text-gain" : "text-loss"
@@ -221,8 +218,53 @@ function SortableAccountCard({
         );
       })()}
 
-      {/* Mini stats row */}
-      <div className="mt-4 grid grid-cols-4 divide-x text-center">
+      {/* POSITIONS section */}
+      <div className="mt-4 space-y-3">
+        <div>
+          <div className="flex items-baseline justify-between">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              {t("positions")}
+            </p>
+            <p className="text-sm font-semibold tabular-nums">
+              {formatMoney(acct.marketValue, locale)}
+            </p>
+          </div>
+          {acct.marketValueUsd !== null && (
+            <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+              {acct.marketValueCad !== null
+                ? `CAD ${formatMoney(acct.marketValueCad, locale)} · USD ${formatMoney(acct.marketValueUsd, locale, "USD")}`
+                : `USD ${formatMoney(acct.marketValueUsd, locale, "USD")}`}
+            </p>
+          )}
+        </div>
+
+        {/* CASH section */}
+        {(acct.cashCad !== 0 || acct.cashUsd !== 0) && (
+          <div>
+            <div className="flex items-baseline justify-between">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                {t("cash")}
+              </p>
+              <p className={`text-sm font-semibold tabular-nums ${acct.cashTotalCad < 0 ? "text-loss" : ""}`}>
+                {formatMoney(acct.cashTotalCad, locale)}
+              </p>
+            </div>
+            {acct.cashCad !== 0 && acct.cashUsd !== 0 && (
+              <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                CAD {formatMoney(acct.cashCad, locale)} · USD {formatMoney(acct.cashUsd, locale, "USD")}
+              </p>
+            )}
+            {acct.cashCad === 0 && acct.cashUsd !== 0 && (
+              <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                USD {formatMoney(acct.cashUsd, locale, "USD")}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Mini stats row (3 columns) */}
+      <div className="mt-4 grid grid-cols-3 divide-x text-center">
         <div className="px-1.5">
           <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             {t("weight")}
@@ -248,40 +290,6 @@ function SortableAccountCard({
               ? formatPercent(acct.yieldPct, locale)
               : "—"}
           </p>
-        </div>
-        <div className="px-1.5">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            {t("cash")}
-          </p>
-          {(() => {
-            const bal = cashBalances[acct.id] ?? { cad: 0, usd: 0 };
-            const hasUsd = bal.usd !== 0;
-            const hasCad = bal.cad !== 0;
-            if (hasUsd && hasCad) {
-              return (
-                <>
-                  <p className={`mt-0.5 text-sm font-semibold tabular-nums ${bal.cad < 0 ? "text-loss" : ""}`}>
-                    {formatMoney(bal.cad, locale)}
-                  </p>
-                  <p className={`text-xs tabular-nums text-muted-foreground ${bal.usd < 0 ? "text-loss" : ""}`}>
-                    USD {formatMoney(bal.usd, locale, "USD")}
-                  </p>
-                </>
-              );
-            }
-            if (hasUsd) {
-              return (
-                <p className={`mt-0.5 text-sm font-semibold tabular-nums ${bal.usd < 0 ? "text-loss" : ""}`}>
-                  USD {formatMoney(bal.usd, locale, "USD")}
-                </p>
-              );
-            }
-            return (
-              <p className={`mt-0.5 text-sm font-semibold tabular-nums ${bal.cad < 0 ? "text-loss" : ""}`}>
-                {formatMoney(bal.cad, locale)}
-              </p>
-            );
-          })()}
         </div>
       </div>
 
@@ -366,6 +374,13 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
         ? [...currencies].sort().join("/")
         : account.currency;
 
+      // Cash balances
+      const bal = cashBalances[account.id] ?? { cad: 0, usd: 0 };
+      const cashCad = bal.cad;
+      const cashUsd = bal.usd;
+      const cashTotalCad = bal.cad + Math.round(bal.usd * usdCadRate);
+      const totalValue = marketValue + cashTotalCad;
+
       return {
         ...account,
         marketValue,
@@ -379,9 +394,13 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
         weight,
         positionCount: ap.length,
         currencyLabel,
+        cashCad,
+        cashUsd,
+        cashTotalCad,
+        totalValue,
       };
     });
-  }, [orderedAccounts, positions, usdCadRate]);
+  }, [orderedAccounts, positions, usdCadRate, cashBalances]);
 
   async function handleDelete(accountId: string) {
     setDeleteError(null);
@@ -438,7 +457,6 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
               index={index}
               locale={locale}
               accountHistories={accountHistories}
-              cashBalances={cashBalances}
               onEdit={setEditingAccount}
               onDelete={setDeleteTarget}
             />
