@@ -59,10 +59,9 @@ export async function computeHero(
     for (const s of incomeStreams) {
       if (atAge < s.startAge) continue;
       if (s.endAge !== null && atAge > s.endAge) continue;
-      const inflationFactor = s.inflationIndexed
-        ? Math.pow(1 + inflation, yearsFromNow)
-        : 1;
-      const amount = Math.round(s.annualAmountCents * inflationFactor);
+      const growthRate = s.customGrowthRate ?? (s.inflationIndexed ? inflation : 0);
+      const growthFactor = Math.pow(1 + growthRate, yearsFromNow);
+      const amount = Math.round(s.annualAmountCents * growthFactor);
       if (s.isPension) {
         pensionCents += amount;
       } else {
@@ -77,7 +76,7 @@ export async function computeHero(
     const result = projectFire(
       {
         currentAge,
-        retirementAge: baselineScenario.retirementAge,
+        retirementAge: targetRetirementAge,
         currentPortfolioValueCents: netWorthCents,
         currentAnnualDividendsCents: annualizedDividendsCents,
         annualContributionCents: Number(baselineScenario.monthlyContributionCents) * 12,
