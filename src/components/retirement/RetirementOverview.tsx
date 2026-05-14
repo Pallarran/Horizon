@@ -139,8 +139,8 @@ export function RetirementOverview(props: RetirementOverviewProps) {
   const [priceGrowth, setPriceGrowth] = useState(props.assumedPriceGrowth * 100);
   const [dividendGrowth, setDividendGrowth] = useState(props.assumedDividendGrowth * 100);
   const [inflation, setInflation] = useState(props.assumedInflation * 100);
-  const [monthlyContrib, setMonthlyContrib] = useState(
-    props.monthlyContributionCents / 100,
+  const [annualContrib, setAnnualContrib] = useState(
+    props.monthlyContributionCents * 12 / 100,
   );
   const [reinvestDividends, setReinvestDividends] = useState(props.reinvestDividends);
 
@@ -161,7 +161,7 @@ export function RetirementOverview(props: RetirementOverviewProps) {
         retirementAge,
         currentPortfolioValueCents: props.portfolioValueCents,
         currentAnnualDividendsCents: props.annualDividendsCents,
-        annualContributionCents: monthlyContrib * 100 * 12,
+        annualContributionCents: annualContrib * 100,
         assumedPriceGrowth: priceGrowth / 100,
         assumedDividendGrowth: dividendGrowth / 100,
         assumedInflation: inflation / 100,
@@ -173,7 +173,7 @@ export function RetirementOverview(props: RetirementOverviewProps) {
   }, [
     currentAge, retirementAge, props.pensions, props.incomeStreams,
     props.portfolioValueCents, props.annualDividendsCents, props.birthYear,
-    monthlyContrib, priceGrowth, dividendGrowth, inflation, reinvestDividends,
+    annualContrib, priceGrowth, dividendGrowth, inflation, reinvestDividends,
     targetIncomeCents,
   ]);
 
@@ -244,11 +244,11 @@ export function RetirementOverview(props: RetirementOverviewProps) {
               step={0.5}
             />
             <AssumptionInput
-              label={t("monthlyContribution")}
-              value={monthlyContrib}
-              onChange={setMonthlyContrib}
+              label={t("annualContribution")}
+              value={annualContrib}
+              onChange={setAnnualContrib}
               prefix="$"
-              step={100}
+              step={1000}
             />
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground">
@@ -346,7 +346,7 @@ export function RetirementOverview(props: RetirementOverviewProps) {
                 <th className="py-2 text-right font-medium">{t("pensionIncome")}</th>
                 <th className="hidden py-2 text-right font-medium sm:table-cell">{t("otherIncome")}</th>
                 <th className="py-2 text-right font-medium">{t("totalIncome")}</th>
-                <th className="hidden py-2 text-right font-medium sm:table-cell">{t("monthlyContribution")}</th>
+                <th className="hidden py-2 text-right font-medium sm:table-cell">{t("annualContribution")}</th>
                 <th className="py-2 text-right font-medium">{t("coverage")}</th>
               </tr>
             </thead>

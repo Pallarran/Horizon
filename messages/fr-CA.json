@@ -516,7 +516,7 @@
     "noScenarios": "Aucun scénario. Créez-en un pour voir les projections.",
     "scenarioName": "Nom du scénario",
     "targetReplacement": "Taux de remplacement du revenu",
-    "monthlyContribution": "Cotisation mensuelle ($)",
+    "annualContribution": "Cotisation annuelle ($)",
     "priceGrowth": "Croissance des prix",
     "dividendGrowth": "Croissance des dividendes",
     "inflation": "Taux d'inflation",

@@ -516,7 +516,7 @@
     "noScenarios": "No scenarios yet. Create one to see projections.",
     "scenarioName": "Scenario name",
     "targetReplacement": "Income replacement target",
-    "monthlyContribution": "Monthly contribution ($)",
+    "annualContribution": "Annual contribution ($)",
     "priceGrowth": "Price growth rate",
     "dividendGrowth": "Dividend growth rate",
     "inflation": "Inflation rate",
