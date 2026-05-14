@@ -4,6 +4,7 @@ import { getPositions } from "@/lib/positions/query";
 import { getCrcdComputedPositions } from "@/lib/positions/crcd";
 import { computeNetWorth } from "@/lib/dashboard/net-worth";
 import { computeDividendsSummary } from "@/lib/dashboard/dividends-summary";
+import { computeContributionTable } from "@/lib/contributions/compute";
 import { Header } from "@/components/layout/Header";
 import { RetirementPageClient } from "@/components/retirement/RetirementPageClient";
 
@@ -73,17 +74,16 @@ export default async function RetirementPage() {
   const currentYear = new Date().getFullYear();
   const currentAge = currentYear - user.birthYear;
 
-  // Compute historical average monthly contribution from DEPOSIT transactions (past 3 years)
-  const threeYearsAgo = new Date(currentYear - 3, 0, 1);
-  const deposits = await db.transaction.findMany({
-    where: { type: "DEPOSIT", date: { gte: threeYearsAgo } },
-    select: { amountCents: true },
-  });
-  const totalDepositCents = deposits.reduce(
-    (sum, d) => sum + Number(d.amountCents),
-    0,
+  // Compute historical average monthly contribution using the contribution engine
+  // (consistent with contributions tab — applies RRSP 60-day rule, groups by account type)
+  const contributionRows = await computeContributionTable(db, user.birthYear);
+  const recentYears = contributionRows.filter(
+    (r) => r.year >= currentYear - 3 && r.year < currentYear,
   );
-  const historicalMonthlyContributionCents = Math.round(totalDepositCents / 36);
+  const avgAnnualContribCents = recentYears.length > 0
+    ? recentYears.reduce((sum, r) => sum + r.totalDepositCents, 0) / recentYears.length
+    : 0;
+  const historicalMonthlyContributionCents = Math.round(avgAnnualContribCents / 12);
 
   return (
     <>

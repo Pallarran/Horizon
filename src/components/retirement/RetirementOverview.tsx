@@ -140,7 +140,7 @@ export function RetirementOverview(props: RetirementOverviewProps) {
   const [dividendGrowth, setDividendGrowth] = useState(props.assumedDividendGrowth * 100);
   const [inflation, setInflation] = useState(props.assumedInflation * 100);
   const [monthlyContrib, setMonthlyContrib] = useState(
-    Math.round(props.monthlyContributionCents / 100),
+    props.monthlyContributionCents / 100,
   );
   const [reinvestDividends, setReinvestDividends] = useState(props.reinvestDividends);
 
