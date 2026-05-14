@@ -103,7 +103,6 @@ export async function computeHero(
       (p) => p.age === targetRetirementAge,
     );
 
-    const grouped = computeGroupedIncome(targetRetirementAge, assumedInflation);
     const totalAtRetirement = retProj?.totalIncomeCents ?? result.incomeAtRetirementCents;
     const retirementCoveragePercent = targetIncomeCents > 0 ? totalAtRetirement / targetIncomeCents : 0;
 
@@ -118,8 +117,8 @@ export async function computeHero(
       targetRetirementAge,
       portfolioAtRetirementCents: retProj?.portfolioValueCents ?? result.portfolioAtRetirementCents,
       dividendIncomeAtRetirementCents: retProj?.dividendIncomeCents ?? 0,
-      pensionIncomeCents: grouped.pensionCents,
-      otherStreamIncomeCents: grouped.otherCents,
+      pensionIncomeCents: retProj?.pensionIncomeCents ?? 0,
+      otherStreamIncomeCents: retProj?.otherIncomeCents ?? 0,
       totalIncomeAtRetirementCents: totalAtRetirement,
       targetIncomeCents: Math.round(targetIncomeCents),
     };
