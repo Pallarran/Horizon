@@ -146,7 +146,7 @@ export function RetirementOverview(props: RetirementOverviewProps) {
 
   const targetIncomeCents = props.salaryCents * props.targetReplacement;
 
-  // Pre-compute pension amounts for every possible retirement age (comparison column)
+  // Compute pension at each possible retirement age (early retirement penalty varies)
   const pensionByAge = useMemo(() => {
     const map = new Map<number, number>();
     for (let age = currentAge; age <= 100; age++) {
@@ -208,13 +208,14 @@ export function RetirementOverview(props: RetirementOverviewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Retirement age slider */}
+      {/* Parameters: retirement age slider + assumptions */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">{t("retirementAgeSlider")}</CardTitle>
+          <CardTitle className="text-base">{t("parameters")}</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex items-center gap-4">
+            <span className="text-3xl font-bold tabular-nums">{retirementAge}</span>
             <span className="text-sm text-muted-foreground">50</span>
             <Slider
               min={50}
@@ -226,18 +227,6 @@ export function RetirementOverview(props: RetirementOverviewProps) {
             />
             <span className="text-sm text-muted-foreground">70</span>
           </div>
-          <p className="mt-2 text-center text-2xl font-bold tabular-nums">
-            {retirementAge}
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Assumptions */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">{t("assumptions")}</CardTitle>
-        </CardHeader>
-        <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <AssumptionInput
               label={t("priceGrowth")}
@@ -282,7 +271,7 @@ export function RetirementOverview(props: RetirementOverviewProps) {
         </CardContent>
       </Card>
 
-      {/* Income breakdown at retirement age */}
+      {/* Snapshot at retirement age: key stats + income breakdown */}
       {retirementSnapshot && (
         <Card>
           <CardHeader className="pb-3">
@@ -291,61 +280,73 @@ export function RetirementOverview(props: RetirementOverviewProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <IncomeRow
-                label={t("dividendIncome")}
-                value={formatMoney(retirementSnapshot.dividendIncomeCents, locale)}
-              />
-              <IncomeRow
-                label={t("pensionIncome")}
-                value={formatMoney(retirementSnapshot.pensionIncomeCents, locale)}
-              />
-              {retirementSnapshot.otherIncomeCents > 0 && (
+            <div className="grid gap-6 sm:grid-cols-2">
+              {/* Key stats */}
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t("portfolioAtAge", { age: retirementAge })}
+                  </p>
+                  <p className="mt-1 text-xl font-bold tracking-tight">
+                    {formatMoney(retirementSnapshot.portfolioValueCents, locale)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t("monthlyIncome")}
+                  </p>
+                  <p className="mt-1 text-xl font-bold tracking-tight">
+                    {formatMoney(Math.round(retirementSnapshot.totalIncomeCents / 12), locale)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t("yearsRemaining")}
+                  </p>
+                  <p className="mt-1 text-xl font-bold tracking-tight">
+                    {Math.max(0, retirementAge - currentAge)}
+                  </p>
+                </div>
+              </div>
+              {/* Income breakdown */}
+              <div className="space-y-3">
                 <IncomeRow
-                  label={t("otherIncome")}
-                  value={formatMoney(retirementSnapshot.otherIncomeCents, locale)}
+                  label={t("dividendIncome")}
+                  value={formatMoney(retirementSnapshot.dividendIncomeCents, locale)}
                 />
-              )}
-              <Separator />
-              <IncomeRow
-                label={t("totalIncome")}
-                value={formatMoney(retirementSnapshot.totalIncomeCents, locale)}
-                bold
-              />
-              <IncomeRow
-                label={t("targetIncome", {
-                  percent: formatPercent(props.targetReplacement, locale, 0),
-                })}
-                value={formatMoney(targetIncomeCents, locale)}
-                muted
-              />
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{t("coverage")}</span>
-                <span className={`text-lg font-bold ${coverageColor(retirementSnapshot.coveragePercent)}`}>
-                  {formatPercent(retirementSnapshot.coveragePercent, locale, 0)}
-                </span>
+                <IncomeRow
+                  label={t("pensionIncome")}
+                  value={formatMoney(retirementSnapshot.pensionIncomeCents, locale)}
+                />
+                {retirementSnapshot.otherIncomeCents > 0 && (
+                  <IncomeRow
+                    label={t("otherIncome")}
+                    value={formatMoney(retirementSnapshot.otherIncomeCents, locale)}
+                  />
+                )}
+                <Separator />
+                <IncomeRow
+                  label={t("totalIncome")}
+                  value={formatMoney(retirementSnapshot.totalIncomeCents, locale)}
+                  bold
+                />
+                <IncomeRow
+                  label={t("targetIncome", {
+                    percent: formatPercent(props.targetReplacement, locale, 0),
+                  })}
+                  value={formatMoney(targetIncomeCents, locale)}
+                  muted
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{t("coverage")}</span>
+                  <span className={`text-lg font-bold ${coverageColor(retirementSnapshot.coveragePercent)}`}>
+                    {formatPercent(retirementSnapshot.coveragePercent, locale, 0)}
+                  </span>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Key stats */}
-      {retirementSnapshot && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <StatCard
-            label={t("portfolioAtAge", { age: retirementAge })}
-            value={formatMoney(retirementSnapshot.portfolioValueCents, locale)}
-          />
-          <StatCard
-            label={t("monthlyIncome")}
-            value={formatMoney(Math.round(retirementSnapshot.totalIncomeCents / 12), locale)}
-          />
-          <StatCard
-            label={t("yearsRemaining")}
-            value={String(Math.max(0, retirementAge - currentAge))}
-          />
-        </div>
       )}
 
       {/* Year-by-year projection table */}
@@ -361,9 +362,6 @@ export function RetirementOverview(props: RetirementOverviewProps) {
                 <th className="py-2 text-right font-medium">{t("portfolioAtRetirement")}</th>
                 <th className="py-2 text-right font-medium">{t("dividendIncome")}</th>
                 <th className="py-2 text-right font-medium">{t("pensionIncome")}</th>
-                {props.pensions.length > 0 && (
-                  <th className="hidden py-2 text-right font-medium sm:table-cell">{t("pensionIfRetiring")}</th>
-                )}
                 <th className="hidden py-2 text-right font-medium sm:table-cell">{t("otherIncome")}</th>
                 <th className="py-2 text-right font-medium">{t("totalIncome")}</th>
                 <th className="hidden py-2 text-right font-medium sm:table-cell">{t("annualContribution")}</th>
@@ -373,7 +371,19 @@ export function RetirementOverview(props: RetirementOverviewProps) {
             <tbody>
               {projection.projections.map((row) => {
                 const isRetirement = row.age === retirementAge;
-                const rowCovColor = coverageColor(row.coveragePercent);
+
+                // Override pension with per-age calculation (reflects early retirement penalty)
+                const pensionCents =
+                  row.age >= retirementAge
+                    ? (pensionByAge.get(row.age) ?? 0)
+                    : 0;
+                const totalIncomeCents =
+                  row.totalIncomeCents - row.pensionIncomeCents + pensionCents;
+                const coveragePercent =
+                  targetIncomeCents > 0
+                    ? totalIncomeCents / targetIncomeCents
+                    : 0;
+                const rowCovColor = coverageColor(coveragePercent);
 
                 return (
                   <tr
@@ -395,20 +405,13 @@ export function RetirementOverview(props: RetirementOverviewProps) {
                       {formatMoney(row.dividendIncomeCents, locale)}
                     </td>
                     <td className="py-1.5 text-right tabular-nums">
-                      {formatMoney(row.pensionIncomeCents, locale)}
+                      {formatMoney(pensionCents, locale)}
                     </td>
-                    {props.pensions.length > 0 && (
-                      <td className="hidden py-1.5 text-right tabular-nums sm:table-cell">
-                        {row.age >= currentAge && row.age <= 70
-                          ? formatMoney(pensionByAge.get(row.age) ?? 0, locale)
-                          : "—"}
-                      </td>
-                    )}
                     <td className="hidden py-1.5 text-right tabular-nums sm:table-cell">
                       {formatMoney(row.otherIncomeCents, locale)}
                     </td>
                     <td className="py-1.5 text-right tabular-nums">
-                      {formatMoney(row.totalIncomeCents, locale)}
+                      {formatMoney(totalIncomeCents, locale)}
                     </td>
                     <td className="hidden py-1.5 text-right tabular-nums sm:table-cell">
                       {row.contributionCents > 0
@@ -416,7 +419,7 @@ export function RetirementOverview(props: RetirementOverviewProps) {
                         : "—"}
                     </td>
                     <td className={`py-1.5 text-right tabular-nums ${rowCovColor}`}>
-                      {formatPercent(row.coveragePercent, locale, 0)}
+                      {formatPercent(coveragePercent, locale, 0)}
                     </td>
                   </tr>
                 );
@@ -495,17 +498,6 @@ function IncomeRow({
       >
         {value}
       </span>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1 text-xl font-bold tracking-tight">{value}</p>
     </div>
   );
 }
