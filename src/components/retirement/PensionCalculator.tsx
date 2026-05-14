@@ -153,7 +153,7 @@ export function PensionCalculator({
 
       {/* Add pension dialog */}
       <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{t("addPension")}</DialogTitle>
           </DialogHeader>
@@ -171,7 +171,7 @@ export function PensionCalculator({
         open={!!editingPension}
         onOpenChange={(open) => { if (!open) setEditingPension(null); }}
       >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{tc("edit")} — {editingPension?.name}</DialogTitle>
           </DialogHeader>
@@ -452,7 +452,7 @@ function PensionForm({
 
         <TabsContent value="DB_FORMULA" className="space-y-4 pt-2">
           <SectionLabel>{t("planDetails")}</SectionLabel>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <Label>{t("startYear")}</Label>
               <Input
@@ -462,7 +462,7 @@ function PensionForm({
                 required
               />
             </div>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Label>{t("salaryBasis")}</Label>
               <Input
                 name="salaryBasisDollars"
@@ -475,7 +475,7 @@ function PensionForm({
           </div>
 
           <SectionLabel>{t("benefitCalculation")}</SectionLabel>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <Label>{t("accrualRate")} (%)</Label>
               <Input
@@ -508,7 +508,7 @@ function PensionForm({
 
         <TabsContent value="DB_STATEMENT" className="space-y-4 pt-2">
           <SectionLabel>{t("statementDetails")}</SectionLabel>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <Label>{t("statementAmount")}</Label>
               <Input
@@ -543,7 +543,7 @@ function PensionForm({
 
         <TabsContent value="DC" className="space-y-4 pt-2">
           <SectionLabel>{t("accountDetails")}</SectionLabel>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label>{t("currentBalance")}</Label>
               <Input
@@ -567,7 +567,7 @@ function PensionForm({
           </div>
 
           <SectionLabel>{t("contributionAndGrowth")}</SectionLabel>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <Label>{t("employeeContribRate")} (%)</Label>
               <Input
@@ -606,7 +606,7 @@ function PensionForm({
         <>
           <Separator />
           <SectionLabel>{t("bridgeAndIndexation")}</SectionLabel>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <Label>{t("bridgeBenefit")}</Label>
               <Input

@@ -146,6 +146,23 @@ export function RetirementOverview(props: RetirementOverviewProps) {
 
   const targetIncomeCents = props.salaryCents * props.targetReplacement;
 
+  // Pre-compute pension amounts for every possible retirement age (comparison column)
+  const pensionByAge = useMemo(() => {
+    const map = new Map<number, number>();
+    for (let age = currentAge; age <= 100; age++) {
+      let totalCents = 0;
+      for (const pension of props.pensions) {
+        const params = buildCalcParams(pension, age, props.birthYear);
+        if (!params) continue;
+        const calc = calculatePension(params);
+        totalCents += calc.annualPensionCents;
+        if (calc.bridgeAnnualCents) totalCents += calc.bridgeAnnualCents;
+      }
+      map.set(age, totalCents);
+    }
+    return map;
+  }, [props.pensions, props.birthYear, currentAge]);
+
   // Run full projection
   const projection = useMemo(() => {
     const streams = buildIncomeStreams(
@@ -344,6 +361,9 @@ export function RetirementOverview(props: RetirementOverviewProps) {
                 <th className="py-2 text-right font-medium">{t("portfolioAtRetirement")}</th>
                 <th className="py-2 text-right font-medium">{t("dividendIncome")}</th>
                 <th className="py-2 text-right font-medium">{t("pensionIncome")}</th>
+                {props.pensions.length > 0 && (
+                  <th className="hidden py-2 text-right font-medium sm:table-cell">{t("pensionIfRetiring")}</th>
+                )}
                 <th className="hidden py-2 text-right font-medium sm:table-cell">{t("otherIncome")}</th>
                 <th className="py-2 text-right font-medium">{t("totalIncome")}</th>
                 <th className="hidden py-2 text-right font-medium sm:table-cell">{t("annualContribution")}</th>
@@ -377,6 +397,13 @@ export function RetirementOverview(props: RetirementOverviewProps) {
                     <td className="py-1.5 text-right tabular-nums">
                       {formatMoney(row.pensionIncomeCents, locale)}
                     </td>
+                    {props.pensions.length > 0 && (
+                      <td className="hidden py-1.5 text-right tabular-nums sm:table-cell">
+                        {row.age >= currentAge && row.age <= 70
+                          ? formatMoney(pensionByAge.get(row.age) ?? 0, locale)
+                          : "—"}
+                      </td>
+                    )}
                     <td className="hidden py-1.5 text-right tabular-nums sm:table-cell">
                       {formatMoney(row.otherIncomeCents, locale)}
                     </td>

@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RetirementOverview } from "./RetirementOverview";
 import { PensionCalculator } from "./PensionCalculator";
 import { IncomeStreamManager } from "@/components/income/IncomeStreamManager";
@@ -90,23 +91,31 @@ export function RetirementPageClient(props: RetirementPageClientProps) {
         />
       </TabsContent>
 
-      <TabsContent value="income" className="mt-4 space-y-8">
-        <section>
-          <h2 className="mb-4 text-lg font-semibold">{t("pension")}</h2>
-          <PensionCalculator
-            pensions={props.pensions}
-            locale={props.locale}
-            retirementAge={retirementAge}
-            birthYear={props.birthYear}
-          />
-        </section>
-        <section>
-          <h2 className="mb-4 text-lg font-semibold">{t("incomeStreams")}</h2>
-          <IncomeStreamManager
-            streams={props.incomeStreams}
-            locale={props.locale}
-          />
-        </section>
+      <TabsContent value="income" className="mt-4 space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("pension")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PensionCalculator
+              pensions={props.pensions}
+              locale={props.locale}
+              retirementAge={retirementAge}
+              birthYear={props.birthYear}
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("incomeStreams")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <IncomeStreamManager
+              streams={props.incomeStreams}
+              locale={props.locale}
+            />
+          </CardContent>
+        </Card>
       </TabsContent>
     </Tabs>
   );
