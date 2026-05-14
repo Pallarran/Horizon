@@ -120,7 +120,7 @@ export async function computeDividendForecast(
  * When date drift causes more observed months than the frequency implies
  * (e.g., 5 months for a quarterly payer), keep only the top N by occurrence count.
  */
-function resolvePaymentMonths(
+export function resolvePaymentMonths(
   counts: Map<number, number>,
   frequency: string | null,
 ): number[] {
@@ -135,7 +135,7 @@ function resolvePaymentMonths(
     .map(([month]) => month);
 }
 
-function getExpectedPaymentCount(frequency: string | null, observedCount: number): number {
+export function getExpectedPaymentCount(frequency: string | null, observedCount: number): number {
   switch (frequency) {
     case "monthly": return 12;
     case "semi-annual": return 2;
@@ -148,7 +148,7 @@ function getExpectedPaymentCount(frequency: string | null, observedCount: number
 }
 
 /** Default payment months when no transaction history exists. */
-function getDefaultPaymentMonths(frequency: string | null): number[] {
+export function getDefaultPaymentMonths(frequency: string | null): number[] {
   switch (frequency) {
     case "monthly":
       return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];

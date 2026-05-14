@@ -6,6 +6,7 @@ import type { ScopedPrisma } from "@/lib/db/scoped";
 import type { ComputedPosition } from "@/lib/positions/types";
 import { convertCurrency } from "@/lib/money/arithmetic";
 import { getLatestFxRate } from "@/lib/money/fx";
+import { resolvePaymentMonths, getDefaultPaymentMonths } from "@/lib/dashboard/dividend-forecast";
 
 export interface DividendsSummaryData {
   /** Annualized dividends based on current positions (CAD cents) */
@@ -14,6 +15,8 @@ export interface DividendsSummaryData {
   monthlyAvgCents: number;
   /** Year-to-date actual dividend income (CAD cents) */
   ytdCents: number;
+  /** Schedule-aware expected YTD dividends (CAD cents) */
+  expectedYtdCents: number;
   /** Prior full year actual dividend income (CAD cents) */
   priorYearCents: number;
   /** YoY growth rate as decimal (e.g. 0.10 = 10%) */
@@ -39,8 +42,47 @@ export async function computeDividendsSummary(
 
   const monthlyAvgCents = Number(annualizedCents) / 12;
 
-  // 2. YTD actual dividends from transactions
+  // 2. Schedule-aware expected YTD — discover payment months per security
   const now = new Date();
+  const currentMonth = now.getMonth(); // 0-based
+  const cutoff18m = new Date(now.getFullYear() - 1, now.getMonth() - 6, 1);
+  const recentDivTxns = await db.transaction.findMany({
+    where: { type: "DIVIDEND", date: { gte: cutoff18m } },
+    select: { securityId: true, date: true },
+  });
+
+  const paymentCounts = new Map<string, Map<number, number>>();
+  for (const txn of recentDivTxns) {
+    if (!txn.securityId) continue;
+    let counts = paymentCounts.get(txn.securityId);
+    if (!counts) {
+      counts = new Map();
+      paymentCounts.set(txn.securityId, counts);
+    }
+    const m = txn.date.getMonth();
+    counts.set(m, (counts.get(m) ?? 0) + 1);
+  }
+
+  let expectedYtdCents = 0n;
+  for (const pos of positions) {
+    if (pos.quantity <= 0 || !pos.expectedIncomeCents) continue;
+    const isUsd = pos.currency === "USD";
+    const annualCad = isUsd
+      ? convertCurrency(pos.expectedIncomeCents, usdCadRate)
+      : pos.expectedIncomeCents;
+
+    const historicalCounts = paymentCounts.get(pos.securityId);
+    const payMonths =
+      historicalCounts && historicalCounts.size > 0
+        ? resolvePaymentMonths(historicalCounts, pos.dividendFrequency)
+        : getDefaultPaymentMonths(pos.dividendFrequency);
+
+    const perPayment = Number(annualCad) / payMonths.length;
+    const ytdPayments = payMonths.filter((m) => m <= currentMonth).length;
+    expectedYtdCents += BigInt(Math.round(perPayment * ytdPayments));
+  }
+
+  // 3. YTD actual dividends from transactions
   const ytdStart = new Date(now.getFullYear(), 0, 1);
   const priorYearStart = new Date(now.getFullYear() - 1, 0, 1);
   const priorYearEnd = new Date(now.getFullYear() - 1, 11, 31);
@@ -113,6 +155,7 @@ export async function computeDividendsSummary(
     annualizedCents: Number(annualizedCents),
     monthlyAvgCents: Math.round(monthlyAvgCents),
     ytdCents: Number(ytdCents),
+    expectedYtdCents: Number(expectedYtdCents),
     priorYearCents: Number(priorYearCents),
     ytdGrowthPercent,
   };
