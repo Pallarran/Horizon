@@ -208,146 +208,136 @@ export function RetirementOverview(props: RetirementOverviewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Parameters: retirement age slider + assumptions */}
+      {/* Parameters + Snapshot */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">{t("parameters")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <span className="text-3xl font-bold tabular-nums">{retirementAge}</span>
-            <span className="text-sm text-muted-foreground">50</span>
-            <Slider
-              min={50}
-              max={70}
-              step={1}
-              value={[retirementAge]}
-              onValueChange={([v]) => onRetirementAgeChange(v)}
-              className="flex-1"
-            />
-            <span className="text-sm text-muted-foreground">70</span>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <AssumptionInput
-              label={t("priceGrowth")}
-              value={priceGrowth}
-              onChange={setPriceGrowth}
-              suffix="%"
-              step={0.5}
-            />
-            <AssumptionInput
-              label={t("dividendGrowth")}
-              value={dividendGrowth}
-              onChange={setDividendGrowth}
-              suffix="%"
-              step={0.5}
-            />
-            <AssumptionInput
-              label={t("inflation")}
-              value={inflation}
-              onChange={setInflation}
-              suffix="%"
-              step={0.5}
-            />
-            <AssumptionInput
-              label={t("annualContribution")}
-              value={annualContrib}
-              onChange={setAnnualContrib}
-              prefix="$"
-              step={1000}
-            />
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                {t("reinvestDividends")}
-              </label>
-              <div className="flex h-9 items-center">
+        <CardContent className="pt-6">
+          <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
+            {/* Left column: Parameters */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <span className="text-3xl font-bold tabular-nums">{retirementAge}</span>
+                <span className="text-sm text-muted-foreground">50</span>
+                <Slider
+                  min={50}
+                  max={70}
+                  step={1}
+                  value={[retirementAge]}
+                  onValueChange={([v]) => onRetirementAgeChange(v)}
+                  className="flex-1"
+                />
+                <span className="text-sm text-muted-foreground">70</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <AssumptionInput
+                  label={t("priceGrowth")}
+                  value={priceGrowth}
+                  onChange={setPriceGrowth}
+                  suffix="%"
+                  step={0.5}
+                />
+                <AssumptionInput
+                  label={t("dividendGrowth")}
+                  value={dividendGrowth}
+                  onChange={setDividendGrowth}
+                  suffix="%"
+                  step={0.5}
+                />
+                <AssumptionInput
+                  label={t("inflation")}
+                  value={inflation}
+                  onChange={setInflation}
+                  suffix="%"
+                  step={0.5}
+                />
+                <AssumptionInput
+                  label={t("annualContribution")}
+                  value={annualContrib}
+                  onChange={setAnnualContrib}
+                  prefix="$"
+                  step={1000}
+                />
+              </div>
+              <div className="flex items-center gap-2">
                 <Switch
                   checked={reinvestDividends}
                   onCheckedChange={setReinvestDividends}
                 />
+                <label className="text-sm text-muted-foreground">
+                  {t("reinvestDividends")}
+                </label>
               </div>
             </div>
+
+            {/* Right column: Snapshot */}
+            {retirementSnapshot && (
+              <div className="space-y-4 border-t pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("portfolioAtAge", { age: retirementAge })}
+                    </p>
+                    <p className="mt-1 text-lg font-bold tracking-tight">
+                      {formatMoney(retirementSnapshot.portfolioValueCents, locale)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("monthlyIncome")}
+                    </p>
+                    <p className="mt-1 text-lg font-bold tracking-tight">
+                      {formatMoney(Math.round(retirementSnapshot.totalIncomeCents / 12), locale)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("yearsRemaining")}
+                    </p>
+                    <p className="mt-1 text-lg font-bold tracking-tight">
+                      {Math.max(0, retirementAge - currentAge)}
+                    </p>
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <IncomeRow
+                    label={t("dividendIncome")}
+                    value={formatMoney(retirementSnapshot.dividendIncomeCents, locale)}
+                  />
+                  <IncomeRow
+                    label={t("pensionIncome")}
+                    value={formatMoney(retirementSnapshot.pensionIncomeCents, locale)}
+                  />
+                  {retirementSnapshot.otherIncomeCents > 0 && (
+                    <IncomeRow
+                      label={t("otherIncome")}
+                      value={formatMoney(retirementSnapshot.otherIncomeCents, locale)}
+                    />
+                  )}
+                  <Separator />
+                  <IncomeRow
+                    label={t("totalIncome")}
+                    value={formatMoney(retirementSnapshot.totalIncomeCents, locale)}
+                    bold
+                  />
+                  <IncomeRow
+                    label={t("targetIncome", {
+                      percent: formatPercent(props.targetReplacement, locale, 0),
+                    })}
+                    value={formatMoney(targetIncomeCents, locale)}
+                    muted
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{t("coverage")}</span>
+                    <span className={`text-lg font-bold ${coverageColor(retirementSnapshot.coveragePercent)}`}>
+                      {formatPercent(retirementSnapshot.coveragePercent, locale, 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
-
-      {/* Snapshot at retirement age: key stats + income breakdown */}
-      {retirementSnapshot && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">
-              {t("incomeAtAge", { age: retirementAge })}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-6 sm:grid-cols-2">
-              {/* Key stats */}
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {t("portfolioAtAge", { age: retirementAge })}
-                  </p>
-                  <p className="mt-1 text-xl font-bold tracking-tight">
-                    {formatMoney(retirementSnapshot.portfolioValueCents, locale)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {t("monthlyIncome")}
-                  </p>
-                  <p className="mt-1 text-xl font-bold tracking-tight">
-                    {formatMoney(Math.round(retirementSnapshot.totalIncomeCents / 12), locale)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {t("yearsRemaining")}
-                  </p>
-                  <p className="mt-1 text-xl font-bold tracking-tight">
-                    {Math.max(0, retirementAge - currentAge)}
-                  </p>
-                </div>
-              </div>
-              {/* Income breakdown */}
-              <div className="space-y-3">
-                <IncomeRow
-                  label={t("dividendIncome")}
-                  value={formatMoney(retirementSnapshot.dividendIncomeCents, locale)}
-                />
-                <IncomeRow
-                  label={t("pensionIncome")}
-                  value={formatMoney(retirementSnapshot.pensionIncomeCents, locale)}
-                />
-                {retirementSnapshot.otherIncomeCents > 0 && (
-                  <IncomeRow
-                    label={t("otherIncome")}
-                    value={formatMoney(retirementSnapshot.otherIncomeCents, locale)}
-                  />
-                )}
-                <Separator />
-                <IncomeRow
-                  label={t("totalIncome")}
-                  value={formatMoney(retirementSnapshot.totalIncomeCents, locale)}
-                  bold
-                />
-                <IncomeRow
-                  label={t("targetIncome", {
-                    percent: formatPercent(props.targetReplacement, locale, 0),
-                  })}
-                  value={formatMoney(targetIncomeCents, locale)}
-                  muted
-                />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{t("coverage")}</span>
-                  <span className={`text-lg font-bold ${coverageColor(retirementSnapshot.coveragePercent)}`}>
-                    {formatPercent(retirementSnapshot.coveragePercent, locale, 0)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Year-by-year projection table */}
       <Card>
