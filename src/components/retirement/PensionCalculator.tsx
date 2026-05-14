@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PlusIcon } from "lucide-react";
 import { formatMoney, formatPercent } from "@/lib/money/format";
-import { calculatePension, type PensionParams, type PensionResult } from "@/lib/pension/calculate";
+import { calculatePension, type PensionResult } from "@/lib/pension/calculate";
+import { buildCalcParams, type SerializedPension } from "@/lib/pension/build-params";
 import { createPensionAction, updatePensionAction, deletePensionAction } from "@/lib/actions/pensions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,32 +38,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 const DELETE_UNDO_DURATION = 10_000;
 
 type PlanType = "DB_FORMULA" | "DB_STATEMENT" | "DC";
-
-interface SerializedPension {
-  id: string;
-  name: string;
-  planType: PlanType;
-  isActive: boolean;
-  // DB_FORMULA
-  startYear: number | null;
-  baseAccrualRate: number | null;
-  earlyRetirementReduction: number | null;
-  normalRetirementAge: number | null;
-  salaryBasisCents: number | null;
-  // DB_STATEMENT
-  statementAnnualCents: number | null;
-  statementRetirementAge: number | null;
-  // Shared DB
-  bridgeBenefitCents: number | null;
-  bridgeEndAge: number | null;
-  indexationRate: number | null;
-  // DC
-  currentBalanceCents: number | null;
-  employeeContribRate: number | null;
-  employerContribRate: number | null;
-  dcSalaryCents: number | null;
-  assumedGrowthRate: number | null;
-}
 
 interface PensionCalculatorProps {
   pensions: SerializedPension[];
@@ -234,65 +209,6 @@ export function PensionCalculator({
 }
 
 /* ── Helpers ── */
-
-function buildCalcParams(
-  pension: SerializedPension,
-  retirementAge: number,
-  birthYear: number,
-): PensionParams | null {
-  const currentYear = new Date().getFullYear();
-  const currentAge = currentYear - birthYear;
-  const yearsToRetirement = Math.max(0, retirementAge - currentAge);
-  const retirementYear = currentYear + yearsToRetirement;
-
-  const bridge = {
-    bridgeBenefitCents: pension.bridgeBenefitCents,
-    bridgeEndAge: pension.bridgeEndAge,
-    indexationRate: pension.indexationRate,
-  };
-
-  switch (pension.planType) {
-    case "DB_FORMULA": {
-      if (!pension.startYear || !pension.salaryBasisCents || !pension.baseAccrualRate) return null;
-      return {
-        planType: "DB_FORMULA",
-        startYear: pension.startYear,
-        retirementYear,
-        salaryBasisCents: pension.salaryBasisCents,
-        baseAccrualRate: pension.baseAccrualRate,
-        normalRetirementAge: pension.normalRetirementAge ?? 65,
-        earlyRetirementReduction: pension.earlyRetirementReduction ?? 0.04,
-        retirementAge,
-        ...bridge,
-      };
-    }
-    case "DB_STATEMENT": {
-      if (!pension.statementAnnualCents || !pension.statementRetirementAge) return null;
-      return {
-        planType: "DB_STATEMENT",
-        statementAnnualCents: pension.statementAnnualCents,
-        statementRetirementAge: pension.statementRetirementAge,
-        earlyRetirementReduction: pension.earlyRetirementReduction,
-        retirementAge,
-        ...bridge,
-      };
-    }
-    case "DC": {
-      if (!pension.currentBalanceCents || !pension.dcSalaryCents) return null;
-      const salary = pension.dcSalaryCents;
-      const empRate = pension.employeeContribRate ?? 0;
-      const erRate = pension.employerContribRate ?? 0;
-      return {
-        planType: "DC",
-        currentBalanceCents: pension.currentBalanceCents,
-        annualContributionCents: Math.round(salary * (empRate + erRate)),
-        assumedGrowthRate: pension.assumedGrowthRate ?? 0.05,
-        yearsToRetirement,
-        retirementAge,
-      };
-    }
-  }
-}
 
 function planTypeLabel(planType: PlanType, t: ReturnType<typeof useTranslations>): string {
   switch (planType) {

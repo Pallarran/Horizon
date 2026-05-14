@@ -7,14 +7,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RetirementOverview } from "./RetirementOverview";
 import { PensionCalculator } from "./PensionCalculator";
 import { IncomeStreamManager } from "@/components/income/IncomeStreamManager";
-import { ProjectionsPageClient } from "@/components/projections/ProjectionsPageClient";
 import type {
   SerializedPension,
   SerializedIncomeStream,
 } from "./RetirementOverview";
 
 interface RetirementPageClientProps {
-  // Overview tab data
   pensions: SerializedPension[];
   incomeStreams: SerializedIncomeStream[];
   portfolioValueCents: number;
@@ -28,16 +26,13 @@ interface RetirementPageClientProps {
   assumedDividendGrowth: number;
   assumedInflation: number;
   reinvestDividends: boolean;
-  // Projections tab data
-  startingYield: number;
-  yearsToRetirement: number;
-  // Shared
+  historicalMonthlyContributionCents: number;
   locale: string;
 }
 
-type TabValue = "overview" | "income" | "projections";
+type TabValue = "overview" | "income";
 
-const VALID_TABS: TabValue[] = ["overview", "income", "projections"];
+const VALID_TABS: TabValue[] = ["overview", "income"];
 
 export function RetirementPageClient(props: RetirementPageClientProps) {
   const t = useTranslations("retirement");
@@ -71,7 +66,6 @@ export function RetirementPageClient(props: RetirementPageClientProps) {
       <TabsList>
         <TabsTrigger value="overview">{t("overviewTab")}</TabsTrigger>
         <TabsTrigger value="income">{t("incomeSourcesTab")}</TabsTrigger>
-        <TabsTrigger value="projections">{t("projectionsTab")}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overview" className="mt-4">
@@ -89,6 +83,7 @@ export function RetirementPageClient(props: RetirementPageClientProps) {
           assumedDividendGrowth={props.assumedDividendGrowth}
           assumedInflation={props.assumedInflation}
           reinvestDividends={props.reinvestDividends}
+          historicalMonthlyContributionCents={props.historicalMonthlyContributionCents}
           locale={props.locale}
           retirementAge={retirementAge}
           onRetirementAgeChange={setRetirementAge}
@@ -112,15 +107,6 @@ export function RetirementPageClient(props: RetirementPageClientProps) {
             locale={props.locale}
           />
         </section>
-      </TabsContent>
-
-      <TabsContent value="projections" className="mt-4">
-        <ProjectionsPageClient
-          portfolioValueCents={props.portfolioValueCents}
-          startingYield={props.startingYield}
-          yearsToRetirement={props.yearsToRetirement}
-          locale={props.locale}
-        />
       </TabsContent>
     </Tabs>
   );

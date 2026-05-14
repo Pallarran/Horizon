@@ -72,13 +72,18 @@ export default async function RetirementPage() {
   // Derive projection assumptions from baseline scenario or sensible defaults
   const currentYear = new Date().getFullYear();
   const currentAge = currentYear - user.birthYear;
-  const yearsToRetirement = Math.max(0, user.targetRetirementAge - currentAge);
 
-  // Compute starting yield for Projections tab
-  const startingYield =
-    netWorth.netWorthCents > 0
-      ? dividends.annualizedCents / netWorth.netWorthCents
-      : 0;
+  // Compute historical average monthly contribution from DEPOSIT transactions (past 3 years)
+  const threeYearsAgo = new Date(currentYear - 3, 0, 1);
+  const deposits = await db.transaction.findMany({
+    where: { type: "DEPOSIT", date: { gte: threeYearsAgo } },
+    select: { amountCents: true },
+  });
+  const totalDepositCents = deposits.reduce(
+    (sum, d) => sum + Number(d.amountCents),
+    0,
+  );
+  const historicalMonthlyContributionCents = Math.round(totalDepositCents / 36);
 
   return (
     <>
@@ -96,7 +101,7 @@ export default async function RetirementPage() {
           monthlyContributionCents={
             baselineScenario
               ? Number(baselineScenario.monthlyContributionCents)
-              : 300000
+              : historicalMonthlyContributionCents || 300000
           }
           assumedPriceGrowth={
             baselineScenario ? Number(baselineScenario.assumedPriceGrowth) : 0.02
@@ -108,8 +113,7 @@ export default async function RetirementPage() {
             baselineScenario ? Number(baselineScenario.assumedInflation) : 0.025
           }
           reinvestDividends={baselineScenario?.reinvestDividends ?? true}
-          startingYield={startingYield}
-          yearsToRetirement={yearsToRetirement}
+          historicalMonthlyContributionCents={historicalMonthlyContributionCents}
           locale={locale}
         />
       </main>

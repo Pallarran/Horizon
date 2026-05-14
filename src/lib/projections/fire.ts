@@ -5,7 +5,7 @@
  *   Each year: portfolio grows by priceGrowth, dividends grow by dividendGrowth,
  *   contributions added, dividends optionally reinvested.
  *
- * Runs from current age through retirement + 30 years (or age 90).
+ * Runs from current age through age 100.
  */
 
 export interface FireParams {
@@ -41,7 +41,9 @@ export interface ProjectionYear {
   portfolioValueCents: number;
   /** Dividend income this year (cents) */
   dividendIncomeCents: number;
-  /** Pension + other income streams this year (cents) */
+  /** Pension income this year (cents) */
+  pensionIncomeCents: number;
+  /** Other income streams this year — government benefits, rental, etc. (cents) */
   otherIncomeCents: number;
   /** Total passive income this year (cents) */
   totalIncomeCents: number;
@@ -66,11 +68,13 @@ export function projectFire(
   targetIncomeCents: number,
 ): FireResult {
   const currentYear = new Date().getFullYear();
-  const endAge = Math.max(params.retirementAge + 30, 90);
+  const endAge = 100;
   const projections: ProjectionYear[] = [];
 
   let portfolioValue = params.currentPortfolioValueCents;
-  let annualDividends = params.currentAnnualDividendsCents;
+  let dividendYield = params.currentPortfolioValueCents > 0
+    ? params.currentAnnualDividendsCents / params.currentPortfolioValueCents
+    : 0;
   let freedomAge: number | null = null;
   let portfolioAtRetirement = 0;
   let incomeAtRetirement = 0;
@@ -85,21 +89,27 @@ export function projectFire(
     // Contributions (only before retirement)
     const contribution = isPreRetirement ? params.annualContributionCents : 0;
 
-    // Dividend income this year
-    const dividendIncome = annualDividends;
+    // Dividend income this year (derived from portfolio × yield)
+    const dividendIncome = portfolioValue * dividendYield;
 
     // Other income streams (pension, QPP, OAS, etc.)
     const yearsFromNow = age - params.currentAge;
+    let pensionIncome = 0;
     let otherIncome = 0;
     for (const stream of params.incomeStreams) {
       if (age >= stream.startAge && (stream.endAge === null || age <= stream.endAge)) {
         const growthRate = stream.customGrowthRate ?? (stream.inflationIndexed ? params.assumedInflation : 0);
         const growthFactor = Math.pow(1 + growthRate, yearsFromNow);
-        otherIncome += Math.round(stream.annualAmountCents * growthFactor);
+        const amount = Math.round(stream.annualAmountCents * growthFactor);
+        if (stream.isPension) {
+          pensionIncome += amount;
+        } else {
+          otherIncome += amount;
+        }
       }
     }
 
-    const totalIncome = dividendIncome + otherIncome;
+    const totalIncome = dividendIncome + pensionIncome + otherIncome;
     const coveragePercent = targetIncomeCents > 0 ? totalIncome / targetIncomeCents : 0;
 
     projections.push({
@@ -107,6 +117,7 @@ export function projectFire(
       year,
       portfolioValueCents: Math.round(portfolioValue),
       dividendIncomeCents: Math.round(dividendIncome),
+      pensionIncomeCents: Math.round(pensionIncome),
       otherIncomeCents: Math.round(otherIncome),
       totalIncomeCents: Math.round(totalIncome),
       contributionCents: Math.round(contribution),
@@ -133,8 +144,8 @@ export function projectFire(
       portfolioValue += dividendIncome * midYearFactor;
     }
 
-    // Grow dividends for next year
-    annualDividends = annualDividends * (1 + params.assumedDividendGrowth);
+    // Grow dividend yield for next year (organic raises)
+    dividendYield = dividendYield * (1 + params.assumedDividendGrowth);
   }
 
   return {

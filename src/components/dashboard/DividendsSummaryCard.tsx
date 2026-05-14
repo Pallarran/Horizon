@@ -35,6 +35,11 @@ export function DividendsSummaryCard({ locale, dividends, forecast, history }: D
     : 0;
   const pacingOnTrack = pacingPct >= 100;
 
+  // YTD progress toward annualized total
+  const ytdProgressPct = dividends.annualizedCents > 0
+    ? Math.min(100, Math.round((dividends.ytdCents / dividends.annualizedCents) * 100))
+    : 0;
+
   const forecastChartData = forecast.months.map((m) => ({
     label: m.label,
     dollars: m.totalCents / 100,
@@ -88,6 +93,12 @@ export function DividendsSummaryCard({ locale, dividends, forecast, history }: D
                   {t("ytdPacing", { pct: pacingPct })}
                 </p>
               )}
+              <div className="relative mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full transition-all bg-primary"
+                  style={{ width: `${ytdProgressPct}%` }}
+                />
+              </div>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t("priorYear")}</span>
