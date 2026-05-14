@@ -1,13 +1,14 @@
 /**
  * Hero card computation — "Years to Freedom".
  *
- * Uses FIRE projection engine if a baseline scenario exists,
- * otherwise falls back to simple dividend growth estimate.
+ * Always uses the FIRE projection engine (same as the retirement overview)
+ * with baseline scenario assumptions when available, otherwise sensible defaults.
  */
 import type { User } from "@/generated/prisma/client";
 import type { ScopedPrisma } from "@/lib/db/scoped";
 import type { IncomeStreamInput } from "@/lib/projections/fire";
 import { projectFire } from "@/lib/projections/fire";
+import { computeContributionTable } from "@/lib/contributions/compute";
 
 export interface HeroData {
   yearsToFreedom: number | null;
@@ -30,7 +31,9 @@ export interface HeroData {
 }
 
 /**
- * Compute hero metrics using the full FIRE engine if a baseline scenario exists.
+ * Compute hero metrics using the FIRE engine.
+ * Uses baseline scenario assumptions when available, same defaults as the
+ * retirement overview otherwise (consistent with RetirementOverview).
  */
 export async function computeHero(
   db: ScopedPrisma,
@@ -45,127 +48,74 @@ export async function computeHero(
   const targetReplacement = Number(user.targetIncomeReplacement);
   const targetIncomeCents = Number(user.currentSalaryCents) * targetReplacement;
 
-  // Try to use baseline scenario for accurate projection
+  // Use baseline scenario assumptions, or same defaults as the retirement page
   const baseline = await db.scenario.findMany({ where: { isBaseline: true } });
-  const baselineScenario = baseline[0];
+  const baselineScenario = baseline[0] ?? null;
 
-  // Compute income breakdown at retirement age
-  const yearsToRetirement = Math.max(0, targetRetirementAge - currentAge);
-
-  function computeGroupedIncome(atAge: number, inflation: number): { pensionCents: number; otherCents: number } {
-    const yearsFromNow = Math.max(0, atAge - currentAge);
-    let pensionCents = 0;
-    let otherCents = 0;
-    for (const s of incomeStreams) {
-      if (atAge < s.startAge) continue;
-      if (s.endAge !== null && atAge > s.endAge) continue;
-      const growthRate = s.customGrowthRate ?? (s.inflationIndexed ? inflation : 0);
-      const growthFactor = Math.pow(1 + growthRate, yearsFromNow);
-      const amount = Math.round(s.annualAmountCents * growthFactor);
-      if (s.isPension) {
-        pensionCents += amount;
-      } else {
-        otherCents += amount;
-      }
-    }
-    return { pensionCents, otherCents };
-  }
-
-  if (baselineScenario && annualizedDividendsCents > 0) {
-    const assumedInflation = Number(baselineScenario.assumedInflation);
-    const result = projectFire(
-      {
-        currentAge,
-        retirementAge: targetRetirementAge,
-        currentPortfolioValueCents: netWorthCents,
-        currentAnnualDividendsCents: annualizedDividendsCents,
-        annualContributionCents: Number(baselineScenario.monthlyContributionCents) * 12,
-        assumedPriceGrowth: Number(baselineScenario.assumedPriceGrowth),
-        assumedDividendGrowth: Number(baselineScenario.assumedDividendGrowth),
-        assumedInflation,
-        reinvestDividends: baselineScenario.reinvestDividends,
-        incomeStreams,
-      },
-      targetIncomeCents,
+  // Determine contribution amount: baseline > historical average > fallback
+  let monthlyContributionCents: number;
+  if (baselineScenario) {
+    monthlyContributionCents = Number(baselineScenario.monthlyContributionCents);
+  } else {
+    const contributionRows = await computeContributionTable(db, user.birthYear);
+    const recentYears = contributionRows.filter(
+      (r) => r.year >= currentYear - 3 && r.year < currentYear,
     );
-
-    const freedomAge = result.freedomAge;
-    const yearsToFreedomVal = freedomAge !== null ? freedomAge - currentAge : null;
-
-    // Current coverage from first projection year
-    const currentYearProjection = result.projections[0];
-    const coveragePercent = currentYearProjection
-      ? currentYearProjection.coveragePercent
+    const avgAnnualContribCents = recentYears.length > 0
+      ? recentYears.reduce((sum, r) => sum + r.totalDepositCents, 0) / recentYears.length
       : 0;
+    monthlyContributionCents = avgAnnualContribCents > 0
+      ? Math.round(avgAnnualContribCents / 12)
+      : 300000;
+  }
 
-    // Extract retirement-year projection for the projection card
-    const retProj = result.projections.find(
-      (p) => p.age === targetRetirementAge,
-    );
-
-    const totalAtRetirement = retProj?.totalIncomeCents ?? result.incomeAtRetirementCents;
-    const retirementCoveragePercent = targetIncomeCents > 0 ? totalAtRetirement / targetIncomeCents : 0;
-
-    return {
-      yearsToFreedom: yearsToFreedomVal !== null
-        ? Math.round(yearsToFreedomVal * 10) / 10
-        : null,
-      coveragePercent,
-      retirementCoveragePercent,
-      targetIncomeReplacementPercent: targetReplacement,
+  const result = projectFire(
+    {
       currentAge,
-      targetRetirementAge,
-      portfolioAtRetirementCents: retProj?.portfolioValueCents ?? result.portfolioAtRetirementCents,
-      dividendIncomeAtRetirementCents: retProj?.dividendIncomeCents ?? 0,
-      pensionIncomeCents: retProj?.pensionIncomeCents ?? 0,
-      otherStreamIncomeCents: retProj?.otherIncomeCents ?? 0,
-      totalIncomeAtRetirementCents: totalAtRetirement,
-      targetIncomeCents: Math.round(targetIncomeCents),
-    };
-  }
-
-  // Fallback: simple estimate
-  const fallbackInflation = 0.025;
-  const portfolioGrowth = 0.07;
-  const dividendGrowth = 0.05;
-
-  // Compute current income from all sources (not just dividends)
-  const currentGrouped = computeGroupedIncome(currentAge, 0); // current age, no inflation
-  const currentIncomeCents = annualizedDividendsCents + currentGrouped.pensionCents + currentGrouped.otherCents;
-  const coveragePercent =
-    targetIncomeCents > 0 ? currentIncomeCents / targetIncomeCents : 0;
-
-  let yearsToFreedom: number | null = null;
-  if (currentIncomeCents > 0 && currentIncomeCents < targetIncomeCents) {
-    const ratio = targetIncomeCents / currentIncomeCents;
-    yearsToFreedom = Math.round(Math.log(ratio) / Math.log(1 + dividendGrowth) * 10) / 10;
-  } else if (currentIncomeCents >= targetIncomeCents) {
-    yearsToFreedom = 0;
-  }
-
-  // Fallback retirement projection using simple growth
-  const fallbackPortfolio = Math.round(
-    netWorthCents * Math.pow(1 + portfolioGrowth, yearsToRetirement),
+      retirementAge: targetRetirementAge,
+      currentPortfolioValueCents: netWorthCents,
+      currentAnnualDividendsCents: annualizedDividendsCents,
+      annualContributionCents: monthlyContributionCents * 12,
+      assumedPriceGrowth: baselineScenario ? Number(baselineScenario.assumedPriceGrowth) : 0.02,
+      assumedDividendGrowth: baselineScenario ? Number(baselineScenario.assumedDividendGrowth) : 0.01,
+      assumedInflation: baselineScenario ? Number(baselineScenario.assumedInflation) : 0.025,
+      reinvestDividends: baselineScenario?.reinvestDividends ?? true,
+      incomeStreams,
+    },
+    targetIncomeCents,
   );
-  const fallbackDividends = Math.round(
-    annualizedDividendsCents * Math.pow(1 + dividendGrowth, yearsToRetirement),
+
+  const freedomAge = result.freedomAge;
+  const yearsToFreedomVal = freedomAge !== null ? freedomAge - currentAge : null;
+
+  // Current coverage from first projection year
+  const currentYearProjection = result.projections[0];
+  const coveragePercent = currentYearProjection
+    ? currentYearProjection.coveragePercent
+    : 0;
+
+  // Extract retirement-year projection for the projection card
+  const retProj = result.projections.find(
+    (p) => p.age === targetRetirementAge,
   );
-  const grouped = computeGroupedIncome(targetRetirementAge, fallbackInflation);
-  const fallbackTotal = fallbackDividends + grouped.pensionCents + grouped.otherCents;
-  const retirementCoveragePercent = targetIncomeCents > 0 ? fallbackTotal / targetIncomeCents : 0;
+
+  const totalAtRetirement = retProj?.totalIncomeCents ?? result.incomeAtRetirementCents;
+  const retirementCoveragePercent = targetIncomeCents > 0 ? totalAtRetirement / targetIncomeCents : 0;
 
   return {
-    yearsToFreedom,
+    yearsToFreedom: yearsToFreedomVal !== null
+      ? Math.round(yearsToFreedomVal * 10) / 10
+      : null,
     coveragePercent,
     retirementCoveragePercent,
     targetIncomeReplacementPercent: targetReplacement,
     currentAge,
     targetRetirementAge,
-    portfolioAtRetirementCents: fallbackPortfolio,
-    dividendIncomeAtRetirementCents: fallbackDividends,
-    pensionIncomeCents: grouped.pensionCents,
-    otherStreamIncomeCents: grouped.otherCents,
-    totalIncomeAtRetirementCents: fallbackTotal,
+    portfolioAtRetirementCents: retProj?.portfolioValueCents ?? result.portfolioAtRetirementCents,
+    dividendIncomeAtRetirementCents: retProj?.dividendIncomeCents ?? 0,
+    pensionIncomeCents: retProj?.pensionIncomeCents ?? 0,
+    otherStreamIncomeCents: retProj?.otherIncomeCents ?? 0,
+    totalIncomeAtRetirementCents: totalAtRetirement,
     targetIncomeCents: Math.round(targetIncomeCents),
   };
 }
