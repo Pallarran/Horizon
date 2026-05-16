@@ -1,0 +1,9 @@
+onlyBuiltDependencies:
+  - argon2
+  - '@prisma/engines'
+  - prisma
+  - esbuild
+  - '@swc/core'
+  - '@parcel/watcher'
+  - sharp
+  - unrs-resolver
