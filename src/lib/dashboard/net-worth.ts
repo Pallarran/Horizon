@@ -5,7 +5,7 @@
 import type { ScopedPrisma } from "@/lib/db/scoped";
 import type { ComputedPosition } from "@/lib/positions/types";
 import { convertCurrency } from "@/lib/money/arithmetic";
-import { getLatestFxRate } from "@/lib/money/fx";
+import { getLatestFxRate, getFxRateForDate } from "@/lib/money/fx";
 
 export interface NetWorthData {
   /** Total net worth in CAD cents */
@@ -31,8 +31,13 @@ export async function computeNetWorth(
   db: ScopedPrisma,
   positions: ComputedPosition[],
 ): Promise<NetWorthData> {
-  // Get latest USD→CAD FX rate
+  // Get latest USD→CAD FX rate (today) and the most recent rate from before today (yesterday)
+  // so day change can include FX rate movement on USD holdings.
   const usdCadRate = await getLatestFxRate(db, "USD", "CAD");
+  const yesterday = new Date();
+  yesterday.setUTCHours(0, 0, 0, 0);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const usdCadRatePrev = (await getFxRateForDate(db, "USD", "CAD", yesterday)) ?? usdCadRate;
 
   let netWorthCents = 0n;
   let totalCostCents = 0n;
@@ -44,6 +49,7 @@ export async function computeNetWorth(
 
     const isUsd = pos.currency === "USD";
     const rate = isUsd ? usdCadRate : 1;
+    const ratePrev = isUsd ? usdCadRatePrev : 1;
 
     // Market value — use current price when available, else fall back to CAD cost
     const mvCad = pos.marketValueCents !== null
@@ -54,23 +60,18 @@ export async function computeNetWorth(
     // Cost basis (already in CAD from historical FX rates in ACB engine)
     totalCostCents += pos.totalCostCadCents;
 
-    // Day change (pos.dayChangeCents already includes quantity)
-    if (pos.dayChangeCents !== null) {
-      const dcCad = isUsd
-        ? convertCurrency(pos.dayChangeCents, rate)
-        : pos.dayChangeCents;
-      dayChangeCents += dcCad;
-    }
-
-    // Previous day value for % calculation
+    // Day change in CAD = today's CAD market value − yesterday's CAD market value.
+    // For USD positions, yesterday's CAD value uses YESTERDAY's FX so the metric
+    // reflects both price movement AND FX rate movement.
     if (pos.marketValueCents !== null && pos.dayChangeCents !== null) {
-      const prevValue = pos.marketValueCents - pos.dayChangeCents;
-      const prevCad = isUsd ? convertCurrency(prevValue, rate) : prevValue;
+      const prevValueNative = pos.marketValueCents - pos.dayChangeCents;
+      const prevCad = isUsd
+        ? convertCurrency(prevValueNative, ratePrev)
+        : prevValueNative;
       prevNetWorthCents += prevCad;
+      dayChangeCents += mvCad - prevCad;
     } else if (pos.marketValueCents !== null) {
-      const mvCad = isUsd
-        ? convertCurrency(pos.marketValueCents, rate)
-        : pos.marketValueCents;
+      // No previous price — assume no change for % calc, contributes 0 to day change.
       prevNetWorthCents += mvCad;
     }
   }
