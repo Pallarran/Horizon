@@ -26,10 +26,14 @@ export interface NetWorthData {
 
 /**
  * Compute net worth from positions, converting all to CAD.
+ * Optional cash totals (in source currency cents) are added so the dashboard
+ * net worth matches the AccountsTab sum (positions + cash with CRCD adjustment).
  */
 export async function computeNetWorth(
   db: ScopedPrisma,
   positions: ComputedPosition[],
+  cashCadCents = 0,
+  cashUsdCents = 0,
 ): Promise<NetWorthData> {
   // Get latest USD→CAD FX rate (today) and the most recent rate from before today (yesterday)
   // so day change can include FX rate movement on USD holdings.
@@ -74,6 +78,22 @@ export async function computeNetWorth(
       // No previous price — assume no change for % calc, contributes 0 to day change.
       prevNetWorthCents += mvCad;
     }
+  }
+
+  // Cash: CAD cash adds straight; USD cash converts at today's FX (current) and
+  // yesterday's FX (previous), so FX movement on USD cash contributes to day change.
+  if (cashCadCents !== 0) {
+    const cad = BigInt(cashCadCents);
+    netWorthCents += cad;
+    prevNetWorthCents += cad;
+  }
+  if (cashUsdCents !== 0) {
+    const usd = BigInt(cashUsdCents);
+    const cadToday = convertCurrency(usd, usdCadRate);
+    const cadPrev = convertCurrency(usd, usdCadRatePrev);
+    netWorthCents += cadToday;
+    prevNetWorthCents += cadPrev;
+    dayChangeCents += cadToday - cadPrev;
   }
 
   const unrealizedGainCents = netWorthCents - totalCostCents;

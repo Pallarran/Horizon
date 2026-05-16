@@ -56,10 +56,26 @@ export default async function DashboardPage() {
   // Fire-and-forget: backfill sparkline prices in background (don't block render)
   ensureSparklinePrices(uniqueSecurities).catch(console.error);
 
+  // Cash totals — mirror portfolio/page.tsx logic so dashboard net worth
+  // matches AccountsTab sum (positions + cash with CRCD adjustment).
+  const allTxns = await db.transaction.findMany({
+    select: { amountCents: true, currency: true },
+  });
+  let cashCadCents = 0;
+  let cashUsdCents = 0;
+  for (const txn of allTxns) {
+    if (txn.currency === "USD") cashUsdCents += Number(txn.amountCents);
+    else cashCadCents += Number(txn.amountCents);
+  }
+  // CRCD purchases aren't transactions — subtract holding cost from CAD cash
+  for (const pos of crcdPositions) {
+    cashCadCents -= Number(pos.totalCostCents);
+  }
+
   // Batch 2: all independent data fetches in parallel
   const [netWorth, dividends, contributionRoom, incomeStreams, lastPriceDate, portfolioHistory] =
     await Promise.all([
-      computeNetWorth(db, positions),
+      computeNetWorth(db, positions, cashCadCents, cashUsdCents),
       computeDividendsSummary(db, positions),
       computeContributionRoom(db, user.birthYear),
       getIncomeStreams(db, user.targetRetirementAge, user.birthYear),
