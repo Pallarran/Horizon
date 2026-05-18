@@ -23,6 +23,7 @@ root@WhiteTower:/mnt/user/appdata/Horizon
 ## Standard deploy (no migration)
 
 ```bash
+cd /mnt/user/appdata/Horizon
 git pull
 docker compose up -d --build
 ```
@@ -35,6 +36,9 @@ When the update includes new Prisma migrations.
 
 **Run each command one at a time.** Wait for each step to finish and confirm success before running the next. Do NOT chain them with `&&` — if a migration fails silently the rebuild will deploy code that references columns that don't exist yet.
 
+```bash
+cd /mnt/user/appdata/Horizon
+```
 ```bash
 git pull
 ```
@@ -51,6 +55,9 @@ docker compose up -d --build
 
 When a migration adds a column that needs data populated on existing rows. Same rule: **one command at a time, verify each before proceeding.**
 
+```bash
+cd /mnt/user/appdata/Horizon
+```
 ```bash
 git pull
 ```
