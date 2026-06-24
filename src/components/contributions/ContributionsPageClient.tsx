@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { ChevronDown } from "lucide-react";
 import type { ContributionYearRow } from "@/lib/contributions/compute";
-import { SavingsGoalHero } from "./SavingsGoalHero";
+import { ContributionsHero } from "./ContributionsHero";
 import { RegisteredAccountRoomCards } from "./RegisteredAccountRoomCards";
 import { InvestmentBreakdownChart } from "./InvestmentBreakdownChart";
 import { ContributionHistoryTable } from "./ContributionHistoryTable";
@@ -18,7 +20,9 @@ export function ContributionsPageClient({
   locale,
   hasCrcdHoldings,
 }: ContributionsPageClientProps) {
+  const t = useTranslations("contributions");
   const [rows, setRows] = useState(initialRows);
+  const [tableOpen, setTableOpen] = useState(false);
 
   const currentYear = new Date().getFullYear();
   const currentRow = rows.find((r) => r.year === currentYear);
@@ -29,16 +33,16 @@ export function ContributionsPageClient({
 
   return (
     <div className="space-y-6">
-      {/* A. Savings Goal Hero */}
+      {/* Hero: savings goal + registered room still open */}
       {currentRow && (
-        <SavingsGoalHero
+        <ContributionsHero
           currentRow={currentRow}
           locale={locale}
           onUpdate={handleUpdate}
         />
       )}
 
-      {/* B. Registered Account Room Cards */}
+      {/* Room ring cards */}
       {currentRow && (
         <RegisteredAccountRoomCards
           currentRow={currentRow}
@@ -48,11 +52,27 @@ export function ContributionsPageClient({
         />
       )}
 
-      {/* C. Investment Breakdown Chart */}
+      {/* Contribution history chart */}
       <InvestmentBreakdownChart rows={rows} locale={locale} />
 
-      {/* D. Contribution History Table */}
-      <ContributionHistoryTable rows={rows} locale={locale} onUpdate={handleUpdate} />
+      {/* Full editable history table behind a disclosure */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setTableOpen((o) => !o)}
+          className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+        >
+          {t("viewFullTable")}
+          <ChevronDown
+            className={`h-4 w-4 transition-transform ${tableOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+        {tableOpen && (
+          <div className="mt-4">
+            <ContributionHistoryTable rows={rows} locale={locale} onUpdate={handleUpdate} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

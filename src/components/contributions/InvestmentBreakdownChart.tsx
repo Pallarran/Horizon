@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { formatMoney } from "@/lib/money/format";
 import type { ContributionYearRow } from "@/lib/contributions/compute";
 import {
   ComposedChart,
@@ -36,9 +37,26 @@ export function InvestmentBreakdownChart({ rows, locale }: InvestmentBreakdownCh
     (d) => d.reer > 0 || d.celi > 0 || d.crcd > 0 || d.marge > 0 || d.cash > 0 || d.other > 0,
   );
 
+  const totalInvestedCents = rows.reduce((sum, r) => sum + r.totalDepositCents, 0);
+  const firstYear = rows.reduce(
+    (min, r) => (r.totalDepositCents > 0 && r.year < min ? r.year : min),
+    rows.length > 0 ? rows[0].year : new Date().getFullYear(),
+  );
+
   return (
     <div className="rounded-xl border bg-card p-6 shadow-sm">
-      <p className="mb-4 text-sm font-medium">{t("investmentBreakdown")}</p>
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-medium">{t("investmentBreakdown")}</p>
+        {hasData && (
+          <p className="text-xs text-muted-foreground">
+            {t("investedSince", {
+              total: formatMoney(totalInvestedCents, locale),
+              year: firstYear,
+            })}{" "}
+            · {t("goalLine")}
+          </p>
+        )}
+      </div>
       {!hasData ? (
         <p className="flex h-64 items-center justify-center text-sm text-muted-foreground">
           {t("noInvestmentData")}

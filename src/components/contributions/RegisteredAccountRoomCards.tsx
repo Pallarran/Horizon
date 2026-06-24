@@ -8,7 +8,6 @@ import { formatMoney } from "@/lib/money/format";
 import type { ContributionYearRow } from "@/lib/contributions/compute";
 import { saveCrcdLimitAction } from "@/lib/actions/contributions";
 import { saveCrcdHoldingAction } from "@/lib/actions/crcd-holdings";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +19,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ReerLimitDialog } from "./ReerLimitDialog";
-import { Pencil, Check, X, Plus } from "lucide-react";
+import { Check, X, Plus } from "lucide-react";
 
 interface RegisteredAccountRoomCardsProps {
   currentRow: ContributionYearRow;
@@ -28,6 +27,16 @@ interface RegisteredAccountRoomCardsProps {
   onUpdate: (rows: ContributionYearRow[]) => void;
   hasCrcdHoldings?: boolean;
 }
+
+const COLOR = {
+  reer: "var(--chart-1)",
+  celi: "var(--chart-2)",
+  crcd: "var(--chart-5)",
+  nonreg: "var(--chart-4)",
+  gain: "var(--gain)",
+} as const;
+
+type Tag = "open" | "maxed" | "noCap";
 
 export function RegisteredAccountRoomCards({
   currentRow,
@@ -38,80 +47,54 @@ export function RegisteredAccountRoomCards({
   const t = useTranslations("contributions");
   const [reerDialogOpen, setReerDialogOpen] = useState(false);
 
+  const reerRoom = Math.max(0, currentRow.reerCumulativeRoomCents);
+  const celiRoom = Math.max(0, currentRow.celiCumulativeRoomCents);
+  const nonRegTotal =
+    currentRow.margeDepositCents + currentRow.cashDepositCents + currentRow.otherDepositCents;
+
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* REER Card */}
-        <div className="rounded-xl border bg-card p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">{t("reerLabel")}</p>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setReerDialogOpen(true)}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+        {/* REER */}
+        {currentRow.reerLimitCents > 0 ? (
+          <RoomCard
+            label={t("reerLabel")}
+            color={COLOR.reer}
+            depositedCents={currentRow.reerDepositCents}
+            limitCents={currentRow.reerLimitCents}
+            remainCents={reerRoom}
+            remainLabel={t("roomLeft")}
+            tag={reerRoom <= 0 ? "maxed" : "open"}
+            footLabel={t("cumulativeRoom")}
+            footValue={formatMoney(reerRoom, locale)}
+            cta={t("editLimit")}
+            onEdit={() => setReerDialogOpen(true)}
+            locale={locale}
+          />
+        ) : (
+          <PromptCard
+            label={t("reerLabel")}
+            prompt={t("setReerLimitPrompt")}
+            cta={t("editLimit")}
+            onEdit={() => setReerDialogOpen(true)}
+          />
+        )}
 
-          <div className="mt-3 space-y-2">
-            {currentRow.reerLimitCents > 0 ? (
-              <>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{t("limit")}</span>
-                  <span>{formatMoney(currentRow.reerLimitCents, locale)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{t("deposited")}</span>
-                  <span>{formatMoney(currentRow.reerDepositCents, locale)}</span>
-                </div>
-                <RoomProgress
-                  depositedCents={currentRow.reerDepositCents}
-                  limitCents={currentRow.reerLimitCents}
-                />
-                <div className="flex justify-between text-sm border-t pt-2">
-                  <span className="text-muted-foreground">{t("cumulativeRoom")}</span>
-                  <span className="font-semibold">
-                    {formatMoney(currentRow.reerCumulativeRoomCents, locale)}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {t("setReerLimitPrompt")}
-              </p>
-            )}
-          </div>
-        </div>
+        {/* CELI */}
+        <RoomCard
+          label={t("celiLabel")}
+          color={COLOR.celi}
+          depositedCents={currentRow.celiDepositCents}
+          limitCents={currentRow.celiLimitCents}
+          remainCents={celiRoom}
+          remainLabel={t("roomLeft")}
+          tag={celiRoom <= 0 ? "maxed" : "open"}
+          footLabel={t("cumulativeRoom")}
+          footValue={formatMoney(celiRoom, locale)}
+          locale={locale}
+        />
 
-        {/* CELI Card */}
-        <div className="rounded-xl border bg-card p-5 shadow-sm">
-          <p className="text-sm font-medium">{t("celiLabel")}</p>
-
-          <div className="mt-3 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t("limit")}</span>
-              <span>{formatMoney(currentRow.celiLimitCents, locale)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t("deposited")}</span>
-              <span>{formatMoney(currentRow.celiDepositCents, locale)}</span>
-            </div>
-            <RoomProgress
-              depositedCents={currentRow.celiDepositCents}
-              limitCents={currentRow.celiLimitCents}
-            />
-            <div className="flex justify-between text-sm border-t pt-2">
-              <span className="text-muted-foreground">{t("cumulativeRoom")}</span>
-              <span className="font-semibold">
-                {formatMoney(currentRow.celiCumulativeRoomCents, locale)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* CRCD Card — always visible */}
+        {/* CRCD */}
         <CrcdCard
           currentRow={currentRow}
           locale={locale}
@@ -119,8 +102,19 @@ export function RegisteredAccountRoomCards({
           hasCrcdHoldings={hasCrcdHoldings}
         />
 
-        {/* Non-Registered Card */}
-        <NonRegisteredCard currentRow={currentRow} locale={locale} />
+        {/* Non-registered */}
+        <RoomCard
+          label={t("nonRegLabel")}
+          color={COLOR.nonreg}
+          depositedCents={nonRegTotal}
+          limitCents={0}
+          remainCents={nonRegTotal}
+          remainLabel={t("thisYear")}
+          tag="noCap"
+          footLabel={t("noLimit")}
+          footValue=""
+          locale={locale}
+        />
       </div>
 
       <ReerLimitDialog
@@ -130,6 +124,151 @@ export function RegisteredAccountRoomCards({
         onUpdate={onUpdate}
       />
     </>
+  );
+}
+
+/** Conic-gradient ring showing % used, with the % label centered. */
+function Ring({
+  pct,
+  color,
+  label,
+}: {
+  pct: number;
+  color: string;
+  label: string;
+}) {
+  return (
+    <div className="relative h-[72px] w-[72px] shrink-0">
+      <div
+        className="h-full w-full rounded-full"
+        style={{ background: `conic-gradient(${color} ${pct}%, var(--muted) 0)` }}
+      />
+      <div className="absolute inset-[9px] flex items-center justify-center rounded-full bg-card">
+        <span className="text-sm font-bold tabular-nums">{label}</span>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ tag, color }: { tag: Tag; color: string }) {
+  const t = useTranslations("contributions");
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+      style={{ background: `color-mix(in oklch, ${color} 16%, transparent)`, color }}
+    >
+      {t(tag)}
+    </span>
+  );
+}
+
+function RoomCard({
+  label,
+  color,
+  depositedCents,
+  limitCents,
+  remainCents,
+  remainLabel,
+  tag,
+  footLabel,
+  footValue,
+  cta,
+  onEdit,
+  locale,
+}: {
+  label: string;
+  color: string;
+  depositedCents: number;
+  limitCents: number;
+  remainCents: number;
+  remainLabel: string;
+  tag: Tag;
+  footLabel: string;
+  footValue: string;
+  cta?: string;
+  onEdit?: () => void;
+  locale: string;
+}) {
+  const t = useTranslations("contributions");
+  const maxed = tag === "maxed";
+  const ringColor = maxed ? COLOR.gain : color;
+  const pct =
+    tag === "noCap"
+      ? 100
+      : limitCents > 0
+        ? Math.min(Math.round((depositedCents / limitCents) * 100), 100)
+        : 0;
+  const pctLabel = tag === "noCap" ? "—" : `${pct}%`;
+
+  return (
+    <div className="rounded-xl border bg-card p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold">{label}</p>
+        <StatusBadge tag={tag} color={tag === "noCap" ? color : ringColor} />
+      </div>
+
+      <div className="mt-3.5 flex items-center gap-3.5">
+        <Ring pct={pct} color={ringColor} label={pctLabel} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] text-muted-foreground">{remainLabel}</p>
+          <p className="mt-0.5 text-lg font-extrabold tabular-nums">
+            {formatMoney(remainCents, locale)}
+          </p>
+          {limitCents > 0 && (
+            <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
+              {t("depositedOfLimit", {
+                deposited: formatMoney(depositedCents, locale),
+                limit: formatMoney(limitCents, locale),
+              })}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3.5 flex items-center justify-between border-t pt-3">
+        <span className="text-[11px] text-muted-foreground">
+          {footLabel}
+          {footValue && (
+            <span className="ml-1 font-mono font-semibold text-foreground">{footValue}</span>
+          )}
+        </span>
+        {cta && onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="text-xs font-semibold text-primary hover:underline"
+          >
+            {cta}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PromptCard({
+  label,
+  prompt,
+  cta,
+  onEdit,
+}: {
+  label: string;
+  prompt: string;
+  cta: string;
+  onEdit: () => void;
+}) {
+  return (
+    <div className="flex flex-col rounded-xl border bg-card p-5 shadow-sm">
+      <p className="text-sm font-semibold">{label}</p>
+      <p className="mt-3 flex-1 text-sm text-muted-foreground">{prompt}</p>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="mt-3 self-start text-xs font-semibold text-primary hover:underline"
+      >
+        {cta}
+      </button>
+    </div>
   );
 }
 
@@ -156,6 +295,15 @@ function CrcdCard({
   const [isPending, startTransition] = useTransition();
   const [isTrancheSubmitting, startTrancheTransition] = useTransition();
 
+  const crcdRoom = Math.max(0, currentRow.crcdRemainingCents);
+  const inactive = currentRow.crcdLimitCents === 0 && currentRow.crcdDepositCents === 0;
+  const pct =
+    currentRow.crcdLimitCents > 0
+      ? Math.min(Math.round((currentRow.crcdDepositCents / currentRow.crcdLimitCents) * 100), 100)
+      : 0;
+  const maxed = currentRow.crcdLimitCents > 0 && crcdRoom <= 0;
+  const ringColor = maxed ? COLOR.gain : COLOR.crcd;
+
   function handleSave() {
     const formData = new FormData();
     formData.set("year", currentRow.year.toString());
@@ -172,92 +320,94 @@ function CrcdCard({
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">CRCD</p>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => setEditing(!editing)}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-
-      <div className="mt-3 space-y-2">
-        {editing ? (
-          /* Inline edit form */
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground">{t("annual")} $</span>
-            <Input
-              type="number"
-              min="0"
-              step="100"
-              value={limitInput}
-              onChange={(e) => setLimitInput(e.target.value)}
-              className="h-7 w-24 text-sm"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSave();
-                if (e.key === "Escape") setEditing(false);
-              }}
-            />
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSave} disabled={isPending}>
-              <Check className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(false)}>
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        ) : currentRow.crcdLimitCents === 0 && currentRow.crcdDepositCents === 0 ? (
-          /* No CRCD activity — show prompt */
-          <p className="text-sm text-muted-foreground">
-            {t("setCrcdLimitPrompt")}
-          </p>
-        ) : (
-          /* Active CRCD — show progress */
-          <>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t("annual")}</span>
-              <span>
-                {formatMoney(currentRow.crcdDepositCents, locale)} /{" "}
-                {formatMoney(currentRow.crcdLimitCents, locale)}
-              </span>
-            </div>
-            <RoomProgress
-              depositedCents={currentRow.crcdDepositCents}
-              limitCents={currentRow.crcdLimitCents}
-            />
-
-            {/* Lifetime */}
-            <div className="flex justify-between text-sm border-t pt-2">
-              <span className="text-muted-foreground">{t("lifetime")}</span>
-              <span>
-                {formatMoney(currentRow.crcdCumulativeInvestedCents, locale)} /{" "}
-                {formatMoney(currentRow.crcdLifetimeLimitCents, locale)}
-              </span>
-            </div>
-            <LifetimeProgress
-              investedCents={currentRow.crcdCumulativeInvestedCents}
-              limitCents={currentRow.crcdLifetimeLimitCents}
-            />
-
-            {/* First-tranche entry point */}
-            {!hasCrcdHoldings && (
-              <div className="border-t pt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => setAddTrancheOpen(true)}
-                >
-                  <Plus className="mr-1 h-3.5 w-3.5" />
-                  {t("crcdAddFirstTranche")}
-                </Button>
-              </div>
-            )}
-          </>
+        <p className="text-sm font-semibold">CRCD</p>
+        {!editing && !inactive && (
+          <StatusBadge tag={maxed ? "maxed" : "open"} color={ringColor} />
         )}
       </div>
+
+      {editing ? (
+        <div className="mt-3 flex items-center gap-1">
+          <span className="text-xs text-muted-foreground">{t("annual")} $</span>
+          <Input
+            type="number"
+            min="0"
+            step="100"
+            value={limitInput}
+            onChange={(e) => setLimitInput(e.target.value)}
+            className="h-7 w-24 text-sm"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSave();
+              if (e.key === "Escape") setEditing(false);
+            }}
+          />
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSave} disabled={isPending}>
+            <Check className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(false)}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ) : inactive ? (
+        <>
+          <p className="mt-3 text-sm text-muted-foreground">{t("setCrcdLimitPrompt")}</p>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="mt-3 text-xs font-semibold text-primary hover:underline"
+          >
+            {t("editLimit")}
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="mt-3.5 flex items-center gap-3.5">
+            <Ring pct={pct} color={ringColor} label={`${pct}%`} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] text-muted-foreground">{t("annualRoomLeft")}</p>
+              <p className="mt-0.5 text-lg font-extrabold tabular-nums">
+                {formatMoney(crcdRoom, locale)}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
+                {t("depositedOfLimit", {
+                  deposited: formatMoney(currentRow.crcdDepositCents, locale),
+                  limit: formatMoney(currentRow.crcdLimitCents, locale),
+                })}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3.5 flex items-center justify-between border-t pt-3">
+            <span className="text-[11px] text-muted-foreground">
+              {t("lifetime")}
+              <span className="ml-1 font-mono font-semibold text-foreground">
+                {formatMoney(currentRow.crcdCumulativeInvestedCents, locale)}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              {t("editLimit")}
+            </button>
+          </div>
+
+          {/* First-tranche entry point */}
+          {!hasCrcdHoldings && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 w-full"
+              onClick={() => setAddTrancheOpen(true)}
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              {t("crcdAddFirstTranche")}
+            </Button>
+          )}
+        </>
+      )}
 
       {/* Add first tranche dialog */}
       <Dialog open={addTrancheOpen} onOpenChange={setAddTrancheOpen}>
@@ -329,88 +479,6 @@ function CrcdCard({
           </form>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function RoomProgress({
-  depositedCents,
-  limitCents,
-}: {
-  depositedCents: number;
-  limitCents: number;
-}) {
-  const pct = limitCents > 0 ? Math.min(Math.round((depositedCents / limitCents) * 100), 100) : 0;
-  const full = depositedCents >= limitCents && limitCents > 0;
-
-  return (
-    <div className="flex items-center gap-2">
-      <Progress
-        value={pct}
-        className={`h-2 flex-1 ${full ? "[&>[data-slot=progress-indicator]]:bg-gain" : ""}`}
-      />
-      <span className={`text-xs font-medium ${full ? "text-gain" : "text-muted-foreground"}`}>
-        {pct}%
-      </span>
-    </div>
-  );
-}
-
-function LifetimeProgress({
-  investedCents,
-  limitCents,
-}: {
-  investedCents: number;
-  limitCents: number;
-}) {
-  const pct = limitCents > 0 ? Math.min(Math.round((investedCents / limitCents) * 100), 100) : 0;
-
-  return (
-    <div className="flex items-center gap-2">
-      <Progress value={pct} className="h-2 flex-1" />
-      <span className="text-xs font-medium text-muted-foreground">{pct}%</span>
-    </div>
-  );
-}
-
-function NonRegisteredCard({
-  currentRow,
-  locale,
-}: {
-  currentRow: ContributionYearRow;
-  locale: string;
-}) {
-  const t = useTranslations("contributions");
-  const total = currentRow.margeDepositCents + currentRow.cashDepositCents + currentRow.otherDepositCents;
-
-  return (
-    <div className="rounded-xl border bg-card p-5 shadow-sm">
-      <p className="text-sm font-medium">{t("nonRegLabel")}</p>
-
-      <div className="mt-3 space-y-2">
-        {currentRow.margeDepositCents > 0 && (
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{t("marginLabel")}</span>
-            <span>{formatMoney(currentRow.margeDepositCents, locale)}</span>
-          </div>
-        )}
-        {currentRow.cashDepositCents > 0 && (
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{t("cash")}</span>
-            <span>{formatMoney(currentRow.cashDepositCents, locale)}</span>
-          </div>
-        )}
-        {currentRow.otherDepositCents > 0 && (
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{t("other")}</span>
-            <span>{formatMoney(currentRow.otherDepositCents, locale)}</span>
-          </div>
-        )}
-        <div className="flex justify-between text-sm border-t pt-2">
-          <span className="text-muted-foreground">{t("totalNonReg")}</span>
-          <span className="font-semibold">{formatMoney(total, locale)}</span>
-        </div>
-      </div>
     </div>
   );
 }
