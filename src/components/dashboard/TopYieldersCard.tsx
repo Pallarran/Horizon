@@ -18,7 +18,7 @@ export function TopYieldersCard({ locale, yielders }: TopYieldersCardProps) {
   const top = yielders.yielders.slice(0, 3);
 
   return (
-    <div className="flex flex-1 flex-col rounded-xl border bg-card p-4 shadow-sm">
+    <div className="flex flex-1 flex-col rounded-xl border bg-card p-5 shadow-sm">
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-semibold">{t("topYieldersLabel")}</p>
         {yielders.portfolioYieldPercent > 0 && (

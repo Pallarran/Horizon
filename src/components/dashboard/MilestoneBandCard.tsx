@@ -33,7 +33,7 @@ export function MilestoneBandCard({ locale, data }: MilestoneBandCardProps) {
   const estimatedDate = data.estimatedDate ? formatShortDate(data.estimatedDate, locale) : null;
 
   return (
-    <div className="rounded-xl border bg-card px-4 py-3.5 shadow-sm">
+    <div className="rounded-xl border bg-card px-5 py-4 shadow-sm">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
         <div className="shrink-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

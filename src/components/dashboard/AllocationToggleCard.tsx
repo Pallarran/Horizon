@@ -51,7 +51,7 @@ export function AllocationToggleCard({
   const hasData = data.length > 0;
 
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
+    <div className="rounded-xl border bg-card p-5 shadow-sm">
       <div className="mb-3.5 flex items-center justify-between">
         <p className="text-sm font-semibold">{t("allocation")}</p>
         <div className="flex gap-0.5 rounded-md bg-muted p-0.5 text-[11px]">

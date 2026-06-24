@@ -27,7 +27,7 @@ export function DayMoversStrip({ locale, movers }: DayMoversStripProps) {
       {!hasData ? (
         <span className="text-muted-foreground">{t("noMovers")}</span>
       ) : (
-        <div className="flex flex-1 items-center justify-between gap-4">
+        <div className="flex flex-1 items-center justify-center gap-8">
           {gainer && (
             <span className="tabular-nums">
               <span className="font-semibold">{gainer.symbol}</span>{" "}

@@ -108,7 +108,7 @@ export default async function DashboardPage() {
   return (
     <>
       <Header displayName={user.displayName} isAdmin={user.isAdmin} />
-      <main className="mx-auto flex max-w-[1600px] flex-col gap-3 p-3.5 md:p-[22px] lg:px-8 lg:py-4">
+      <main className="mx-auto flex max-w-[1600px] flex-col gap-3.5 p-3.5 md:p-[22px] lg:px-8 lg:py-5">
         {/* Hero band — the two questions that matter: wealth & freedom */}
         <div className="grid gap-3.5 lg:grid-cols-[1.5fr_1fr]">
           <WealthHeroCard locale={locale} netWorth={netWorth} history={portfolioHistory} />
@@ -127,7 +127,7 @@ export default async function DashboardPage() {
             history={dividendHistory}
           />
           <ContributionRoomCard locale={locale} room={contributionRoom} />
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3.5">
             <AllocationToggleCard
               accountData={allocationByAccount.slices}
               accountTotalCents={allocationByAccount.totalCents}

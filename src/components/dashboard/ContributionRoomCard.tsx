@@ -41,7 +41,7 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
   );
 
   return (
-    <div className="flex flex-col rounded-xl border bg-card p-4 shadow-sm">
+    <div className="flex flex-col rounded-xl border bg-card p-5 shadow-sm">
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-semibold">{t("contributions", { year: room.year })}</p>
         {totalCents > 0 && (
