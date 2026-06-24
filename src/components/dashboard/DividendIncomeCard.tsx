@@ -1,26 +1,28 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatMoney, formatPercent } from "@/lib/money/format";
 import type { DividendsSummaryData } from "@/lib/dashboard/dividends-summary";
 import type { DividendForecastData } from "@/lib/dashboard/dividend-forecast";
-import type { TopYieldersData } from "@/lib/dashboard/top-yielders";
-import { Separator } from "@/components/ui/separator";
+import type { DividendHistoryPoint } from "@/lib/dashboard/dividend-history";
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 interface DividendIncomeCardProps {
   locale: string;
   dividends: DividendsSummaryData;
   forecast: DividendForecastData;
-  yielders: TopYieldersData;
+  history: DividendHistoryPoint[];
 }
 
 /**
  * Promoted dividend-income card — the core retirement strategy front and centre:
- * annualized total, YTD pace, 12-month forecast, and top yielders unified.
+ * annualized total, YTD pace, and an income chart toggling between a year-by-year
+ * history (default) and the next-12-month forecast.
  */
-export function DividendIncomeCard({ locale, dividends, forecast, yielders }: DividendIncomeCardProps) {
+export function DividendIncomeCard({ locale, dividends, forecast, history }: DividendIncomeCardProps) {
   const t = useTranslations("dashboard");
+  const [chartMode, setChartMode] = useState<"year" | "forecast">("year");
 
   const hasData = dividends.annualizedCents > 0;
   const growthPositive = dividends.ytdGrowthPercent >= 0;
@@ -42,7 +44,16 @@ export function DividendIncomeCard({ locale, dividends, forecast, yielders }: Di
     isCurrentMonth: m.isCurrentMonth,
   }));
 
-  const topThree = yielders.yielders.slice(0, 3);
+  const currentYear = new Date().getFullYear();
+  const historyChartData = history.map((h) => ({
+    label: String(h.year),
+    dollars: h.totalCents / 100,
+    totalCents: h.totalCents,
+    isCurrentMonth: h.year === currentYear,
+  }));
+
+  const isYear = chartMode === "year";
+  const chartData = isYear ? historyChartData : forecastChartData;
 
   return (
     <div className="rounded-xl border bg-card p-[22px] shadow-sm">
@@ -87,14 +98,42 @@ export function DividendIncomeCard({ locale, dividends, forecast, yielders }: Di
             />
           </div>
 
-          {/* 12-month forecast */}
-          <p className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {t("next12Months")}
-          </p>
-          <div className="h-[70px]">
+          {/* Income chart — year-by-year (default) or 12-month forecast */}
+          <div className="mb-2 mt-4 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {isYear ? t("dividendByYear") : t("next12Months")}
+            </p>
+            <div className="flex gap-0.5 rounded-md bg-muted p-0.5 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setChartMode("year")}
+                className={`rounded px-2.5 py-1 transition-colors ${
+                  isYear ? "bg-card font-semibold shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                {t("dividendByYear")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartMode("forecast")}
+                className={`rounded px-2.5 py-1 transition-colors ${
+                  !isYear ? "bg-card font-semibold shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                {t("dividendForecastShort")}
+              </button>
+            </div>
+          </div>
+          <div className="h-[120px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={forecastChartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                <XAxis dataKey="label" tick={false} tickLine={false} axisLine={false} height={0} />
+              <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                <XAxis
+                  dataKey="label"
+                  tick={isYear ? { fontSize: 11 } : false}
+                  tickLine={false}
+                  axisLine={false}
+                  height={isYear ? 16 : 0}
+                />
                 <Tooltip
                   cursor={{ fill: "var(--muted)" }}
                   formatter={(_value, _name, item) => [
@@ -109,36 +148,13 @@ export function DividendIncomeCard({ locale, dividends, forecast, yielders }: Di
                   }}
                 />
                 <Bar dataKey="dollars" radius={[3, 3, 0, 0]}>
-                  {forecastChartData.map((entry, index) => (
+                  {chartData.map((entry, index) => (
                     <Cell key={index} fill={entry.isCurrentMonth ? "var(--chart-1)" : "var(--chart-2)"} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-
-          {/* Top yielders */}
-          {topThree.length > 0 && (
-            <>
-              <Separator className="my-4" />
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {t("topYieldersLabel")}
-              </p>
-              <div className="space-y-1.5 text-sm">
-                {topThree.map((y) => (
-                  <div key={y.symbol} className="flex items-baseline justify-between gap-2">
-                    <span className="flex min-w-0 items-baseline gap-1.5">
-                      <span className="font-semibold">{y.symbol}</span>
-                      <span className="truncate text-xs text-muted-foreground">{y.name}</span>
-                    </span>
-                    <span className="shrink-0 font-semibold text-gain">
-                      {formatPercent(y.yieldOnCostPercent, locale)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
         </>
       )}
     </div>

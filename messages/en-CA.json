@@ -187,6 +187,8 @@
     "average": "average",
     "ofPace": "{pct}% of pace",
     "next12Months": "Next 12 months",
+    "dividendByYear": "By year",
+    "dividendForecastShort": "12-month",
     "topYieldersLabel": "Top yielders",
     "maxed": "maxed",
     "roomLeft": "{amount} of room left to use before Dec 31",

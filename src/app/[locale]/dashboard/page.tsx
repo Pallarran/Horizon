@@ -9,6 +9,7 @@ import { computeHero } from "@/lib/dashboard/hero";
 import { computeContributionRoom } from "@/lib/dashboard/contribution-room";
 import { computeNetWorthMilestones, estimatePassedMilestones } from "@/lib/dashboard/net-worth-milestones";
 import { computeDividendForecast } from "@/lib/dashboard/dividend-forecast";
+import { computeDividendHistory } from "@/lib/dashboard/dividend-history";
 import { computeTopYielders } from "@/lib/dashboard/top-yielders";
 import { computeAllocation, computeAllocationByAssetClass } from "@/lib/dashboard/allocation";
 import { getLastPriceDate } from "@/lib/dashboard/last-updated";
@@ -22,6 +23,7 @@ import { MilestoneBandCard } from "@/components/dashboard/MilestoneBandCard";
 import { DividendIncomeCard } from "@/components/dashboard/DividendIncomeCard";
 import { AllocationToggleCard } from "@/components/dashboard/AllocationToggleCard";
 import { DayMoversStrip } from "@/components/dashboard/DayMoversStrip";
+import { TopYieldersCard } from "@/components/dashboard/TopYieldersCard";
 import { ContributionRoomCard } from "@/components/dashboard/ContributionRoomCard";
 import { LastUpdatedIndicator } from "@/components/dashboard/LastUpdatedIndicator";
 import { AutoPriceRefresh } from "@/components/dashboard/AutoPriceRefresh";
@@ -81,9 +83,10 @@ export default async function DashboardPage() {
     ]);
 
   // Batch 3: everything that depends on batch 2 — all in parallel
-  const [dividendForecast, hero, { milestones: passedMilestones, annualizedGrowthRate: irrGrowthRate }] =
+  const [dividendForecast, dividendHistory, hero, { milestones: passedMilestones, annualizedGrowthRate: irrGrowthRate }] =
     await Promise.all([
       computeDividendForecast(db, positions, netWorth.usdCadRate, locale),
+      computeDividendHistory(db, netWorth.usdCadRate),
       computeHero(db, user, dividends.annualizedCents, netWorth.netWorthCents, incomeStreams),
       estimatePassedMilestones(db, netWorth.netWorthCents, portfolioHistory),
     ]);
@@ -121,7 +124,7 @@ export default async function DashboardPage() {
             locale={locale}
             dividends={dividends}
             forecast={dividendForecast}
-            yielders={topYielders}
+            history={dividendHistory}
           />
           <ContributionRoomCard locale={locale} room={contributionRoom} />
           <div className="flex flex-col gap-3.5">
@@ -133,6 +136,7 @@ export default async function DashboardPage() {
               locale={locale}
             />
             <DayMoversStrip locale={locale} movers={dayMovers} />
+            <TopYieldersCard locale={locale} yielders={topYielders} />
           </div>
         </div>
 
