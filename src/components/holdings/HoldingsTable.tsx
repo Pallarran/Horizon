@@ -159,16 +159,13 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
         <TableCell>
           <div className="flex items-center gap-2">
             <span className="font-medium">{h.symbol}</span>
-            <Badge variant="outline" className="text-[10px]">
-              {h.currency}
-            </Badge>
             {h.dividendGrowthYears != null && h.dividendGrowthYears > 0 && (
-              <span className="text-[10px] font-medium text-gain">
+              <span className="shrink-0 text-[10px] font-medium text-gain">
                 ↗ {t("divGrowthYears", { count: h.dividendGrowthYears })}
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">{h.name}</p>
+          <p className="truncate text-xs text-muted-foreground">{h.name}</p>
         </TableCell>
         <TableCell className="hidden text-right font-mono md:table-cell">
           {formatNumber(h.quantity, locale, 0)}
@@ -196,7 +193,7 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
             const heavy = weight > 0.1;
             return (
               <div className="flex items-center gap-2">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                   <div
                     className={`h-full rounded-full ${heavy ? "bg-warning" : "bg-primary"}`}
                     style={{ width: `${Math.min(100, weight * 100)}%` }}
@@ -236,7 +233,9 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
         <TableCell className="hidden text-right font-mono text-sm lg:table-cell">
           {h.yieldPercent !== null ? (
             <>
-              {formatPercent(h.yieldPercent, locale)}
+              <span className="font-semibold text-primary">
+                {formatPercent(h.yieldPercent, locale)}
+              </span>
               {h.yieldOnCostPercent !== null && (
                 <p className="text-[10px] text-muted-foreground">
                   YOC: {formatPercent(h.yieldOnCostPercent, locale)}
@@ -260,15 +259,15 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
     return (
       <TableRow
         key={`group-${group.key}`}
-        className="cursor-pointer bg-muted/40 hover:bg-muted/60"
+        className="cursor-pointer border-l-2 border-l-primary bg-primary/[0.07] hover:bg-primary/[0.12]"
         onClick={() => toggleGroup(group.key)}
       >
         <TableCell colSpan={4}>
           <div className="flex items-center gap-2">
             <ChevronRightIcon
-              className={`size-4 shrink-0 text-muted-foreground transition-transform ${isCollapsed ? "" : "rotate-90"}`}
+              className={`size-4 shrink-0 text-primary transition-transform ${isCollapsed ? "" : "rotate-90"}`}
             />
-            <span className="font-semibold">{group.label}</span>
+            <span className="font-semibold text-primary">{group.label}</span>
             <Badge variant="secondary" className="text-[10px]">
               {t("positionCount", { count: group.positions.length })}
             </Badge>
@@ -306,19 +305,19 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
 
   return (
     <div className="overflow-x-auto rounded-xl border">
-      <Table>
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow>
-            <SortableHead k="symbol">{t("symbol")}</SortableHead>
-            <SortableHead k="quantity" right className="hidden md:table-cell">{t("quantity")}</SortableHead>
-            <SortableHead k="avgCostCents" right className="hidden lg:table-cell">{t("avgCost")}</SortableHead>
-            <SortableHead k="currentPriceCents" right className="hidden md:table-cell">{t("currentPrice")}</SortableHead>
-            <SortableHead k="dayChangePercent" right className="hidden lg:table-cell">{t("dayChange")}</SortableHead>
-            <TableHead className="hidden text-left lg:table-cell">{t("weight")}</TableHead>
-            <SortableHead k="marketValueCents" right>{t("marketValue")}</SortableHead>
-            <SortableHead k="unrealizedGainCents" right>{t("unrealizedGain")}</SortableHead>
-            <SortableHead k="expectedIncomeCents" right className="hidden md:table-cell">{t("expectedIncome")}</SortableHead>
-            <SortableHead k="yieldPercent" right className="hidden lg:table-cell">{t("yield")}</SortableHead>
+            <SortableHead k="symbol" className="w-[20%]">{t("symbol")}</SortableHead>
+            <SortableHead k="quantity" right className="hidden w-[7%] md:table-cell">{t("quantity")}</SortableHead>
+            <SortableHead k="avgCostCents" right className="hidden w-[9%] lg:table-cell">{t("avgCost")}</SortableHead>
+            <SortableHead k="currentPriceCents" right className="hidden w-[9%] md:table-cell">{t("currentPrice")}</SortableHead>
+            <SortableHead k="dayChangePercent" right className="hidden w-[7%] lg:table-cell">{t("dayChange")}</SortableHead>
+            <TableHead className="hidden w-[15%] text-left lg:table-cell">{t("weight")}</TableHead>
+            <SortableHead k="marketValueCents" right className="w-[11%]">{t("marketValue")}</SortableHead>
+            <SortableHead k="unrealizedGainCents" right className="w-[10%]">{t("unrealizedGain")}</SortableHead>
+            <SortableHead k="expectedIncomeCents" right className="hidden w-[7%] md:table-cell">{t("expectedIncome")}</SortableHead>
+            <SortableHead k="yieldPercent" right className="hidden w-[6%] lg:table-cell">{t("yield")}</SortableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

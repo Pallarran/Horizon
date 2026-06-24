@@ -9,6 +9,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 
 interface Account {
@@ -73,8 +74,6 @@ export function HoldingsToolbar({
     { value: "none", label: t("groupByNone") },
   ];
 
-  const selectedAccountName = accounts.find((a) => a.id === filterAccount)?.name;
-
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       {/* Search */}
@@ -113,27 +112,19 @@ export function HoldingsToolbar({
       {/* Filter dropdowns */}
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <FilterSelect
-          label={t("account")}
           value={filterAccount}
-          display={filterAccount === "all" ? undefined : selectedAccountName}
           onChange={setFilterAccount}
           options={[
-            { value: "all", label: t("allAccounts") },
+            { value: "all", label: t("account") },
             ...accounts.map((a) => ({ value: a.id, label: a.name })),
           ]}
         />
         {assetClasses.length > 0 && (
           <FilterSelect
-            label={t("assetClass")}
             value={filterAssetClass}
-            display={
-              filterAssetClass === "all"
-                ? undefined
-                : t(`assetClass${filterAssetClass}` as Parameters<typeof t>[0])
-            }
             onChange={setFilterAssetClass}
             options={[
-              { value: "all", label: t("allAssetClasses") },
+              { value: "all", label: t("assetClass") },
               ...assetClasses.map((ac) => ({
                 value: ac,
                 label: t(`assetClass${ac}` as Parameters<typeof t>[0]),
@@ -143,24 +134,20 @@ export function HoldingsToolbar({
         )}
         {currencies.length > 1 && (
           <FilterSelect
-            label={t("currency")}
             value={filterCurrency}
-            display={filterCurrency === "all" ? undefined : filterCurrency}
             onChange={setFilterCurrency}
             options={[
-              { value: "all", label: t("allCurrencies") },
+              { value: "all", label: t("currency") },
               ...currencies.map((c) => ({ value: c, label: c })),
             ]}
           />
         )}
         {industries.length > 0 && (
           <FilterSelect
-            label={t("industry")}
             value={filterIndustry}
-            display={filterIndustry === "all" ? undefined : filterIndustry}
             onChange={setFilterIndustry}
             options={[
-              { value: "all", label: t("allIndustries") },
+              { value: "all", label: t("industry") },
               ...industries.map((ind) => ({ value: ind, label: ind })),
             ]}
           />
@@ -176,19 +163,15 @@ export function HoldingsToolbar({
 }
 
 /**
- * A single filter dropdown whose trigger shows the facet name until a value is
- * picked, then shows the chosen value (and highlights as active).
+ * A single filter dropdown. The "all" option's label doubles as the facet name
+ * shown on the trigger; picking a value highlights the trigger as active.
  */
 function FilterSelect({
-  label,
   value,
-  display,
   onChange,
   options,
 }: {
-  label: string;
   value: string;
-  display?: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
 }) {
@@ -197,11 +180,11 @@ function FilterSelect({
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger
         size="sm"
-        className={active ? "border-primary text-primary" : "text-foreground"}
+        className={`text-xs ${active ? "border-primary text-primary" : ""}`}
       >
-        <span className="text-xs">{active ? display ?? label : label}</span>
+        <SelectValue />
       </SelectTrigger>
-      <SelectContent align="end">
+      <SelectContent position="popper" align="end">
         {options.map((opt) => (
           <SelectItem key={opt.value} value={opt.value}>
             {opt.label}
