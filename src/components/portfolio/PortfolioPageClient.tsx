@@ -10,7 +10,6 @@ import { ContributionsPageClient } from "@/components/contributions/Contribution
 import type { SerializedPosition } from "@/lib/positions/serialize";
 import type { SecurityProfileMap } from "@/lib/positions/security-profile";
 import type { SerializedCrcdHolding } from "@/lib/actions/crcd-holdings";
-import type { PortfolioHistoryPoint } from "@/lib/dashboard/portfolio-history";
 import type { ContributionYearRow } from "@/lib/contributions/compute";
 
 interface HoldingsAccount {
@@ -37,7 +36,6 @@ interface PortfolioPageClientProps {
   crcdHoldings: SerializedCrcdHolding[];
   // Accounts tab
   accountsForAccounts: FullAccount[];
-  accountHistories: Record<string, PortfolioHistoryPoint[]>;
   cashBalances: Record<string, { cad: number; usd: number }>;
   // Contributions tab
   contributionRows: ContributionYearRow[];
@@ -54,7 +52,6 @@ export function PortfolioPageClient({
   watchedSecurityIds,
   crcdHoldings,
   accountsForAccounts,
-  accountHistories,
   cashBalances,
   contributionRows,
   hasCrcdHoldings,
@@ -96,7 +93,6 @@ export function PortfolioPageClient({
         <AccountsTab
           accounts={accountsForAccounts}
           positions={positions}
-          accountHistories={accountHistories}
           cashBalances={cashBalances}
           usdCadRate={usdCadRate}
           locale={locale}

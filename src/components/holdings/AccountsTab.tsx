@@ -6,12 +6,10 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useSortable, isSortable } from "@dnd-kit/react/sortable";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Plus, MoreVertical } from "lucide-react";
 import type { SerializedPosition } from "@/lib/positions/serialize";
-import type { PortfolioHistoryPoint } from "@/lib/dashboard/portfolio-history";
 import { deleteAccountAction, reorderAccountsAction } from "@/lib/actions/accounts";
 import { formatMoney, formatPercent } from "@/lib/money/format";
-import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { AccountForm } from "./AccountForm";
 import {
   Dialog,
@@ -50,7 +48,6 @@ interface AccountStat extends Account {
   /** Expected income in CAD */
   income: number;
   yieldPct: number | null;
-  weight: number;
   positionCount: number;
   currencyLabel: string;
   /** Native CAD cash balance (cents) */
@@ -61,33 +58,49 @@ interface AccountStat extends Account {
   cashTotalCad: number;
   /** Hero total = positions market value + cash, in CAD */
   totalValue: number;
+  /** Share of the whole portfolio by total value (0..1) */
+  valueWeight: number;
+  /** Bar fill relative to the largest account (0..1) */
+  weightBar: number;
+  /** Stable per-account accent colour */
+  color: string;
 }
 
 interface Props {
   accounts: Account[];
   positions: SerializedPosition[];
-  accountHistories: Record<string, PortfolioHistoryPoint[]>;
   cashBalances: Record<string, { cad: number; usd: number }>;
   usdCadRate: number;
   locale: string;
 }
 
+/** Per-account accent palette (mirrors the dashboard allocation colours). */
+const ACCOUNT_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-4)",
+  "var(--chart-3)",
+  "var(--chart-5)",
+  "var(--muted-foreground)",
+];
+
+const ROW_GRID =
+  "grid-cols-[24px_2.1fr_1.6fr_1.25fr_1fr_1.05fr_0.9fr_0.8fr_32px]";
+
 /* ------------------------------------------------------------------ */
-/*  Sortable account card                                             */
+/*  Sortable account row                                              */
 /* ------------------------------------------------------------------ */
 
-function SortableAccountCard({
+function SortableAccountRow({
   acct,
   index,
   locale,
-  accountHistories,
   onEdit,
   onDelete,
 }: {
   acct: AccountStat;
   index: number;
   locale: string;
-  accountHistories: Record<string, PortfolioHistoryPoint[]>;
   onEdit: (account: Account) => void;
   onDelete: (account: Account) => void;
 }) {
@@ -96,52 +109,121 @@ function SortableAccountCard({
   const router = useRouter();
   const { ref, handleRef } = useSortable({ id: acct.id, index });
 
+  const gainPositive = acct.gain >= 0;
+  const hasUsdValue = acct.marketValueUsd !== null;
+  const hasUsdCash = acct.cashCad !== 0 && acct.cashUsd !== 0;
+
   return (
     <div
       ref={ref}
       onClick={() => router.push(`/${locale}/portfolio?tab=holdings&account=${acct.id}`)}
-      className={`cursor-pointer rounded-xl border p-5 shadow-sm transition-colors hover:border-primary/30 ${
-        acct.positionCount === 0
-          ? "border-dashed bg-card/50"
-          : "bg-card"
-      }`}
+      className={`grid ${ROW_GRID} cursor-pointer items-center border-b border-border/60 px-[18px] py-3.5 text-sm transition-colors last:border-b-0 hover:bg-muted/40`}
     >
-      {/* Top row: drag handle + type · currency + menu */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button
-            ref={handleRef}
-            type="button"
-            className="cursor-grab touch-none text-muted-foreground/50 hover:text-muted-foreground"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="size-4" />
-          </button>
-          <p className="text-xs font-medium text-muted-foreground">
-            {t(`accountType${acct.type}` as Parameters<typeof t>[0])} ·{" "}
-            {acct.currencyLabel}
-            {acct.positionCount > 0 && <> · {acct.positionCount} {t("posAbbrev")}</>}
+      {/* Drag handle */}
+      <button
+        ref={handleRef}
+        type="button"
+        className="cursor-grab touch-none text-muted-foreground/40 hover:text-muted-foreground"
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Reorder"
+      >
+        <GripVertical className="size-4" />
+      </button>
+
+      {/* Account */}
+      <div className="flex min-w-0 items-center gap-2.5 pr-3">
+        <span
+          className="size-2.5 shrink-0 rounded-sm"
+          style={{ backgroundColor: acct.color }}
+        />
+        <div className="min-w-0">
+          <p className="truncate font-semibold">{acct.name}</p>
+          <p className="truncate text-[11px] text-muted-foreground">
+            {t(`accountType${acct.type}` as Parameters<typeof t>[0])} · {acct.currencyLabel}
+            {acct.positionCount > 0 && <> · {acct.positionCount} {t("positions")}</>}
           </p>
         </div>
+      </div>
+
+      {/* Share of portfolio */}
+      <div className="flex items-center gap-2.5 pr-4">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${Math.round(acct.weightBar * 100)}%`, backgroundColor: acct.color }}
+          />
+        </div>
+        <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+          {formatPercent(acct.valueWeight, locale, 1)}
+        </span>
+      </div>
+
+      {/* Total value */}
+      <div className="text-right">
+        <span className="font-bold tabular-nums">{formatMoney(acct.totalValue, locale)}</span>
+        {hasUsdValue && (
+          <div className="text-[10px] tabular-nums text-muted-foreground">
+            {acct.marketValueCad !== null && <>{formatMoney(acct.marketValueCad, locale)} · </>}
+            {formatMoney(acct.marketValueUsd as number, locale, "USD")}
+          </div>
+        )}
+      </div>
+
+      {/* Cash */}
+      <div className="text-right">
+        <span
+          className={`text-[13px] font-semibold tabular-nums ${
+            acct.cashTotalCad < 0
+              ? "text-loss"
+              : acct.cashTotalCad > 0
+                ? "text-primary"
+                : "text-muted-foreground"
+          }`}
+        >
+          {formatMoney(acct.cashTotalCad, locale)}
+        </span>
+        {hasUsdCash && (
+          <div className="text-[10px] tabular-nums text-primary/70">
+            {formatMoney(acct.cashUsd, locale, "USD")}
+          </div>
+        )}
+      </div>
+
+      {/* Gain */}
+      <div className={`text-right text-[13px] tabular-nums ${gainPositive ? "text-gain" : "text-loss"}`}>
+        <span>
+          {gainPositive ? "+" : ""}
+          {formatMoney(acct.gain, locale)}
+        </span>
+        {acct.gainPercent !== null && (
+          <div className="text-[11px]">
+            ({gainPositive ? "+" : ""}
+            {formatPercent(acct.gainPercent, locale)})
+          </div>
+        )}
+      </div>
+
+      {/* Income */}
+      <div className="text-right text-[13px] font-medium tabular-nums">
+        {formatMoney(acct.income, locale)}
+      </div>
+
+      {/* Yield */}
+      <div className="text-right text-[13px] font-semibold tabular-nums text-primary">
+        {acct.yieldPct !== null ? formatPercent(acct.yieldPct, locale) : "—"}
+      </div>
+
+      {/* Row menu */}
+      <div className="flex justify-end">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 p-0 text-muted-foreground"
+              className="size-7 p-0 text-muted-foreground"
               onClick={(e) => e.stopPropagation()}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <circle cx="12" cy="5" r="2" />
-                <circle cx="12" cy="12" r="2" />
-                <circle cx="12" cy="19" r="2" />
-              </svg>
+              <MoreVertical className="size-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -165,130 +247,6 @@ function SortableAccountCard({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-      {/* Account name */}
-      <p className="mt-1 text-sm font-medium">{acct.name}</p>
-
-      {/* Hero value: total account value (positions + cash) in CAD */}
-      <p className="mt-4 text-center text-2xl font-bold tabular-nums">
-        {formatMoney(acct.totalValue, locale)}
-      </p>
-
-      {/* Gain line (positions only) */}
-      <p
-        className={`mt-1 text-center text-sm tabular-nums ${
-          acct.gain >= 0 ? "text-gain" : "text-loss"
-        }`}
-      >
-        {acct.gain >= 0 ? "+" : ""}
-        {formatMoney(acct.gain, locale)}
-        {acct.gainPercent !== null && (
-          <> ({acct.gainPercent >= 0 ? "+" : ""}{formatPercent(acct.gainPercent, locale)})</>
-        )}
-      </p>
-
-      {/* Sparkline */}
-      {(() => {
-        const history = accountHistories[acct.id];
-        const hasData = history && history.length >= 2 && history.some((p) => p.valueCents > 0);
-        if (!hasData) return null;
-        const chartData = history.map((p) => ({ v: p.valueCents / 100 }));
-        const gradientId = `acctGradient-${acct.id}`;
-        return (
-          <div className="mt-3 h-16">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area
-                  type="monotone"
-                  dataKey="v"
-                  stroke="var(--chart-1)"
-                  fill={`url(#${gradientId})`}
-                  strokeWidth={1.5}
-                  dot={false}
-                  isAnimationActive={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        );
-      })()}
-
-      {/* Positions & Cash breakdown */}
-      <div className="mt-4 space-y-2">
-        <div>
-          <div className="flex items-baseline justify-between text-xs">
-            <span className="font-medium uppercase tracking-wider text-muted-foreground">
-              {t("positions")}
-            </span>
-            <span className="font-semibold tabular-nums">
-              {formatMoney(acct.marketValue, locale)}
-            </span>
-          </div>
-          {acct.marketValueUsd !== null && (
-            <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
-              {acct.marketValueCad !== null && <>{formatMoney(acct.marketValueCad, locale)} · </>}
-              {formatMoney(acct.marketValueUsd, locale, "USD")}
-            </p>
-          )}
-        </div>
-
-        {(acct.cashCad !== 0 || acct.cashUsd !== 0) && (
-          <div>
-            <div className="flex items-baseline justify-between text-xs">
-              <span className="font-medium uppercase tracking-wider text-muted-foreground">
-                {t("cash")}
-              </span>
-              <span className={`font-semibold tabular-nums ${acct.cashTotalCad < 0 ? "text-loss" : ""}`}>
-                {formatMoney(acct.cashTotalCad, locale)}
-              </span>
-            </div>
-            {acct.cashCad !== 0 && acct.cashUsd !== 0 && (
-              <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
-                {formatMoney(acct.cashCad, locale)} · {formatMoney(acct.cashUsd, locale, "USD")}
-              </p>
-            )}
-            {acct.cashCad === 0 && acct.cashUsd !== 0 && (
-              <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
-                {formatMoney(acct.cashUsd, locale, "USD")}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Mini stats */}
-      <div className="mt-3 grid grid-cols-3 text-center">
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            {t("weight")}
-          </p>
-          <p className="mt-0.5 text-sm font-semibold tabular-nums">
-            {formatPercent(acct.weight, locale, 1)}
-          </p>
-        </div>
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            {t("income")}
-          </p>
-          <p className="mt-0.5 text-sm font-semibold tabular-nums">
-            {formatMoney(acct.income, locale)}
-          </p>
-        </div>
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            {t("yield")}
-          </p>
-          <p className="mt-0.5 text-sm font-semibold tabular-nums">
-            {acct.yieldPct !== null ? formatPercent(acct.yieldPct, locale) : "—"}
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
@@ -297,14 +255,14 @@ function SortableAccountCard({
 /*  Main component                                                    */
 /* ------------------------------------------------------------------ */
 
-export function AccountsTab({ accounts, positions, accountHistories, cashBalances, usdCadRate, locale }: Props) {
+export function AccountsTab({ accounts, positions, cashBalances, usdCadRate, locale }: Props) {
   const t = useTranslations("holdings");
   const tc = useTranslations("common");
   const router = useRouter();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
 
   // Local account order for optimistic DnD updates
@@ -317,47 +275,35 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
     currency === "USD" ? Math.round(cents * usdCadRate) : cents;
 
   const accountStats = useMemo(() => {
-    // Convert position value to CAD; if no market price, use cost basis already in CAD
     const valueCad = (p: SerializedPosition) =>
       p.marketValueCents != null ? toCad(p.marketValueCents, p.currency) : p.totalCostCadCents;
 
-    const portfolioTotal = positions.reduce((s, p) => s + valueCad(p), 0);
-
-    return orderedAccounts.map((account) => {
+    const stats = orderedAccounts.map((account, i) => {
       const ap = positions.filter((p) => p.accountId === account.id);
 
-      // CAD-converted total
       const marketValue = ap.reduce((s, p) => s + valueCad(p), 0);
 
-      // Per-currency native amounts
       const cadPositions = ap.filter((p) => p.currency === "CAD");
       const usdPositions = ap.filter((p) => p.currency === "USD");
-      const marketValueCad = cadPositions.length > 0
-        ? cadPositions.reduce((s, p) => s + (p.marketValueCents ?? p.totalCostCents), 0)
-        : null;
-      const marketValueUsd = usdPositions.length > 0
-        ? usdPositions.reduce((s, p) => s + (p.marketValueCents ?? p.totalCostCents), 0)
-        : null;
+      const marketValueCad =
+        cadPositions.length > 0
+          ? cadPositions.reduce((s, p) => s + (p.marketValueCents ?? p.totalCostCents), 0)
+          : null;
+      const marketValueUsd =
+        usdPositions.length > 0
+          ? usdPositions.reduce((s, p) => s + (p.marketValueCents ?? p.totalCostCents), 0)
+          : null;
 
-      // Cost basis in CAD (already converted via historical FX)
       const totalCost = ap.reduce((s, p) => s + p.totalCostCadCents, 0);
       const gain = marketValue - totalCost;
       const gainPercent = totalCost > 0 ? gain / totalCost : null;
 
-      // Income converted to CAD
-      const income = ap.reduce(
-        (s, p) => s + toCad(p.expectedIncomeCents ?? 0, p.currency),
-        0,
-      );
+      const income = ap.reduce((s, p) => s + toCad(p.expectedIncomeCents ?? 0, p.currency), 0);
       const yieldPct = marketValue > 0 ? income / marketValue : null;
-      const weight = portfolioTotal > 0 ? marketValue / portfolioTotal : 0;
 
       const currencies = new Set(ap.map((p) => p.currency));
-      const currencyLabel = currencies.size > 0
-        ? [...currencies].sort().join("/")
-        : account.currency;
+      const currencyLabel = currencies.size > 0 ? [...currencies].sort().join("/") : account.currency;
 
-      // Cash balances
       const bal = cashBalances[account.id] ?? { cad: 0, usd: 0 };
       const cashCad = bal.cad;
       const cashUsd = bal.usd;
@@ -374,16 +320,44 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
         gainPercent,
         income,
         yieldPct,
-        weight,
         positionCount: ap.length,
         currencyLabel,
         cashCad,
         cashUsd,
         cashTotalCad,
         totalValue,
+        valueWeight: 0,
+        weightBar: 0,
+        color: ACCOUNT_COLORS[i % ACCOUNT_COLORS.length],
       };
     });
+
+    const grandTotal = stats.reduce((s, a) => s + a.totalValue, 0);
+    const maxWeight = stats.reduce(
+      (m, a) => Math.max(m, grandTotal > 0 ? a.totalValue / grandTotal : 0),
+      0,
+    );
+    for (const a of stats) {
+      a.valueWeight = grandTotal > 0 ? a.totalValue / grandTotal : 0;
+      a.weightBar = maxWeight > 0 ? a.valueWeight / maxWeight : 0;
+    }
+    return stats;
   }, [orderedAccounts, positions, usdCadRate, cashBalances]);
+
+  // Portfolio-wide aggregates for the allocation header
+  const totals = useMemo(() => {
+    const totalValue = accountStats.reduce((s, a) => s + a.totalValue, 0);
+    const totalGain = accountStats.reduce((s, a) => s + a.gain, 0);
+    const totalCost = accountStats.reduce((s, a) => s + a.totalCost, 0);
+    const totalCash = accountStats.reduce((s, a) => s + a.cashTotalCad, 0);
+    return {
+      totalValue,
+      totalGain,
+      totalCost,
+      totalCash,
+      gainPercent: totalCost > 0 ? totalGain / totalCost : null,
+    };
+  }, [accountStats]);
 
   async function handleDelete(accountId: string) {
     setDeleteError(null);
@@ -408,7 +382,9 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
     startTransition(() => router.refresh());
   }
 
-  function handleDragEnd(event: Parameters<NonNullable<React.ComponentProps<typeof DragDropProvider>["onDragEnd"]>>[0]) {
+  function handleDragEnd(
+    event: Parameters<NonNullable<React.ComponentProps<typeof DragDropProvider>["onDragEnd"]>>[0],
+  ) {
     if (event.canceled) return;
     const { source } = event.operation;
     if (isSortable(source)) {
@@ -425,53 +401,104 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
     }
   }
 
+  const gainPositive = totals.totalGain >= 0;
+
   return (
     <div>
-      {deleteError && (
-        <p className="mb-4 text-sm text-destructive">{deleteError}</p>
-      )}
+      {deleteError && <p className="mb-4 text-sm text-destructive">{deleteError}</p>}
 
-      <DragDropProvider onDragEnd={handleDragEnd}>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {accountStats.map((acct, index) => (
-            <SortableAccountCard
-              key={acct.id}
-              acct={acct}
-              index={index}
-              locale={locale}
-              accountHistories={accountHistories}
-              onEdit={setEditingAccount}
-              onDelete={setDeleteTarget}
+      {/* Allocation header */}
+      <div className="mb-4 rounded-xl border bg-card px-6 py-5 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("totalAcrossAccounts", { count: accountStats.length })}
+            </p>
+            <p className="mt-1 text-[28px] font-extrabold tabular-nums">
+              {formatMoney(totals.totalValue, locale)}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className={`text-[13px] font-semibold tabular-nums ${gainPositive ? "text-gain" : "text-loss"}`}>
+              {gainPositive ? "+" : ""}
+              {formatMoney(totals.totalGain, locale)}
+              {totals.gainPercent !== null && (
+                <> ({gainPositive ? "+" : ""}{formatPercent(totals.gainPercent, locale)})</>
+              )}
+            </p>
+            {totals.totalCash > 0 && (
+              <p className="mt-1 text-[13px] font-semibold tabular-nums text-primary">
+                {t("cashToReinvest", { amount: formatMoney(totals.totalCash, locale) })}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Stacked allocation bar */}
+        <div className="mb-2.5 flex h-3.5 overflow-hidden rounded-full bg-muted">
+          {accountStats.map((a) => (
+            <div
+              key={a.id}
+              style={{ width: `${a.valueWeight * 100}%`, backgroundColor: a.color }}
+              title={a.name}
             />
           ))}
+        </div>
 
-          {/* Create account placeholder card */}
+        {/* Legend */}
+        <div className="flex flex-wrap gap-x-[18px] gap-y-1.5 text-xs text-foreground/70">
+          {accountStats.map((a) => (
+            <span key={a.id} className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full" style={{ backgroundColor: a.color }} />
+              {t(`accountType${a.type}` as Parameters<typeof t>[0])}{" "}
+              <span className="tabular-nums">{formatPercent(a.valueWeight, locale, 0)}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Ranked list */}
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+        <div className="min-w-[920px]">
+          {/* Column header */}
+          <div
+            className={`grid ${ROW_GRID} border-b px-[18px] py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground`}
+          >
+            <span />
+            <span>{t("account")}</span>
+            <span>{t("shareOfPortfolio")}</span>
+            <span className="text-right">{t("totalValue")}</span>
+            <span className="text-right">{t("cash")}</span>
+            <span className="text-right">{t("gain")}</span>
+            <span className="text-right">{t("income")}</span>
+            <span className="text-right">{t("yield")}</span>
+            <span />
+          </div>
+
+          <DragDropProvider onDragEnd={handleDragEnd}>
+            {accountStats.map((acct, index) => (
+              <SortableAccountRow
+                key={acct.id}
+                acct={acct}
+                index={index}
+                locale={locale}
+                onEdit={setEditingAccount}
+                onDelete={setDeleteTarget}
+              />
+            ))}
+          </DragDropProvider>
+
+          {/* Create account row */}
           <button
             type="button"
             onClick={() => setCreateDialogOpen(true)}
-            className="flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
+            className="flex w-full items-center gap-2 px-[18px] py-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-primary/5 hover:text-primary"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="32"
-              height="32"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" x2="12" y1="8" y2="16" />
-              <line x1="8" x2="16" y1="12" y2="12" />
-            </svg>
-            <span className="mt-2 text-sm font-medium">
-              {t("createAccount")}
-            </span>
+            <Plus className="size-4" />
+            {t("createAccount")}
           </button>
         </div>
-      </DragDropProvider>
+      </div>
 
       {/* Create Account Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -479,10 +506,7 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
           <DialogHeader>
             <DialogTitle>{t("createAccount")}</DialogTitle>
           </DialogHeader>
-          <AccountForm
-            onSuccess={handleCreateSuccess}
-            onCancel={() => setCreateDialogOpen(false)}
-          />
+          <AccountForm onSuccess={handleCreateSuccess} onCancel={() => setCreateDialogOpen(false)} />
         </DialogContent>
       </Dialog>
 
@@ -493,11 +517,7 @@ export function AccountsTab({ accounts, positions, accountHistories, cashBalance
           if (!open) setDeleteTarget(null);
         }}
         title={tc("delete")}
-        description={
-          deleteTarget
-            ? t("deleteAccountDesc", { name: deleteTarget.name })
-            : ""
-        }
+        description={deleteTarget ? t("deleteAccountDesc", { name: deleteTarget.name }) : ""}
         confirmLabel={tc("delete")}
         cancelLabel={tc("cancel")}
         onConfirm={() => {

@@ -10,7 +10,6 @@ import {
   serializeSecurityProfile,
   type SecurityProfileMap,
 } from "@/lib/positions/security-profile";
-import { computeAccountHistories } from "@/lib/dashboard/account-history";
 import { computeContributionTable } from "@/lib/contributions/compute";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +19,7 @@ export default async function PortfolioPage() {
   const db = scopedPrisma(user.id);
 
   // Fetch all data needed by Accounts, Holdings, and Contributions tabs in parallel
-  const [positions, crcdPositions, accounts, fxRate, watchlistItems, crcdHoldings, accountHistories, allTxns, contributionRows, crcdHoldingsRaw] =
+  const [positions, crcdPositions, accounts, fxRate, watchlistItems, crcdHoldings, allTxns, contributionRows, crcdHoldingsRaw] =
     await Promise.all([
       getPositions(db),
       getCrcdPositions(db),
@@ -31,7 +30,6 @@ export default async function PortfolioPage() {
       }),
       db.watchlistItem.findMany({ select: { securityId: true } }),
       getCrcdHoldingsAction(),
-      computeAccountHistories(db),
       db.transaction.findMany({
         select: { accountId: true, amountCents: true, currency: true },
       }),
@@ -95,7 +93,6 @@ export default async function PortfolioPage() {
           watchedSecurityIds={watchlistItems.map((w) => w.securityId)}
           crcdHoldings={crcdHoldings}
           accountsForAccounts={accountsForAccounts}
-          accountHistories={accountHistories}
           cashBalances={cashBalances}
           contributionRows={contributionRows}
           hasCrcdHoldings={crcdHoldingsRaw.length > 0}
