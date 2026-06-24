@@ -242,7 +242,7 @@
     "colPrice": "Prix",
     "colDay": "Jour",
     "colMktValue": "Val. marchande",
-    "colUnreal": "Gain latent",
+    "colUnreal": "Gain non réalisé",
     "colIncome": "Revenu",
     "colYield": "Rendement",
     "costInline": "coût {amount}",

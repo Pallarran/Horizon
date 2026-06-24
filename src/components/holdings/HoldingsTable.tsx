@@ -127,11 +127,11 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
     });
   }
 
-  function SortableHead({ k, children, right, className: extraClass }: { k: SortKey; children: React.ReactNode; right?: boolean; className?: string }) {
+  function SortableHead({ k, children, className: extraClass }: { k: SortKey; children: React.ReactNode; className?: string }) {
     const active = sortKey === k;
     return (
       <TableHead
-        className={`cursor-pointer select-none whitespace-nowrap ${right ? "text-right" : ""} ${extraClass ?? ""}`}
+        className={`cursor-pointer select-none whitespace-nowrap text-center ${extraClass ?? ""}`}
         onClick={() => toggleSort(k)}
         aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
       >
@@ -310,15 +310,15 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
         <TableHeader>
           <TableRow>
             <SortableHead k="symbol" className="w-[18%]">{t("symbol")}</SortableHead>
-            <SortableHead k="quantity" right className="hidden w-[7%] md:table-cell">{t("colQty")}</SortableHead>
-            <SortableHead k="avgCostCents" right className="hidden w-[10%] lg:table-cell">{t("colAvgCost")}</SortableHead>
-            <SortableHead k="currentPriceCents" right className="hidden w-[9%] md:table-cell">{t("colPrice")}</SortableHead>
-            <SortableHead k="dayChangePercent" right className="hidden w-[8%] lg:table-cell">{t("colDay")}</SortableHead>
-            <TableHead className="hidden w-[11%] text-left lg:table-cell">{t("weight")}</TableHead>
-            <SortableHead k="marketValueCents" right className="w-[11%]">{t("colMktValue")}</SortableHead>
-            <SortableHead k="unrealizedGainCents" right className="w-[10%]">{t("colUnreal")}</SortableHead>
-            <SortableHead k="expectedIncomeCents" right className="hidden w-[9%] md:table-cell">{t("colIncome")}</SortableHead>
-            <SortableHead k="yieldPercent" right className="hidden w-[7%] lg:table-cell">{t("colYield")}</SortableHead>
+            <SortableHead k="quantity" className="hidden w-[7%] md:table-cell">{t("colQty")}</SortableHead>
+            <SortableHead k="avgCostCents" className="hidden w-[10%] lg:table-cell">{t("colAvgCost")}</SortableHead>
+            <SortableHead k="currentPriceCents" className="hidden w-[9%] md:table-cell">{t("colPrice")}</SortableHead>
+            <SortableHead k="dayChangePercent" className="hidden w-[7%] lg:table-cell">{t("colDay")}</SortableHead>
+            <TableHead className="hidden w-[11%] text-center lg:table-cell">{t("weight")}</TableHead>
+            <SortableHead k="marketValueCents" className="w-[11%]">{t("colMktValue")}</SortableHead>
+            <SortableHead k="unrealizedGainCents" className="w-[12%]">{t("colUnreal")}</SortableHead>
+            <SortableHead k="expectedIncomeCents" className="hidden w-[8%] md:table-cell">{t("colIncome")}</SortableHead>
+            <SortableHead k="yieldPercent" className="hidden w-[7%] lg:table-cell">{t("colYield")}</SortableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
