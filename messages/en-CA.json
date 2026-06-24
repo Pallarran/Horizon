@@ -493,7 +493,6 @@
     "ofGoalPct": "of {goal} · {pct}",
     "editGoal": "Edit goal",
     "roomStillOpen": "Registered room still open",
-    "adjustLimits": "Adjust limits",
     "roomBeforeYearEnd": "before Dec 31, {year}",
     "celiMaxedNote": "TFSA is maxed.",
     "allRoomUsed": "All registered room is used.",

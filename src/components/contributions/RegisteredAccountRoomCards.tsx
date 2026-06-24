@@ -54,10 +54,7 @@ export function RegisteredAccountRoomCards({
 
   return (
     <>
-      <div
-        id="contribution-room-cards"
-        className="grid scroll-mt-20 gap-4 sm:grid-cols-2 lg:grid-cols-4"
-      >
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* REER */}
         {currentRow.reerLimitCents > 0 ? (
           <RoomCard

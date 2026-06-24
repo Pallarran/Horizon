@@ -183,21 +183,10 @@ export function ContributionsHero({ currentRow, locale, onUpdate }: Contribution
             t("allRoomUsed")
           )}
         </p>
-        <div className="mt-4 flex items-center justify-between gap-2 border-t border-primary/15 pt-3">
+        <div className="mt-4 border-t border-primary/15 pt-3">
           <span className="text-[11px] leading-tight text-muted-foreground">
             {t("updatesAutomatically")}
           </span>
-          <button
-            type="button"
-            onClick={() =>
-              document
-                .getElementById("contribution-room-cards")
-                ?.scrollIntoView({ behavior: "smooth", block: "start" })
-            }
-            className="whitespace-nowrap text-xs font-semibold text-primary hover:underline"
-          >
-            {t("adjustLimits")} →
-          </button>
         </div>
       </div>
     </div>
