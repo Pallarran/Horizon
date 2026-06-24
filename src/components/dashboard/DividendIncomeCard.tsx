@@ -62,7 +62,7 @@ export function DividendIncomeCard({ locale, dividends, forecast, history }: Div
   const chartData = isYear ? historyChartData : forecastChartData;
 
   return (
-    <div className="flex flex-col rounded-xl border bg-card p-[22px] shadow-sm">
+    <div className="flex flex-col rounded-xl border bg-card p-4 shadow-sm">
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-semibold">{t("dividendIncomeTitle")}</p>
         {hasData && (
@@ -130,7 +130,7 @@ export function DividendIncomeCard({ locale, dividends, forecast, history }: Div
               </button>
             </div>
           </div>
-          <div className="min-h-[120px] flex-1">
+          <div className="min-h-[96px] flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <XAxis

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Check } from "lucide-react";
 import { formatMoney } from "@/lib/money/format";
 import type { ContributionRoomData } from "@/lib/dashboard/contribution-room";
 
@@ -23,6 +24,11 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
     (sum, a) => sum + Math.max(0, a.limitCents - a.contributedCents),
     0,
   );
+  const registeredLimitCents = accounts.reduce((sum, a) => sum + a.limitCents, 0);
+  // Show the callout whenever registered accounts have limits set, even at $0 room
+  // left — a maxed-out year is a result worth acknowledging, not hiding.
+  const showCallout = registeredLimitCents > 0;
+  const maxedOut = roomLeftCents <= 0;
 
   // Monthly contribution pace: deposits so far ÷ months elapsed this year.
   const monthsElapsed = new Date().getMonth() + 1;
@@ -35,7 +41,7 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
   );
 
   return (
-    <div className="flex flex-col rounded-xl border bg-card p-[22px] shadow-sm">
+    <div className="flex flex-col rounded-xl border bg-card p-4 shadow-sm">
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-semibold">{t("contributions", { year: room.year })}</p>
         {totalCents > 0 && (
@@ -45,17 +51,19 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
         )}
       </div>
 
-      {/* Savings goal */}
+      {/* Savings goal — hero number */}
+      <p className="mt-2.5 text-[28px] font-extrabold leading-none tracking-tight tabular-nums">
+        {formatMoney(totalCents, locale)}
+        {goalCents > 0 && (
+          <span className="text-[13px] font-semibold text-muted-foreground">
+            {" / "}
+            {formatMoney(goalCents, locale)} {t("goalSuffix")}
+          </span>
+        )}
+      </p>
       {goalCents > 0 && (
-        <div className="mt-3">
-          <div className="flex items-baseline justify-between text-sm">
-            <span className="text-muted-foreground">{t("savingsGoal")}</span>
-            <span className="font-semibold tabular-nums">
-              {formatMoney(totalCents, locale)}
-              <span className="font-medium text-muted-foreground"> / {formatMoney(goalCents, locale)}</span>
-            </span>
-          </div>
-          <div className="relative mt-1.5 h-2.5 overflow-hidden rounded-full bg-muted">
+        <>
+          <div className="relative mt-2.5 h-2.5 overflow-hidden rounded-full bg-muted">
             <div
               className={`h-full rounded-full transition-all ${goalMet ? "bg-gain" : "bg-primary"}`}
               style={{ width: `${goalPct}%` }}
@@ -64,7 +72,7 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
           <p className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
             {t("goalProgressDetail", { pct: goalPct, amount: formatMoney(toGoCents, locale) })}
           </p>
-        </div>
+        </>
       )}
 
       {/* Per-account room bars (stacked) */}
@@ -95,18 +103,27 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
         />
       </div>
 
-      {/* Room-left callout — pinned to the bottom */}
-      {roomLeftCents > 0 && (
+      {/* Room status callout — pinned to the bottom */}
+      {showCallout && (
         <>
           <div className="min-h-[16px] flex-1" />
-          <div className="flex items-center justify-between gap-2 rounded-lg bg-primary/[0.07] px-3.5 py-3">
-            <p className="text-xs text-foreground/80">
-              {t("roomLeft", { amount: formatMoney(roomLeftCents, locale) })}
-            </p>
-            <span className="shrink-0 text-[11px] font-semibold text-primary">
-              {t("daysLeft", { count: daysLeft })}
-            </span>
-          </div>
+          {maxedOut ? (
+            <div className="flex items-center justify-between gap-2 rounded-lg bg-gain/10 px-3.5 py-3">
+              <p className="text-xs text-foreground/80">
+                {t("roomMaxed", { year: room.year })}
+              </p>
+              <Check className="size-4 shrink-0 text-gain" />
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2 rounded-lg bg-primary/[0.07] px-3.5 py-3">
+              <p className="text-xs text-foreground/80">
+                {t("roomLeft", { amount: formatMoney(roomLeftCents, locale) })}
+              </p>
+              <span className="shrink-0 text-[11px] font-semibold text-primary">
+                {t("daysLeft", { count: daysLeft })}
+              </span>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -145,10 +162,14 @@ function RoomRow({
   return (
     <div>
       <div className="mb-1.5 flex items-baseline justify-between text-sm">
-        <span className="font-medium">{label}</span>
+        <span className="font-semibold">{label}</span>
         <span className="text-xs tabular-nums text-muted-foreground">
-          {formatMoney(contributedCents, locale)} / {formatMoney(limitCents, locale)}
-          {maxed && ` · ${maxedLabel}`}
+          <span className="font-semibold text-foreground">
+            {formatCompactMoney(contributedCents, locale)}
+          </span>
+          {" / "}
+          {formatCompactMoney(limitCents, locale)}
+          {maxed && <span className="font-semibold text-gain"> · {maxedLabel}</span>}
         </span>
       </div>
       <div className="relative h-2 overflow-hidden rounded-full bg-muted">

@@ -19,6 +19,8 @@ export interface TopYielder {
 
 export interface TopYieldersData {
   yielders: TopYielder[];
+  /** Portfolio-wide current yield (CAD income ÷ CAD market value, all positions) */
+  portfolioYieldPercent: number;
 }
 
 /**
@@ -44,7 +46,21 @@ export function computeTopYielders(
     }
   >();
 
+  // Portfolio-wide totals (CAD) across all held positions, including non-payers,
+  // so the blended current yield reflects the whole portfolio, not only top names.
+  let portfolioIncomeCad = 0;
+  let portfolioMarketValueCad = 0;
+
   for (const pos of positions) {
+    const marketValueCents = pos.marketValueCents ?? 0n;
+    if (pos.quantity > 0 && marketValueCents > 0n) {
+      const incomeCents = pos.expectedIncomeCents ?? 0n;
+      portfolioIncomeCad +=
+        pos.currency === "USD" ? Number(convertCurrency(incomeCents, usdCadRate)) : Number(incomeCents);
+      portfolioMarketValueCad +=
+        pos.currency === "USD" ? Number(convertCurrency(marketValueCents, usdCadRate)) : Number(marketValueCents);
+    }
+
     if (
       pos.quantity <= 0 ||
       !pos.expectedIncomeCents ||
@@ -86,9 +102,12 @@ export function computeTopYielders(
         annualIncomeCents: incomeCad,
       };
     })
-    .filter((y) => y.yieldOnCostPercent > 0)
-    .sort((a, b) => b.yieldOnCostPercent - a.yieldOnCostPercent)
+    .filter((y) => y.yieldPercent > 0)
+    .sort((a, b) => b.yieldPercent - a.yieldPercent)
     .slice(0, limit);
 
-  return { yielders };
+  const portfolioYieldPercent =
+    portfolioMarketValueCad > 0 ? portfolioIncomeCad / portfolioMarketValueCad : 0;
+
+  return { yielders, portfolioYieldPercent };
 }
