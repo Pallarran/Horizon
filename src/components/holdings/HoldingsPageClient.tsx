@@ -8,12 +8,13 @@ import { SlidersHorizontalIcon, XIcon, LayersIcon, CheckIcon } from "lucide-reac
 import type { SerializedPosition } from "@/lib/positions/serialize";
 import type { SecurityProfileMap } from "@/lib/positions/security-profile";
 import type { SerializedCrcdHolding } from "@/lib/actions/crcd-holdings";
-import { formatMoney, formatPercent } from "@/lib/money/format";
 import {
   addToWatchlistAction,
   removeFromWatchlistAction,
 } from "@/lib/actions/watchlist";
 import { HoldingsTable } from "./HoldingsTable";
+import { HoldingsSummaryBand } from "./HoldingsSummaryBand";
+import { HoldingsFacetRail } from "./HoldingsFacetRail";
 import { PositionDetailSheet } from "./PositionDetailSheet";
 import { TransactionForm } from "./TransactionForm";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +51,16 @@ interface Account {
   name: string;
   currency: string;
 }
+
+/** Per-account accent palette (mirrors the Accounts tab + dashboard allocation). */
+const ACCOUNT_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-4)",
+  "var(--chart-3)",
+  "var(--chart-5)",
+  "var(--muted-foreground)",
+];
 
 interface Props {
   positions: SerializedPosition[];
@@ -115,11 +126,11 @@ export function HoldingsPageClient({ positions, accounts, securityProfiles, loca
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [groupByOpen, setGroupByOpen] = useState(false);
 
-  // Grouping
+  // Grouping — default to account grouping (the power-table groups by default)
   type GroupByMode = "none" | "account" | "sector" | "assetClass";
   const [groupBy, setGroupBy] = useState<GroupByMode>(() => {
-    if (typeof window === "undefined") return "none";
-    return (localStorage.getItem("horizon-holdings-groupBy") as GroupByMode) ?? "none";
+    if (typeof window === "undefined") return "account";
+    return (localStorage.getItem("horizon-holdings-groupBy") as GroupByMode) ?? "account";
   });
   const handleGroupByChange = useCallback((value: string) => {
     const v = value as GroupByMode;
@@ -209,7 +220,22 @@ export function HoldingsPageClient({ positions, accounts, securityProfiles, loca
 
     const hasUsd = "USD" in byCurrency;
 
-    return { count: filtered.length, totalCost, marketValue, gain, gainPercent, income, monthlyIncome, yieldPercent, byCurrency, hasUsd };
+    // By-account allocation (CAD market value) for the summary band
+    const byAccountMap = new Map<string, number>();
+    for (const p of filtered) {
+      const cad = p.marketValueCents != null ? toCad(p.marketValueCents, p.currency) : p.totalCostCadCents;
+      byAccountMap.set(p.accountName, (byAccountMap.get(p.accountName) ?? 0) + cad);
+    }
+    const byAccount = [...byAccountMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, cents], i) => ({
+        name,
+        cents,
+        percent: marketValue > 0 ? cents / marketValue : 0,
+        color: ACCOUNT_COLORS[i % ACCOUNT_COLORS.length],
+      }));
+
+    return { count: filtered.length, totalCost, marketValue, gain, gainPercent, income, monthlyIncome, yieldPercent, byCurrency, hasUsd, byAccount };
   }, [filtered, usdCadRate]);
 
   const isFiltered =
@@ -236,8 +262,41 @@ export function HoldingsPageClient({ positions, accounts, securityProfiles, loca
 
   return (
     <div className="space-y-4">
-      {/* Primary row: Search + Filters */}
-      <div className="flex items-center gap-3">
+      {/* Summary band */}
+      <HoldingsSummaryBand
+        locale={locale}
+        usdCadRate={usdCadRate}
+        metrics={metrics}
+        byAccount={metrics.byAccount}
+      />
+
+      <div className="lg:grid lg:grid-cols-[212px_1fr] lg:items-start lg:gap-4">
+        {/* Desktop facet rail */}
+        <HoldingsFacetRail
+          className="hidden lg:block"
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          groupBy={groupBy}
+          onGroupByChange={handleGroupByChange}
+          accounts={accounts}
+          assetClasses={assetClasses}
+          currencies={currencies}
+          industries={industries}
+          filterAccount={filterAccount}
+          setFilterAccount={setFilterAccount}
+          filterAssetClass={filterAssetClass}
+          setFilterAssetClass={setFilterAssetClass}
+          filterCurrency={filterCurrency}
+          setFilterCurrency={setFilterCurrency}
+          filterIndustry={filterIndustry}
+          setFilterIndustry={setFilterIndustry}
+          isFiltered={isFiltered}
+          resetFilters={resetFilters}
+        />
+
+        <div className="min-w-0 space-y-4">
+      {/* Mobile/tablet toolbar: Search + Group by + Filters */}
+      <div className="flex items-center gap-3 lg:hidden">
         <Input
           type="search"
           placeholder={t("searchHoldings")}
@@ -348,9 +407,9 @@ export function HoldingsPageClient({ positions, accounts, securityProfiles, loca
         </Sheet>
       </div>
 
-      {/* Active filter chips */}
+      {/* Active filter chips (mobile/tablet — desktop shows state in the rail) */}
       {activeFilterCount > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 lg:hidden">
           {filterAccount !== "all" && (
             <Badge variant="secondary" className="gap-1 pr-1">
               {accounts.find((a) => a.id === filterAccount)?.name}
@@ -389,102 +448,16 @@ export function HoldingsPageClient({ positions, accounts, securityProfiles, loca
         </div>
       )}
 
-      {/* Summary metrics strip */}
-      {(() => {
-        const cad = metrics.byCurrency["CAD"];
-        const usd = metrics.byCurrency["USD"];
-        const fmtGain = (cents: number, pct: number | null, locale: string, currency?: string) => {
-          const sign = cents >= 0 ? "+" : "";
-          const val = `${sign}${formatMoney(cents, locale, currency)}`;
-          const pctStr = pct !== null ? ` (${sign}${formatPercent(pct, locale)})` : "";
-          return { val, pctStr, positive: cents >= 0 };
-        };
-        const totalGain = fmtGain(metrics.gain, metrics.gainPercent, locale);
-
-        return (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-            {/* 1. Positions */}
-            <MetricCard label={t("positions")}>
-              <p className="mt-1 text-lg font-semibold tabular-nums">
-                {metrics.count}
-              </p>
-              {isFiltered && (
-                <p className="mt-0.5 text-xs text-muted-foreground">/ {positions.length}</p>
-              )}
-            </MetricCard>
-
-            {/* 2. Cost */}
-            <MetricCard label={t("totalCost")}>
-              {cad && (
-                <CurrencyRow label={t("cad")} value={formatMoney(cad.totalCostCents, locale)} />
-              )}
-              {usd && (
-                <CurrencyRow label={t("usd")} value={formatMoney(usd.totalCostCents, locale, "USD")} />
-              )}
-            </MetricCard>
-
-            {/* 3. Market Value */}
-            <MetricCard label={t("marketValue")}>
-              {cad && (
-                <CurrencyRow label={t("cad")} value={formatMoney(cad.marketValueCents, locale)} />
-              )}
-              {usd && (
-                <CurrencyRow label={t("usd")} value={formatMoney(usd.marketValueCents, locale, "USD")} />
-              )}
-            </MetricCard>
-
-            {/* 4. Total (CAD) */}
-            <MetricCard label={metrics.hasUsd ? t("totalCad") : t("total")} highlight>
-              <CurrencyRow label={t("marketValue")} value={formatMoney(metrics.marketValue, locale)} bold />
-              <CurrencyRow label={t("cost")} value={formatMoney(metrics.totalCost, locale)} />
-            </MetricCard>
-
-            {/* 5. Unrealized Gain */}
-            <MetricCard label={t("unrealizedGain")}>
-              {cad && (() => {
-                const g = fmtGain(cad.gainCents, cad.gainPercent, locale);
-                return <CurrencyRow label={t("cad")} value={g.val} sub={g.pctStr} color={g.positive ? "gain" : "loss"} />;
-              })()}
-              {usd && (() => {
-                const g = fmtGain(usd.gainCents, usd.gainPercent, locale, "USD");
-                return <CurrencyRow label={t("usd")} value={g.val} sub={g.pctStr} color={g.positive ? "gain" : "loss"} />;
-              })()}
-              {metrics.hasUsd && (
-                <CurrencyRow label={t("total")} value={totalGain.val} sub={totalGain.pctStr} color={totalGain.positive ? "gain" : "loss"} bold />
-              )}
-              {!metrics.hasUsd && (
-                <CurrencyRow label="" value={totalGain.val} sub={totalGain.pctStr} color={totalGain.positive ? "gain" : "loss"} bold />
-              )}
-            </MetricCard>
-
-            {/* 6. Income */}
-            <MetricCard label={t("income")}>
-              <CurrencyRow
-                label={t("annual")}
-                value={formatMoney(metrics.income, locale)}
-                sub={metrics.yieldPercent !== null ? ` (${formatPercent(metrics.yieldPercent, locale)})` : undefined}
-              />
-              <CurrencyRow label={t("monthly")} value={formatMoney(metrics.monthlyIncome, locale)} />
-            </MetricCard>
-          </div>
-        );
-      })()}
-
-      {/* FX rate footnote */}
-      {metrics.hasUsd && (
-        <p className="text-xs text-muted-foreground">
-          {t("fxRate", { rate: usdCadRate.toFixed(4) })}
-        </p>
-      )}
-
-      {/* Holdings table */}
-      <HoldingsTable
-        positions={filtered}
-        locale={locale}
-        totalMarketValueCents={metrics.marketValue}
-        onSelectPosition={setSelectedPosition}
-        groupBy={groupBy !== "none" ? groupBy : undefined}
-      />
+          {/* Holdings table */}
+          <HoldingsTable
+            positions={filtered}
+            locale={locale}
+            totalMarketValueCents={metrics.marketValue}
+            onSelectPosition={setSelectedPosition}
+            groupBy={groupBy !== "none" ? groupBy : undefined}
+          />
+        </div>
+      </div>
 
       {/* Position detail sheet */}
       <PositionDetailSheet
@@ -520,59 +493,6 @@ export function HoldingsPageClient({ positions, accounts, securityProfiles, loca
   );
 }
 
-
-function MetricCard({
-  label,
-  highlight,
-  children,
-}: {
-  label: string;
-  highlight?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`rounded-xl border px-4 py-3 ${
-        highlight ? "border-primary/30 bg-primary/5" : "bg-card"
-      }`}
-    >
-      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
-      <div className="mt-1.5 space-y-1">{children}</div>
-    </div>
-  );
-}
-
-function CurrencyRow({
-  label,
-  value,
-  sub,
-  color,
-  bold,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  color?: "gain" | "loss";
-  bold?: boolean;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-2 text-sm tabular-nums">
-      {label && (
-        <span className="text-[11px] text-muted-foreground shrink-0">{label}</span>
-      )}
-      <span
-        className={`text-right ${bold ? "font-semibold" : "font-medium"} ${
-          color === "gain" ? "text-gain" : color === "loss" ? "text-loss" : ""
-        }`}
-      >
-        {value}
-        {sub && <span className="ml-0.5 text-[11px] font-normal">{sub}</span>}
-      </span>
-    </div>
-  );
-}
 
 function HoldingsFilterForm({
   t,

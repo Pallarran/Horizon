@@ -189,14 +189,23 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
         <TableCell className="text-right font-mono font-medium">
           {h.marketValueCents !== null ? formatMoney(h.marketValueCents, locale, h.currency) : formatMoney(h.totalCostCents, locale, h.currency)}
         </TableCell>
-        <TableCell className="hidden text-right font-mono text-sm lg:table-cell">
+        <TableCell className="hidden lg:table-cell">
           {(() => {
             const mv = h.marketValueCents ?? h.totalCostCents;
             const weight = totalMarketValueCents > 0 ? mv / totalMarketValueCents : 0;
+            const heavy = weight > 0.1;
             return (
-              <span className={weight > 0.1 ? "text-warning" : ""}>
-                {formatPercent(weight, locale, 1)}
-              </span>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={`h-full rounded-full ${heavy ? "bg-warning" : "bg-primary"}`}
+                    style={{ width: `${Math.min(100, weight * 100)}%` }}
+                  />
+                </div>
+                <span className={`w-10 shrink-0 text-right font-mono text-xs ${heavy ? "text-warning" : "text-muted-foreground"}`}>
+                  {formatPercent(weight, locale, 1)}
+                </span>
+              </div>
             );
           })()}
         </TableCell>
