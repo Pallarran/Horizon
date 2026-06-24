@@ -105,9 +105,9 @@ export default async function DashboardPage() {
   return (
     <>
       <Header displayName={user.displayName} isAdmin={user.isAdmin} />
-      <main className="mx-auto flex max-w-[1600px] flex-col gap-3 p-3 md:p-5 lg:px-8 lg:py-5">
+      <main className="mx-auto flex max-w-[1600px] flex-col gap-3.5 p-3.5 md:p-[22px] lg:px-8 lg:py-6">
         {/* Hero band — the two questions that matter: wealth & freedom */}
-        <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr]">
+        <div className="grid gap-3.5 lg:grid-cols-[1.5fr_1fr]">
           <WealthHeroCard locale={locale} netWorth={netWorth} history={portfolioHistory} />
           <FreedomHeroCard locale={locale} hero={hero} tier={milestoneProgress.tier} />
         </div>
@@ -116,7 +116,7 @@ export default async function DashboardPage() {
         <MilestoneBandCard locale={locale} data={milestoneProgress} />
 
         {/* Detail row */}
-        <div className="grid gap-3 lg:grid-cols-[1.15fr_1fr_1fr]">
+        <div className="grid gap-3.5 lg:grid-cols-[1.15fr_1fr_1fr]">
           <DividendIncomeCard
             locale={locale}
             dividends={dividends}
@@ -124,7 +124,7 @@ export default async function DashboardPage() {
             yielders={topYielders}
           />
           <ContributionRoomCard locale={locale} room={contributionRoom} />
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3.5">
             <AllocationToggleCard
               accountData={allocationByAccount.slices}
               accountTotalCents={allocationByAccount.totalCents}

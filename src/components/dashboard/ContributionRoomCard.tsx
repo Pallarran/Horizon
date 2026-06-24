@@ -24,7 +24,7 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
   );
 
   return (
-    <div className="rounded-xl border bg-card p-5 shadow-sm">
+    <div className="rounded-xl border bg-card p-[22px] shadow-sm">
       <p className="text-sm font-semibold">{t("contributions", { year: room.year })}</p>
 
       {/* Savings goal */}
