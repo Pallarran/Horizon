@@ -15,6 +15,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
+// A holding at or above this share of the portfolio fills the weight bar.
+const WEIGHT_BAR_CAP = 0.1; // 10%
+
 type SortKey = keyof SerializedPosition;
 type SortDir = "asc" | "desc";
 type GroupByKey = "account" | "sector" | "assetClass";
@@ -190,13 +193,13 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
           {(() => {
             const mv = h.marketValueCents ?? h.totalCostCents;
             const weight = totalMarketValueCents > 0 ? mv / totalMarketValueCents : 0;
-            const heavy = weight > 0.1;
+            const heavy = weight >= WEIGHT_BAR_CAP;
             return (
               <div className="flex items-center gap-2">
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                   <div
                     className={`h-full rounded-full ${heavy ? "bg-warning" : "bg-primary"}`}
-                    style={{ width: `${Math.min(100, weight * 100)}%` }}
+                    style={{ width: `${Math.min(100, (weight / WEIGHT_BAR_CAP) * 100)}%` }}
                   />
                 </div>
                 <span className={`w-10 shrink-0 text-right font-mono text-xs ${heavy ? "text-warning" : "text-muted-foreground"}`}>
@@ -277,7 +280,7 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
         <TableCell className="hidden lg:table-cell" />
         {/* Weight */}
         <TableCell className="hidden text-right font-mono text-sm lg:table-cell">
-          <span className={weight > 0.1 ? "text-warning font-medium" : ""}>
+          <span className={weight >= WEIGHT_BAR_CAP ? "text-warning font-medium" : ""}>
             {formatPercent(weight, locale, 1)}
           </span>
         </TableCell>
