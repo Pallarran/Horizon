@@ -422,6 +422,11 @@ export function HoldingsPageClient({ positions, accounts, securityProfiles, loca
         </div>
       )}
 
+      {/* Discoverability hint for the detail sheet */}
+      {filtered.length > 0 && (
+        <p className="text-xs text-muted-foreground">{t("tableTip")}</p>
+      )}
+
       {/* Holdings table */}
       <HoldingsTable
         positions={filtered}

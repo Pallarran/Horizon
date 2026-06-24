@@ -235,6 +235,7 @@
     "byCurrency": "Par devise",
     "byAccount": "Par compte",
     "all": "Tous",
+    "tableTip": "Astuce — cliquez sur une position pour ouvrir sa fiche détaillée (coût de base · sécurité du dividende · valorisation · vue des analystes).",
     "costInline": "coût {amount}",
     "shareOfPortfolio": "Part du portefeuille",
     "totalAcrossAccounts": "Total sur {count} comptes",

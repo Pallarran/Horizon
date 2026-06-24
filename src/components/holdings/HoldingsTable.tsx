@@ -27,8 +27,6 @@ interface Props {
   groupBy?: GroupByKey;
 }
 
-const COL_COUNT = 11;
-
 interface GroupData {
   key: string;
   label: string;
@@ -180,14 +178,21 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
         <TableCell className="hidden text-right font-mono md:table-cell">
           {formatNumber(h.quantity, locale, 0)}
         </TableCell>
-        <TableCell className="hidden text-right font-mono lg:table-cell">
+        <TableCell className="hidden text-right font-mono text-muted-foreground lg:table-cell">
           {formatMoney(h.avgCostCents, locale, h.currency)}
         </TableCell>
-        <TableCell className="hidden text-right font-mono md:table-cell">
+        <TableCell className="hidden text-right font-mono font-semibold md:table-cell">
           {h.currentPriceCents !== null ? formatMoney(h.currentPriceCents, locale, h.currency) : "—"}
         </TableCell>
-        <TableCell className="text-right font-mono font-medium">
-          {h.marketValueCents !== null ? formatMoney(h.marketValueCents, locale, h.currency) : formatMoney(h.totalCostCents, locale, h.currency)}
+        <TableCell className="hidden text-right lg:table-cell">
+          {h.dayChangePercent !== null ? (
+            <span className={`font-mono text-sm ${h.dayChangePercent >= 0 ? "text-gain" : "text-loss"}`}>
+              {h.dayChangePercent >= 0 ? "+" : ""}
+              {formatPercent(h.dayChangePercent, locale)}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
         </TableCell>
         <TableCell className="hidden lg:table-cell">
           {(() => {
@@ -209,15 +214,8 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
             );
           })()}
         </TableCell>
-        <TableCell className="hidden text-right lg:table-cell">
-          {h.dayChangePercent !== null ? (
-            <span className={`font-mono text-sm ${h.dayChangePercent >= 0 ? "text-gain" : "text-loss"}`}>
-              {h.dayChangePercent >= 0 ? "+" : ""}
-              {formatPercent(h.dayChangePercent, locale)}
-            </span>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          )}
+        <TableCell className="text-right font-mono font-medium">
+          {h.marketValueCents !== null ? formatMoney(h.marketValueCents, locale, h.currency) : formatMoney(h.totalCostCents, locale, h.currency)}
         </TableCell>
         <TableCell className="text-right">
           {h.unrealizedGainCents !== null ? (
@@ -281,15 +279,18 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
             </Badge>
           </div>
         </TableCell>
-        <TableCell className="text-right font-mono font-semibold">
-          {formatMoney(group.marketValueCents, locale)}
-        </TableCell>
+        {/* Day (empty for group rows) */}
+        <TableCell className="hidden lg:table-cell" />
+        {/* Weight */}
         <TableCell className="hidden text-right font-mono text-sm lg:table-cell">
           <span className={weight > 0.1 ? "text-warning font-medium" : ""}>
             {formatPercent(weight, locale, 1)}
           </span>
         </TableCell>
-        <TableCell className="hidden lg:table-cell" />
+        {/* Market value */}
+        <TableCell className="text-right font-mono font-semibold">
+          {formatMoney(group.marketValueCents, locale)}
+        </TableCell>
         <TableCell className="text-right">
           {group.unrealizedGainCents !== 0 && (
             <span className={`font-mono text-sm font-medium ${group.unrealizedGainCents >= 0 ? "text-gain" : "text-loss"}`}>
@@ -318,9 +319,9 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
             <SortableHead k="quantity" right className="hidden md:table-cell">{t("quantity")}</SortableHead>
             <SortableHead k="avgCostCents" right className="hidden lg:table-cell">{t("avgCost")}</SortableHead>
             <SortableHead k="currentPriceCents" right className="hidden md:table-cell">{t("currentPrice")}</SortableHead>
-            <SortableHead k="marketValueCents" right>{t("marketValue")}</SortableHead>
-            <TableHead className="hidden text-right lg:table-cell">{t("weight")}</TableHead>
             <SortableHead k="dayChangePercent" right className="hidden lg:table-cell">{t("dayChange")}</SortableHead>
+            <TableHead className="hidden text-left lg:table-cell">{t("weight")}</TableHead>
+            <SortableHead k="marketValueCents" right>{t("marketValue")}</SortableHead>
             <SortableHead k="unrealizedGainCents" right>{t("unrealizedGain")}</SortableHead>
             <SortableHead k="expectedIncomeCents" right className="hidden md:table-cell">{t("expectedIncome")}</SortableHead>
             <SortableHead k="yieldPercent" right className="hidden lg:table-cell">{t("yield")}</SortableHead>

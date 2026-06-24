@@ -235,6 +235,7 @@
     "byCurrency": "By currency",
     "byAccount": "By account",
     "all": "All",
+    "tableTip": "Tip — click any holding to open its full detail sheet (cost basis · dividend safety · valuation · analyst view).",
     "costInline": "cost {amount}",
     "shareOfPortfolio": "Share of portfolio",
     "totalAcrossAccounts": "Total across {count} accounts",
