@@ -25,17 +25,17 @@ const TIER_ICON: Record<TierName, typeof Shield> = {
   challenger: Flame,
 };
 
-const TIER_COLOR_CLASS: Record<TierName, string> = {
-  iron: "text-tier-iron",
-  bronze: "text-tier-bronze",
-  silver: "text-tier-silver",
-  gold: "text-tier-gold",
-  platinum: "text-tier-platinum",
-  emerald: "text-tier-emerald",
-  diamond: "text-tier-diamond",
-  master: "text-tier-master",
-  grandmaster: "text-tier-grandmaster",
-  challenger: "text-tier-challenger",
+const TIER_VAR: Record<TierName, string> = {
+  iron: "var(--tier-iron)",
+  bronze: "var(--tier-bronze)",
+  silver: "var(--tier-silver)",
+  gold: "var(--tier-gold)",
+  platinum: "var(--tier-platinum)",
+  emerald: "var(--tier-emerald)",
+  diamond: "var(--tier-diamond)",
+  master: "var(--tier-master)",
+  grandmaster: "var(--tier-grandmaster)",
+  challenger: "var(--tier-challenger)",
 };
 
 const TIER_I18N_KEY: Record<TierName, string> = {
@@ -69,7 +69,7 @@ export function FreedomHeroCard({ locale, hero, tier }: FreedomHeroCardProps) {
   const ringPct = Math.min(100, Math.max(0, coverage * 100));
 
   const TierIcon = TIER_ICON[tier.name];
-  const tierColor = TIER_COLOR_CLASS[tier.name];
+  const tierVar = TIER_VAR[tier.name];
 
   return (
     <div className="flex flex-col rounded-xl border bg-card p-[22px] shadow-sm">
@@ -77,7 +77,13 @@ export function FreedomHeroCard({ locale, hero, tier }: FreedomHeroCardProps) {
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t("freedom")}
         </p>
-        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${tierColor}`}>
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold"
+          style={{
+            background: `color-mix(in oklch, ${tierVar} 14%, transparent)`,
+            color: tierVar,
+          }}
+        >
           <TierIcon className="size-3.5" />
           {t(TIER_I18N_KEY[tier.name])}
         </span>

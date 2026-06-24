@@ -29,18 +29,24 @@ export function DayMoversStrip({ locale, movers }: DayMoversStripProps) {
       ) : (
         <div className="flex flex-1 items-center justify-between gap-4">
           {gainer && (
-            <span className="tabular-nums">
-              <span className="font-semibold">{gainer.symbol}</span>{" "}
-              <span className="font-semibold text-gain">
-                +{formatPercent(gainer.changePercent, locale)}
+            <span className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">{t("topGain")}</span>
+              <span className="tabular-nums">
+                <span className="font-semibold">{gainer.symbol}</span>{" "}
+                <span className="font-semibold text-gain">
+                  +{formatPercent(gainer.changePercent, locale)}
+                </span>
               </span>
             </span>
           )}
           {loser && (
-            <span className="tabular-nums">
-              <span className="font-semibold">{loser.symbol}</span>{" "}
-              <span className="font-semibold text-loss">
-                {formatPercent(loser.changePercent, locale)}
+            <span className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">{t("topLoss")}</span>
+              <span className="tabular-nums">
+                <span className="font-semibold">{loser.symbol}</span>{" "}
+                <span className="font-semibold text-loss">
+                  {formatPercent(loser.changePercent, locale)}
+                </span>
               </span>
             </span>
           )}

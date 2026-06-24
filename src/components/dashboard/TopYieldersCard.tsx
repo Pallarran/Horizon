@@ -16,10 +16,21 @@ interface TopYieldersCardProps {
 export function TopYieldersCard({ locale, yielders }: TopYieldersCardProps) {
   const t = useTranslations("dashboard");
   const top = yielders.yielders.slice(0, 3);
+  const avgYield =
+    top.length > 0
+      ? top.reduce((sum, y) => sum + y.yieldOnCostPercent, 0) / top.length
+      : 0;
 
   return (
     <div className="flex flex-1 flex-col rounded-xl border bg-card p-[22px] shadow-sm">
-      <p className="text-sm font-semibold">{t("topYieldersLabel")}</p>
+      <div className="flex items-baseline justify-between">
+        <p className="text-sm font-semibold">{t("topYieldersLabel")}</p>
+        {top.length > 0 && (
+          <span className="text-[11px] text-muted-foreground">
+            {t("avgYield", { pct: formatPercent(avgYield, locale) })}
+          </span>
+        )}
+      </div>
 
       {top.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">{t("noPositions")}</p>

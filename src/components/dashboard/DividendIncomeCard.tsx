@@ -45,12 +45,18 @@ export function DividendIncomeCard({ locale, dividends, forecast, history }: Div
   }));
 
   const currentYear = new Date().getFullYear();
-  const historyChartData = history.map((h) => ({
-    label: String(h.year),
-    dollars: h.totalCents / 100,
-    totalCents: h.totalCents,
-    isCurrentMonth: h.year === currentYear,
-  }));
+  // Current-year bar shows the annualized projection (≈ the headline $/yr) rather than
+  // the partial actual-YTD total, so the trend reads as growing to the full-year figure.
+  const historyByYear = new Map(history.map((h) => [h.year, h.totalCents]));
+  historyByYear.set(currentYear, dividends.annualizedCents);
+  const historyChartData = [...historyByYear.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([year, totalCents]) => ({
+      label: year === currentYear ? `${year}*` : String(year),
+      dollars: totalCents / 100,
+      totalCents,
+      isCurrentMonth: year === currentYear,
+    }));
 
   const isYear = chartMode === "year";
   const chartData = isYear ? historyChartData : forecastChartData;
@@ -101,7 +107,7 @@ export function DividendIncomeCard({ locale, dividends, forecast, history }: Div
           {/* Income chart — year-by-year (default) or 12-month forecast */}
           <div className="mb-2 mt-4 flex items-center justify-between">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {isYear ? t("dividendByYear") : t("next12Months")}
+              {t("dividendsReceived")}
             </p>
             <div className="flex gap-0.5 rounded-md bg-muted p-0.5 text-[11px]">
               <button
@@ -155,6 +161,9 @@ export function DividendIncomeCard({ locale, dividends, forecast, history }: Div
               </BarChart>
             </ResponsiveContainer>
           </div>
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            {isYear ? t("annualizedProjectionNote", { year: currentYear }) : t("forecastNote")}
+          </p>
         </>
       )}
     </div>

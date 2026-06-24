@@ -16,6 +16,7 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
   const totalCents = room.totalDepositCents;
   const goalPct = goalCents > 0 ? Math.min(100, Math.round((totalCents / goalCents) * 100)) : 0;
   const goalMet = goalCents > 0 && totalCents >= goalCents;
+  const toGoCents = Math.max(0, goalCents - totalCents);
 
   const accounts = [room.reer, room.celi, room.crcd];
   const roomLeftCents = accounts.reduce(
@@ -23,9 +24,26 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
     0,
   );
 
+  // Monthly contribution pace: deposits so far ÷ months elapsed this year.
+  const monthsElapsed = new Date().getMonth() + 1;
+  const perMonthCents = Math.round(totalCents / monthsElapsed);
+
+  // Days left until Dec 31 of the contribution year.
+  const daysLeft = Math.max(
+    0,
+    Math.ceil((Date.UTC(room.year, 11, 31) - new Date().getTime()) / 86_400_000),
+  );
+
   return (
-    <div className="rounded-xl border bg-card p-[22px] shadow-sm">
-      <p className="text-sm font-semibold">{t("contributions", { year: room.year })}</p>
+    <div className="flex flex-col rounded-xl border bg-card p-[22px] shadow-sm">
+      <div className="flex items-baseline justify-between">
+        <p className="text-sm font-semibold">{t("contributions", { year: room.year })}</p>
+        {totalCents > 0 && (
+          <span className="text-[11px] tabular-nums text-muted-foreground">
+            {t("perMonthAvg", { amount: formatCompactMoney(perMonthCents, locale) })}
+          </span>
+        )}
+      </div>
 
       {/* Savings goal */}
       {goalCents > 0 && (
@@ -43,11 +61,17 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
               style={{ width: `${goalPct}%` }}
             />
           </div>
+          <p className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+            {t("goalProgressDetail", { pct: goalPct, amount: formatMoney(toGoCents, locale) })}
+          </p>
         </div>
       )}
 
       {/* Per-account room bars (stacked) */}
-      <div className="mt-4 space-y-3.5">
+      <p className="mt-4 mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {t("byAccount")}
+      </p>
+      <div className="space-y-3.5">
         <RoomRow
           label={t("reerRoom")}
           contributedCents={room.reer.contributedCents}
@@ -71,16 +95,32 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
         />
       </div>
 
-      {/* Room-left callout */}
+      {/* Room-left callout — pinned to the bottom */}
       {roomLeftCents > 0 && (
-        <div className="mt-4 rounded-lg bg-accent px-3.5 py-3">
-          <p className="text-xs text-accent-foreground">
-            {t("roomLeft", { amount: formatMoney(roomLeftCents, locale) })}
-          </p>
-        </div>
+        <>
+          <div className="min-h-[16px] flex-1" />
+          <div className="flex items-center justify-between gap-2 rounded-lg bg-primary/[0.07] px-3.5 py-3">
+            <p className="text-xs text-foreground/80">
+              {t("roomLeft", { amount: formatMoney(roomLeftCents, locale) })}
+            </p>
+            <span className="shrink-0 text-[11px] font-semibold text-primary">
+              {t("daysLeft", { count: daysLeft })}
+            </span>
+          </div>
+        </>
       )}
     </div>
   );
+}
+
+/** Compact money like "$2.6k" for tight annotations. */
+function formatCompactMoney(cents: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: "CAD",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(cents / 100);
 }
 
 function RoomRow({
