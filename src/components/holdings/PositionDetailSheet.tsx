@@ -243,29 +243,13 @@ export function PositionDetailSheet({
                     value={t(frequencyKey)}
                   />
                 )}
-                {h.dividendGrowthYears != null && h.dividendGrowthYears > 0 && (
-                  <DetailRow
-                    label={t("divGrowthYears", { count: h.dividendGrowthYears })}
-                    value=""
-                  />
-                )}
-                <div className="flex flex-wrap gap-1.5 pt-2">
-                  {h.isPaysMonthly && (
+                {h.isPaysMonthly && (
+                  <div className="flex flex-wrap gap-1.5 pt-2">
                     <Badge variant="outline" className="text-[10px]">
                       {t("monthlyPayer")}
                     </Badge>
-                  )}
-                  {h.isDividendAristocrat && (
-                    <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-[10px]">
-                      {t("dividendAristocrat")}
-                    </Badge>
-                  )}
-                  {h.isDividendKing && (
-                    <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-[10px]">
-                      {t("dividendKing")}
-                    </Badge>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             )}
 
