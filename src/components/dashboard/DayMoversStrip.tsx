@@ -7,23 +7,18 @@ import type { DayMoversData } from "@/lib/dashboard/day-movers";
 interface DayMoversStripProps {
   locale: string;
   movers: DayMoversData;
-  lastPriceDate: string | null;
 }
 
 /**
  * Day movers demoted to a one-line strip — daily ticker noise stays available
  * without competing for attention against a buy-and-hold dividend plan.
  */
-export function DayMoversStrip({ locale, movers, lastPriceDate }: DayMoversStripProps) {
+export function DayMoversStrip({ locale, movers }: DayMoversStripProps) {
   const t = useTranslations("dashboard");
 
   const gainer = movers.gainers[0];
   const loser = movers.losers[0];
   const hasData = Boolean(gainer || loser);
-
-  const updated = lastPriceDate
-    ? new Date(lastPriceDate).toLocaleDateString(locale, { month: "short", day: "numeric" })
-    : null;
 
   return (
     <div className="flex items-center gap-4 rounded-xl border bg-card px-[18px] py-3.5 text-xs shadow-sm">
@@ -50,10 +45,6 @@ export function DayMoversStrip({ locale, movers, lastPriceDate }: DayMoversStrip
             </span>
           )}
         </>
-      )}
-
-      {updated && (
-        <span className="ml-auto text-muted-foreground">{t("updatedAt", { time: updated })}</span>
       )}
     </div>
   );

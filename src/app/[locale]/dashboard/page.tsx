@@ -132,7 +132,7 @@ export default async function DashboardPage() {
               assetClassTotalCents={allocationByAssetClass.totalCents}
               locale={locale}
             />
-            <DayMoversStrip locale={locale} movers={dayMovers} lastPriceDate={lastPriceDateStr} />
+            <DayMoversStrip locale={locale} movers={dayMovers} />
           </div>
         </div>
 
