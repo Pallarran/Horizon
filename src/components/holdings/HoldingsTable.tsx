@@ -170,11 +170,6 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
           </div>
           <p className="text-xs text-muted-foreground">{h.name}</p>
         </TableCell>
-        <TableCell className="hidden lg:table-cell">
-          <Badge variant="secondary" className="text-[10px]">
-            {h.accountType}
-          </Badge>
-        </TableCell>
         <TableCell className="hidden text-right font-mono md:table-cell">
           {formatNumber(h.quantity, locale, 0)}
         </TableCell>
@@ -268,7 +263,7 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
         className="cursor-pointer bg-muted/40 hover:bg-muted/60"
         onClick={() => toggleGroup(group.key)}
       >
-        <TableCell colSpan={5}>
+        <TableCell colSpan={4}>
           <div className="flex items-center gap-2">
             <ChevronRightIcon
               className={`size-4 shrink-0 text-muted-foreground transition-transform ${isCollapsed ? "" : "rotate-90"}`}
@@ -315,7 +310,6 @@ export function HoldingsTable({ positions, locale, totalMarketValueCents, onSele
         <TableHeader>
           <TableRow>
             <SortableHead k="symbol">{t("symbol")}</SortableHead>
-            <SortableHead k="accountType" className="hidden lg:table-cell">{t("account")}</SortableHead>
             <SortableHead k="quantity" right className="hidden md:table-cell">{t("quantity")}</SortableHead>
             <SortableHead k="avgCostCents" right className="hidden lg:table-cell">{t("avgCost")}</SortableHead>
             <SortableHead k="currentPriceCents" right className="hidden md:table-cell">{t("currentPrice")}</SortableHead>

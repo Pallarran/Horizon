@@ -236,6 +236,7 @@
     "byAccount": "Par compte",
     "all": "Tous",
     "tableTip": "Astuce — cliquez sur une position pour ouvrir sa fiche détaillée (coût de base · sécurité du dividende · valorisation · vue des analystes).",
+    "dividendGrowthStreak": "croissance du dividende sur {count} ans",
     "costInline": "coût {amount}",
     "shareOfPortfolio": "Part du portefeuille",
     "totalAcrossAccounts": "Total sur {count} comptes",

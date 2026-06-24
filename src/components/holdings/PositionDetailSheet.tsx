@@ -99,7 +99,14 @@ export function PositionDetailSheet({
         {/* Header — symbol/name left, market value right */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <DialogHeader className="flex-1 space-y-1">
-            <DialogTitle className="text-lg">{h.symbol}</DialogTitle>
+            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+              <DialogTitle className="text-lg">{h.symbol}</DialogTitle>
+              {h.dividendGrowthYears != null && h.dividendGrowthYears > 0 && (
+                <span className="font-mono text-xs font-semibold text-gain">
+                  ↗ {t("dividendGrowthStreak", { count: h.dividendGrowthYears })}
+                </span>
+              )}
+            </div>
             <DialogDescription>
               {h.name} · {t("positionInAccount", { accountName: h.accountName })}
             </DialogDescription>
