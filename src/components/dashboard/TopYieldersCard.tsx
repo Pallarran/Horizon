@@ -15,7 +15,7 @@ interface TopYieldersCardProps {
  */
 export function TopYieldersCard({ locale, yielders }: TopYieldersCardProps) {
   const t = useTranslations("dashboard");
-  const top = yielders.yielders.slice(0, 5);
+  const top = yielders.yielders.slice(0, 3);
 
   return (
     <div className="flex flex-1 flex-col rounded-xl border bg-card p-[22px] shadow-sm">
