@@ -72,7 +72,7 @@ export function FreedomHeroCard({ locale, hero, tier }: FreedomHeroCardProps) {
   const tierColor = TIER_COLOR_CLASS[tier.name];
 
   return (
-    <div className="flex flex-col rounded-xl border bg-card p-6 shadow-sm">
+    <div className="flex flex-col rounded-xl border bg-card p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t("freedom")}

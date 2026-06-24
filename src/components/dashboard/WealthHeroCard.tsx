@@ -42,7 +42,7 @@ export function WealthHeroCard({ locale, netWorth, history }: WealthHeroCardProp
     : null;
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
+    <div className="rounded-xl border bg-card p-5 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {t("netWorth")}
       </p>
@@ -77,7 +77,7 @@ export function WealthHeroCard({ locale, netWorth, history }: WealthHeroCardProp
 
       {hasData ? (
         <>
-          <div className="mt-4 h-32">
+          <div className="mt-3 h-28">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
                 <defs>

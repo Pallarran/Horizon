@@ -45,7 +45,7 @@ export function DividendIncomeCard({ locale, dividends, forecast, yielders }: Di
   const topThree = yielders.yielders.slice(0, 3);
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
+    <div className="rounded-xl border bg-card p-5 shadow-sm">
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-semibold">{t("dividendIncomeTitle")}</p>
         {hasData && (
