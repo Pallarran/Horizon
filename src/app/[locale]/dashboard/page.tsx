@@ -4,7 +4,6 @@ import { getPositions } from "@/lib/positions/query";
 import { getCrcdComputedPositions } from "@/lib/positions/crcd";
 import { computeNetWorth } from "@/lib/dashboard/net-worth";
 import { computeDividendsSummary } from "@/lib/dashboard/dividends-summary";
-import { computeDividendHistory } from "@/lib/dashboard/dividend-history";
 import { computeDayMovers } from "@/lib/dashboard/day-movers";
 import { computeHero } from "@/lib/dashboard/hero";
 import { computeContributionRoom } from "@/lib/dashboard/contribution-room";
@@ -17,15 +16,13 @@ import { computePortfolioHistory } from "@/lib/dashboard/portfolio-history";
 import { ensureSparklinePrices } from "@/lib/dashboard/ensure-sparkline-prices";
 import { getIncomeStreams } from "@/lib/projections/income";
 import { Header } from "@/components/layout/Header";
-import { KpiStrip } from "@/components/dashboard/KpiStrip";
-import { AllocationTabs } from "@/components/dashboard/AllocationChart";
-import { DividendsSummaryCard } from "@/components/dashboard/DividendsSummaryCard";
-import { DayMoversCard } from "@/components/dashboard/DayMoversCard";
+import { WealthHeroCard } from "@/components/dashboard/WealthHeroCard";
+import { FreedomHeroCard } from "@/components/dashboard/FreedomHeroCard";
+import { MilestoneBandCard } from "@/components/dashboard/MilestoneBandCard";
+import { DividendIncomeCard } from "@/components/dashboard/DividendIncomeCard";
+import { AllocationToggleCard } from "@/components/dashboard/AllocationToggleCard";
+import { DayMoversStrip } from "@/components/dashboard/DayMoversStrip";
 import { ContributionRoomCard } from "@/components/dashboard/ContributionRoomCard";
-import { RetirementCard } from "@/components/dashboard/ProjectionTabs";
-import { MilestoneProgressCard } from "@/components/dashboard/MilestoneProgressCard";
-import { TopYieldersCard } from "@/components/dashboard/TopYieldersCard";
-import { PortfolioSparklineCard } from "@/components/dashboard/PortfolioSparklineCard";
 import { LastUpdatedIndicator } from "@/components/dashboard/LastUpdatedIndicator";
 import { AutoPriceRefresh } from "@/components/dashboard/AutoPriceRefresh";
 
@@ -84,9 +81,8 @@ export default async function DashboardPage() {
     ]);
 
   // Batch 3: everything that depends on batch 2 — all in parallel
-  const [dividendHistory, dividendForecast, hero, { milestones: passedMilestones, annualizedGrowthRate: irrGrowthRate }] =
+  const [dividendForecast, hero, { milestones: passedMilestones, annualizedGrowthRate: irrGrowthRate }] =
     await Promise.all([
-      computeDividendHistory(db, netWorth.usdCadRate),
       computeDividendForecast(db, positions, netWorth.usdCadRate, locale),
       computeHero(db, user, dividends.annualizedCents, netWorth.netWorthCents, incomeStreams),
       estimatePassedMilestones(db, netWorth.netWorthCents, portfolioHistory),
@@ -109,47 +105,34 @@ export default async function DashboardPage() {
   return (
     <>
       <Header displayName={user.displayName} isAdmin={user.isAdmin} />
-      <main className="mx-auto max-w-[1600px] p-4 md:p-6 lg:p-8">
-        {/* KPI Strip */}
-        <div className="mb-4">
-          <KpiStrip
-            locale={locale}
-            netWorth={netWorth}
-            milestoneProgress={milestoneProgress}
-          />
+      <main className="mx-auto flex max-w-[1600px] flex-col gap-4 p-4 md:p-6 lg:p-8">
+        {/* Hero band — the two questions that matter: wealth & freedom */}
+        <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+          <WealthHeroCard locale={locale} netWorth={netWorth} history={portfolioHistory} />
+          <FreedomHeroCard locale={locale} hero={hero} tier={milestoneProgress.tier} />
         </div>
 
-        {/* Main content — 3 themed columns */}
-        <div className="mb-4 grid gap-4 lg:grid-cols-3">
-          {/* Col 1: Portfolio Portrait */}
-          <div className="space-y-4">
-            <PortfolioSparklineCard locale={locale} history={portfolioHistory} />
-            <DayMoversCard locale={locale} movers={dayMovers} />
-            <AllocationTabs
+        {/* Milestone band — full-width motivational moment */}
+        <MilestoneBandCard locale={locale} data={milestoneProgress} />
+
+        {/* Detail row */}
+        <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr_1fr]">
+          <DividendIncomeCard
+            locale={locale}
+            dividends={dividends}
+            forecast={dividendForecast}
+            yielders={topYielders}
+          />
+          <ContributionRoomCard locale={locale} room={contributionRoom} />
+          <div className="flex flex-col gap-4">
+            <AllocationToggleCard
               accountData={allocationByAccount.slices}
               accountTotalCents={allocationByAccount.totalCents}
               assetClassData={allocationByAssetClass.slices}
               assetClassTotalCents={allocationByAssetClass.totalCents}
               locale={locale}
             />
-          </div>
-
-          {/* Col 2: Income & Contributions */}
-          <div className="space-y-4">
-            <ContributionRoomCard locale={locale} room={contributionRoom} />
-            <DividendsSummaryCard
-              locale={locale}
-              dividends={dividends}
-              forecast={dividendForecast}
-              history={dividendHistory}
-            />
-          </div>
-
-          {/* Col 3: Freedom & Growth */}
-          <div className="space-y-4">
-            <RetirementCard locale={locale} hero={hero} />
-            <MilestoneProgressCard locale={locale} data={milestoneProgress} />
-            <TopYieldersCard locale={locale} yielders={topYielders} />
+            <DayMoversStrip locale={locale} movers={dayMovers} lastPriceDate={lastPriceDateStr} />
           </div>
         </div>
 

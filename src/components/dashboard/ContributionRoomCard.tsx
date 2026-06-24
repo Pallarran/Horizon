@@ -17,23 +17,27 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
   const goalPct = goalCents > 0 ? Math.min(100, Math.round((totalCents / goalCents) * 100)) : 0;
   const goalMet = goalCents > 0 && totalCents >= goalCents;
 
+  const accounts = [room.reer, room.celi, room.crcd];
+  const roomLeftCents = accounts.reduce(
+    (sum, a) => sum + Math.max(0, a.limitCents - a.contributedCents),
+    0,
+  );
+
   return (
     <div className="rounded-xl border bg-card p-6 shadow-sm">
-      <p className="text-sm font-medium">
-        {t("contributions", { year: room.year })}
-      </p>
+      <p className="text-sm font-semibold">{t("contributions", { year: room.year })}</p>
 
       {/* Savings goal */}
       {goalCents > 0 && (
         <div className="mt-3">
           <div className="flex items-baseline justify-between text-sm">
             <span className="text-muted-foreground">{t("savingsGoal")}</span>
-            <span className="font-medium">
+            <span className="font-semibold tabular-nums">
               {formatMoney(totalCents, locale)}
-              <span className="text-muted-foreground"> / {formatMoney(goalCents, locale)}</span>
+              <span className="font-medium text-muted-foreground"> / {formatMoney(goalCents, locale)}</span>
             </span>
           </div>
-          <div className="relative mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
+          <div className="relative mt-1.5 h-2.5 overflow-hidden rounded-full bg-muted">
             <div
               className={`h-full rounded-full transition-all ${goalMet ? "bg-gain" : "bg-primary"}`}
               style={{ width: `${goalPct}%` }}
@@ -42,27 +46,39 @@ export function ContributionRoomCard({ locale, room }: ContributionRoomCardProps
         </div>
       )}
 
-      {/* Contribution room bars */}
-      <div className="mt-3 space-y-2">
+      {/* Per-account room bars (stacked) */}
+      <div className="mt-4 space-y-3.5">
         <RoomRow
           label={t("reerRoom")}
           contributedCents={room.reer.contributedCents}
           limitCents={room.reer.limitCents}
           locale={locale}
+          maxedLabel={t("maxed")}
         />
         <RoomRow
           label={t("celiRoom")}
           contributedCents={room.celi.contributedCents}
           limitCents={room.celi.limitCents}
           locale={locale}
+          maxedLabel={t("maxed")}
         />
         <RoomRow
           label={t("crcdContributed")}
           contributedCents={room.crcd.contributedCents}
           limitCents={room.crcd.limitCents}
           locale={locale}
+          maxedLabel={t("maxed")}
         />
       </div>
+
+      {/* Room-left callout */}
+      {roomLeftCents > 0 && (
+        <div className="mt-4 rounded-lg bg-accent px-3.5 py-3">
+          <p className="text-xs text-accent-foreground">
+            {t("roomLeft", { amount: formatMoney(roomLeftCents, locale) })}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -72,33 +88,35 @@ function RoomRow({
   contributedCents,
   limitCents,
   locale,
+  maxedLabel,
 }: {
   label: string;
   contributedCents: number;
   limitCents: number;
   locale: string;
+  maxedLabel: string;
 }) {
-  const contributedPct = limitCents > 0 ? Math.min(100, Math.round((contributedCents / limitCents) * 100)) : 0;
+  const contributedPct =
+    limitCents > 0 ? Math.min(100, Math.round((contributedCents / limitCents) * 100)) : 0;
+  const maxed = limitCents > 0 && contributedCents >= limitCents;
 
-  const barColor =
-    contributedPct >= 90
-      ? "bg-gain"
-      : contributedPct >= 50
-        ? "bg-warning"
-        : "bg-chart-1";
+  const barColor = contributedPct >= 90 ? "bg-gain" : contributedPct >= 50 ? "bg-warning" : "bg-chart-1";
 
   return (
-    <div className="flex items-center gap-3 text-sm">
-      <span className="w-14 shrink-0 text-muted-foreground">{label}</span>
-      <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-muted">
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between text-sm">
+        <span className="font-medium">{label}</span>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {formatMoney(contributedCents, locale)} / {formatMoney(limitCents, locale)}
+          {maxed && ` · ${maxedLabel}`}
+        </span>
+      </div>
+      <div className="relative h-2 overflow-hidden rounded-full bg-muted">
         <div
           className={`h-full rounded-full transition-all ${barColor}`}
           style={{ width: `${contributedPct}%` }}
         />
       </div>
-      <span className="shrink-0 text-xs text-muted-foreground">
-        {formatMoney(contributedCents, locale)} / {formatMoney(limitCents, locale)}
-      </span>
     </div>
   );
 }
