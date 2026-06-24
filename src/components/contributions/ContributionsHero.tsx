@@ -70,7 +70,7 @@ export function ContributionsHero({ currentRow, locale, onUpdate }: Contribution
   return (
     <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
       {/* Left: savings-goal card */}
-      <div className="rounded-xl border bg-card p-6 shadow-sm">
+      <div className="rounded-xl border bg-card p-5 shadow-sm">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -166,7 +166,7 @@ export function ContributionsHero({ currentRow, locale, onUpdate }: Contribution
       </div>
 
       {/* Right: registered room still open */}
-      <div className="flex flex-col justify-center rounded-xl border border-primary/25 bg-primary/[0.05] p-6">
+      <div className="flex flex-col justify-center rounded-xl border border-primary/25 bg-primary/[0.05] p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
           {t("roomStillOpen")}
         </p>
@@ -187,9 +187,17 @@ export function ContributionsHero({ currentRow, locale, onUpdate }: Contribution
           <span className="text-[11px] leading-tight text-muted-foreground">
             {t("updatesAutomatically")}
           </span>
-          <span className="whitespace-nowrap text-xs font-semibold text-primary">
+          <button
+            type="button"
+            onClick={() =>
+              document
+                .getElementById("contribution-room-cards")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+            className="whitespace-nowrap text-xs font-semibold text-primary hover:underline"
+          >
             {t("adjustLimits")} →
-          </span>
+          </button>
         </div>
       </div>
     </div>

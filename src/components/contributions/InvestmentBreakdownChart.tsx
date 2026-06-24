@@ -17,9 +17,14 @@ import {
 interface InvestmentBreakdownChartProps {
   rows: ContributionYearRow[];
   locale: string;
+  headerAction?: React.ReactNode;
 }
 
-export function InvestmentBreakdownChart({ rows, locale }: InvestmentBreakdownChartProps) {
+export function InvestmentBreakdownChart({
+  rows,
+  locale,
+  headerAction,
+}: InvestmentBreakdownChartProps) {
   const t = useTranslations("contributions");
 
   const data = rows.map((r) => ({
@@ -44,25 +49,28 @@ export function InvestmentBreakdownChart({ rows, locale }: InvestmentBreakdownCh
   );
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
-      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm font-medium">{t("investmentBreakdown")}</p>
-        {hasData && (
-          <p className="text-xs text-muted-foreground">
-            {t("investedSince", {
-              total: formatMoney(totalInvestedCents, locale),
-              year: firstYear,
-            })}{" "}
-            · {t("goalLine")}
-          </p>
-        )}
+    <div className="rounded-xl border bg-card p-5 shadow-sm">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <p className="text-sm font-medium">{t("investmentBreakdown")}</p>
+          {hasData && (
+            <p className="text-xs text-muted-foreground">
+              {t("investedSince", {
+                total: formatMoney(totalInvestedCents, locale),
+                year: firstYear,
+              })}{" "}
+              · {t("goalLine")}
+            </p>
+          )}
+        </div>
+        {headerAction}
       </div>
       {!hasData ? (
-        <p className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+        <p className="flex h-52 items-center justify-center text-sm text-muted-foreground">
           {t("noInvestmentData")}
         </p>
       ) : (
-        <div className="h-72">
+        <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
               <XAxis

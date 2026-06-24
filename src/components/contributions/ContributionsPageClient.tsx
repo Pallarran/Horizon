@@ -32,7 +32,7 @@ export function ContributionsPageClient({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Hero: savings goal + registered room still open */}
       {currentRow && (
         <ContributionsHero
@@ -52,27 +52,28 @@ export function ContributionsPageClient({
         />
       )}
 
-      {/* Contribution history chart */}
-      <InvestmentBreakdownChart rows={rows} locale={locale} />
+      {/* Contribution history chart, with the full-table toggle in its header */}
+      <InvestmentBreakdownChart
+        rows={rows}
+        locale={locale}
+        headerAction={
+          <button
+            type="button"
+            onClick={() => setTableOpen((o) => !o)}
+            className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+          >
+            {t("viewFullTable")}
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${tableOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+        }
+      />
 
-      {/* Full editable history table behind a disclosure */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setTableOpen((o) => !o)}
-          className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
-        >
-          {t("viewFullTable")}
-          <ChevronDown
-            className={`h-4 w-4 transition-transform ${tableOpen ? "rotate-180" : ""}`}
-          />
-        </button>
-        {tableOpen && (
-          <div className="mt-4">
-            <ContributionHistoryTable rows={rows} locale={locale} onUpdate={handleUpdate} />
-          </div>
-        )}
-      </div>
+      {/* Full editable history table behind the toggle */}
+      {tableOpen && (
+        <ContributionHistoryTable rows={rows} locale={locale} onUpdate={handleUpdate} />
+      )}
     </div>
   );
 }
