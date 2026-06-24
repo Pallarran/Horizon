@@ -4,7 +4,6 @@ import { useState, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { SlidersHorizontalIcon, XIcon, LayersIcon, CheckIcon } from "lucide-react";
 import type { SerializedPosition } from "@/lib/positions/serialize";
 import type { SecurityProfileMap } from "@/lib/positions/security-profile";
 import type { SerializedCrcdHolding } from "@/lib/actions/crcd-holdings";
@@ -14,37 +13,15 @@ import {
 } from "@/lib/actions/watchlist";
 import { HoldingsTable } from "./HoldingsTable";
 import { HoldingsSummaryBand } from "./HoldingsSummaryBand";
-import { HoldingsFacetRail } from "./HoldingsFacetRail";
+import { HoldingsFacetBar } from "./HoldingsFacetBar";
 import { PositionDetailSheet } from "./PositionDetailSheet";
 import { TransactionForm } from "./TransactionForm";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface Account {
   id: string;
@@ -123,8 +100,6 @@ export function HoldingsPageClient({ positions, accounts, securityProfiles, loca
   const [filterAssetClass, setFilterAssetClass] = useState("all");
   const [filterCurrency, setFilterCurrency] = useState("all");
   const [filterIndustry, setFilterIndustry] = useState("all");
-  const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
-  const [groupByOpen, setGroupByOpen] = useState(false);
 
   // Grouping — default to account grouping (the power-table groups by default)
   type GroupByMode = "none" | "account" | "sector" | "assetClass";
@@ -245,13 +220,6 @@ export function HoldingsPageClient({ positions, accounts, securityProfiles, loca
     filterCurrency !== "all" ||
     filterIndustry !== "all";
 
-  const activeFilterCount = [
-    filterAccount !== "all",
-    filterAssetClass !== "all",
-    filterCurrency !== "all",
-    filterIndustry !== "all",
-  ].filter(Boolean).length;
-
   function resetFilters() {
     setSearchQuery("");
     setFilterAccount("all");
@@ -270,194 +238,36 @@ export function HoldingsPageClient({ positions, accounts, securityProfiles, loca
         byAccount={metrics.byAccount}
       />
 
-      <div className="lg:grid lg:grid-cols-[212px_1fr] lg:items-start lg:gap-4">
-        {/* Desktop facet rail */}
-        <HoldingsFacetRail
-          className="hidden lg:block"
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          groupBy={groupBy}
-          onGroupByChange={handleGroupByChange}
-          accounts={accounts}
-          assetClasses={assetClasses}
-          currencies={currencies}
-          industries={industries}
-          filterAccount={filterAccount}
-          setFilterAccount={setFilterAccount}
-          filterAssetClass={filterAssetClass}
-          setFilterAssetClass={setFilterAssetClass}
-          filterCurrency={filterCurrency}
-          setFilterCurrency={setFilterCurrency}
-          filterIndustry={filterIndustry}
-          setFilterIndustry={setFilterIndustry}
-          isFiltered={isFiltered}
-          resetFilters={resetFilters}
-        />
+      {/* Horizontal facet bar — search, group-by, filters above the table */}
+      <HoldingsFacetBar
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        groupBy={groupBy}
+        onGroupByChange={handleGroupByChange}
+        accounts={accounts}
+        assetClasses={assetClasses}
+        currencies={currencies}
+        industries={industries}
+        filterAccount={filterAccount}
+        setFilterAccount={setFilterAccount}
+        filterAssetClass={filterAssetClass}
+        setFilterAssetClass={setFilterAssetClass}
+        filterCurrency={filterCurrency}
+        setFilterCurrency={setFilterCurrency}
+        filterIndustry={filterIndustry}
+        setFilterIndustry={setFilterIndustry}
+        isFiltered={isFiltered}
+        resetFilters={resetFilters}
+      />
 
-        <div className="min-w-0 space-y-4">
-      {/* Mobile/tablet toolbar: Search + Group by + Filters */}
-      <div className="flex items-center gap-3 lg:hidden">
-        <Input
-          type="search"
-          placeholder={t("searchHoldings")}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="min-w-0 flex-1 sm:max-w-[260px]"
-        />
-
-        {/* Group by popover */}
-        <Popover open={groupByOpen} onOpenChange={setGroupByOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="hidden shrink-0 sm:inline-flex">
-              <LayersIcon className="size-4" />
-              {groupBy !== "none"
-                ? t(`groupBy${groupBy.charAt(0).toUpperCase()}${groupBy.slice(1)}` as Parameters<typeof t>[0])
-                : t("groupBy")}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-44 p-1">
-            {(["none", "account", "sector", "assetClass"] as const).map((value) => {
-              const label = value === "none"
-                ? t("groupByNone")
-                : t(`groupBy${value.charAt(0).toUpperCase()}${value.slice(1)}` as Parameters<typeof t>[0]);
-              const active = groupBy === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => { handleGroupByChange(value); setGroupByOpen(false); }}
-                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent ${active ? "font-medium" : ""}`}
-                >
-                  <CheckIcon className={`size-3.5 shrink-0 ${active ? "opacity-100" : "opacity-0"}`} />
-                  {label}
-                </button>
-              );
-            })}
-          </PopoverContent>
-        </Popover>
-
-        {/* Desktop: Popover filters */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="hidden shrink-0 sm:inline-flex">
-              <SlidersHorizontalIcon className="size-4" />
-              {activeFilterCount > 0
-                ? t("filtersCount", { count: activeFilterCount })
-                : t("filters")}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-80">
-            <HoldingsFilterForm
-              t={t}
-              accounts={accounts}
-              assetClasses={assetClasses}
-              currencies={currencies}
-              industries={industries}
-              filterAccount={filterAccount}
-              setFilterAccount={setFilterAccount}
-              filterAssetClass={filterAssetClass}
-              setFilterAssetClass={setFilterAssetClass}
-              filterCurrency={filterCurrency}
-              setFilterCurrency={setFilterCurrency}
-              filterIndustry={filterIndustry}
-              setFilterIndustry={setFilterIndustry}
-              isFiltered={isFiltered}
-              resetFilters={resetFilters}
-            />
-          </PopoverContent>
-        </Popover>
-
-        {/* Mobile: Sheet filters */}
-        <Button
-          variant="outline"
-          size="icon-sm"
-          className="relative shrink-0 sm:hidden"
-          onClick={() => setFiltersSheetOpen(true)}
-        >
-          <SlidersHorizontalIcon className="size-4" />
-          {activeFilterCount > 0 && (
-            <span className="absolute -right-1 -top-1 size-2 rounded-full bg-primary" />
-          )}
-        </Button>
-        <Sheet open={filtersSheetOpen} onOpenChange={setFiltersSheetOpen}>
-          <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>{t("filters")}</SheetTitle>
-            </SheetHeader>
-            <div className="px-4 pb-4">
-              <HoldingsFilterForm
-                t={t}
-                accounts={accounts}
-                assetClasses={assetClasses}
-                currencies={currencies}
-                industries={industries}
-                filterAccount={filterAccount}
-                setFilterAccount={setFilterAccount}
-                filterAssetClass={filterAssetClass}
-                setFilterAssetClass={setFilterAssetClass}
-                filterCurrency={filterCurrency}
-                setFilterCurrency={setFilterCurrency}
-                filterIndustry={filterIndustry}
-                setFilterIndustry={setFilterIndustry}
-                isFiltered={isFiltered}
-                resetFilters={resetFilters}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-
-      {/* Active filter chips (mobile/tablet — desktop shows state in the rail) */}
-      {activeFilterCount > 0 && (
-        <div className="flex flex-wrap items-center gap-2 lg:hidden">
-          {filterAccount !== "all" && (
-            <Badge variant="secondary" className="gap-1 pr-1">
-              {accounts.find((a) => a.id === filterAccount)?.name}
-              <button type="button" onClick={() => setFilterAccount("all")} className="ml-0.5 rounded-sm hover:text-foreground">
-                <XIcon className="size-3" />
-              </button>
-            </Badge>
-          )}
-          {filterAssetClass !== "all" && (
-            <Badge variant="secondary" className="gap-1 pr-1">
-              {t(`assetClass${filterAssetClass}` as Parameters<typeof t>[0])}
-              <button type="button" onClick={() => setFilterAssetClass("all")} className="ml-0.5 rounded-sm hover:text-foreground">
-                <XIcon className="size-3" />
-              </button>
-            </Badge>
-          )}
-          {filterCurrency !== "all" && (
-            <Badge variant="secondary" className="gap-1 pr-1">
-              {filterCurrency}
-              <button type="button" onClick={() => setFilterCurrency("all")} className="ml-0.5 rounded-sm hover:text-foreground">
-                <XIcon className="size-3" />
-              </button>
-            </Badge>
-          )}
-          {filterIndustry !== "all" && (
-            <Badge variant="secondary" className="gap-1 pr-1">
-              {filterIndustry}
-              <button type="button" onClick={() => setFilterIndustry("all")} className="ml-0.5 rounded-sm hover:text-foreground">
-                <XIcon className="size-3" />
-              </button>
-            </Badge>
-          )}
-          <Button variant="ghost" size="xs" onClick={resetFilters}>
-            {t("clearAll")}
-          </Button>
-        </div>
-      )}
-
-          {/* Holdings table */}
-          <HoldingsTable
-            positions={filtered}
-            locale={locale}
-            totalMarketValueCents={metrics.marketValue}
-            onSelectPosition={setSelectedPosition}
-            groupBy={groupBy !== "none" ? groupBy : undefined}
-          />
-        </div>
-      </div>
+      {/* Holdings table */}
+      <HoldingsTable
+        positions={filtered}
+        locale={locale}
+        totalMarketValueCents={metrics.marketValue}
+        onSelectPosition={setSelectedPosition}
+        groupBy={groupBy !== "none" ? groupBy : undefined}
+      />
 
       {/* Position detail sheet */}
       <PositionDetailSheet
@@ -489,119 +299,6 @@ export function HoldingsPageClient({ positions, accounts, securityProfiles, loca
           />
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-
-function HoldingsFilterForm({
-  t,
-  accounts,
-  assetClasses,
-  currencies,
-  industries,
-  filterAccount,
-  setFilterAccount,
-  filterAssetClass,
-  setFilterAssetClass,
-  filterCurrency,
-  setFilterCurrency,
-  filterIndustry,
-  setFilterIndustry,
-  isFiltered,
-  resetFilters,
-}: {
-  t: ReturnType<typeof useTranslations<"holdings">>;
-  accounts: Account[];
-  assetClasses: string[];
-  currencies: string[];
-  industries: string[];
-  filterAccount: string;
-  setFilterAccount: (v: string) => void;
-  filterAssetClass: string;
-  setFilterAssetClass: (v: string) => void;
-  filterCurrency: string;
-  setFilterCurrency: (v: string) => void;
-  filterIndustry: string;
-  setFilterIndustry: (v: string) => void;
-  isFiltered: boolean;
-  resetFilters: () => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <div>
-        <Label className="mb-1.5 text-xs">{t("account")}</Label>
-        <Select value={filterAccount} onValueChange={setFilterAccount}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allAccounts")}</SelectItem>
-            {accounts.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label className="mb-1.5 text-xs">{t("assetClass")}</Label>
-        <Select value={filterAssetClass} onValueChange={setFilterAssetClass}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allAssetClasses")}</SelectItem>
-            {assetClasses.map((ac) => (
-              <SelectItem key={ac} value={ac}>
-                {t(`assetClass${ac}` as Parameters<typeof t>[0])}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label className="mb-1.5 text-xs">{t("currency")}</Label>
-        <Select value={filterCurrency} onValueChange={setFilterCurrency}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allCurrencies")}</SelectItem>
-            {currencies.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label className="mb-1.5 text-xs">{t("industry")}</Label>
-        <Select value={filterIndustry} onValueChange={setFilterIndustry}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("allIndustries")}</SelectItem>
-            {industries.map((ind) => (
-              <SelectItem key={ind} value={ind}>
-                {ind}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {isFiltered && (
-        <Button variant="ghost" size="sm" className="w-full" onClick={resetFilters}>
-          {t("clearAll")}
-        </Button>
-      )}
     </div>
   );
 }
